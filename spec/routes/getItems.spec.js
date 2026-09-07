@@ -6,7 +6,12 @@ jest.unstable_mockModule('../../src/persistence/index.js', () => persistence);
 
 const { default: getItems } = await import('../../src/routes/getItems.js');
 const { getItems: _getItems } = persistence;
+const db = persistence;
 const ITEMS = [{ id: 12345 }];
+
+beforeEach(() => {
+    jest.clearAllMocks();
+});
 
 test('it gets items correctly', async () => {
     const req = {};

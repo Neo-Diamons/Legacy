@@ -2,6 +2,7 @@ import { existsSync, unlinkSync } from 'fs';
 const location = process.env.SQLITE_DB_LOCATION || '/etc/todos/todo.db';
 
 import sqlite from '../../src/persistence/sqlite.js';
+const db = sqlite;
 
 const {
     init,
@@ -26,7 +27,13 @@ beforeEach(() => {
 });
 
 afterEach(async () => {
-    await teardown();
+    try {
+        await teardown();
+    } catch (error) {
+        if (error.code !== 'SQLITE_MISUSE') {
+            throw error;
+        }
+    }
 });
 
 test('it initializes correctly', async () => {

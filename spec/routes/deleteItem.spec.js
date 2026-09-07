@@ -6,7 +6,12 @@ jest.unstable_mockModule('../../src/persistence/index.js', () => persistence);
 
 const { default: deleteItem } = await import('../../src/routes/deleteItem.js');
 const { removeItem: _removeItem } = persistence;
+const db = persistence;
 const ITEM = { id: 12345 };
+
+beforeEach(() => {
+    jest.clearAllMocks();
+});
 
 test('it removes item correctly', async () => {
     const req = { params: { id: 12345 } };
