@@ -1,8 +1,8 @@
-# TodoList → Kanban Rework
+# TodoList
  
 ## Project Summary
  
-This project takes the existing [`docker/getting-started-app`](https://github.com/docker/getting-started-app) TodoList application and reworks it into a maintainable, scalable, production-ready **Kanban-style task management app**.
+This project is based on the existing [`docker/getting-started-app`](https://github.com/docker/getting-started-app) TodoList application.
  
 Core capabilities being built:
  
@@ -19,7 +19,7 @@ The team works in Scrum, with a prioritised backlog (MoSCoW) split across three 
  
 ## Tech Stack
  
-- **Node.js** / **npm**
+- See project Wiki [`here`](https://github.com/EpitechPGE45-2026/G-ING-900-PAR-9-1-legacy-9/wiki)
 
 ---
  
