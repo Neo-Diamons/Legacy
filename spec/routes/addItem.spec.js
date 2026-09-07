@@ -1,30 +1,106 @@
-const db = require('../../src/persistence');
-const addItem = require('../../src/routes/addItem');
-const ITEM = { id: 12345 };
-const {v4 : uuid} = require('uuid');
+import { jest } from '@jest/globals';
 
-jest.mock('uuid', () => ({ v4: jest.fn() }));
+const persistence = { storeItem: jest.fn() };
+const uuid = jest.fn();
 
-jest.mock('../../src/persistence', () => ({
-    removeItem: jest.fn(),
-    storeItem: jest.fn(),
-    getItem: jest.fn(),
-}));
+jest.unstable_mockModule('../../src/persistence/index.js', () => persistence);
+jest.unstable_mockModule('uuid', () => ({ v4: uuid }));
+
+const { default: addItem } = await import('../../src/routes/addItem.js');
+const { storeItem: _storeItem } = persistence;
+const db = persistence;
+
+beforeEach(() => {
+  jest.clearAllMocks();
+});
 
 test('it stores item correctly', async () => {
-    const id = 'something-not-a-uuid';
-    const name = 'A sample item';
-    const req = { body: { name } };
-    const res = { send: jest.fn() };
+  const id = 'something-not-a-uuid';
+  const name = 'A sample item';
+  const req = { body: { name } };
+  const res = { send: jest.fn() };
 
-    uuid.mockReturnValue(id);
+  uuid.mockReturnValue(id);
 
-    await addItem(req, res);
+  await addItem(req, res);
 
-    const expectedItem = { id, name, completed: false };
+  const expectedItem = { id, name, completed: false };
 
-    expect(db.storeItem.mock.calls.length).toBe(1);
-    expect(db.storeItem.mock.calls[0][0]).toEqual(expectedItem);
-    expect(res.send.mock.calls[0].length).toBe(1);
-    expect(res.send.mock.calls[0][0]).toEqual(expectedItem);
+  expect(_storeItem.mock.calls.length).toBe(1);
+  expect(_storeItem.mock.calls[0][0]).toEqual(expectedItem);
+  expect(res.send.mock.calls[0].length).toBe(1);
+  expect(res.send.mock.calls[0][0]).toEqual(expectedItem);
+});
+
+test('it can create an item with an empty name', async () => {
+  const id = 'empty-name-id';
+  const req = { body: { name: '' } };
+  const res = { send: jest.fn() };
+
+  uuid.mockReturnValue(id);
+
+  await addItem(req, res);
+
+  expect(db.storeItem).toHaveBeenCalledWith({
+    id,
+    name: '',
+    completed: false,
+  });
+
+  expect(res.send).toHaveBeenCalledWith({
+    id,
+    name: '',
+    completed: false,
+  });
+});
+
+test('it can create an item with a long name', async () => {
+  const id = 'long-name-id';
+  const name = 'A'.repeat(500);
+  const req = { body: { name } };
+  const res = { send: jest.fn() };
+
+  uuid.mockReturnValue(id);
+
+  await addItem(req, res);
+
+  expect(db.storeItem).toHaveBeenCalledWith({
+    id,
+    name,
+    completed: false,
+  });
+});
+
+test('it can create an item with special characters', async () => {
+  const id = 'special-character-id';
+  const name = 'Test @#$%éà !?';
+  const req = { body: { name } };
+  const res = { send: jest.fn() };
+
+  uuid.mockReturnValue(id);
+
+  await addItem(req, res);
+
+  expect(db.storeItem).toHaveBeenCalledWith({
+    id,
+    name,
+    completed: false,
+  });
+});
+
+test('it can create an item with spaces in the name', async () => {
+  const id = 'spaces-id';
+  const name = '   Test item   ';
+  const req = { body: { name } };
+  const res = { send: jest.fn() };
+
+  uuid.mockReturnValue(id);
+
+  await addItem(req, res);
+
+  expect(db.storeItem).toHaveBeenCalledWith({
+    id,
+    name,
+    completed: false,
+  });
 });
