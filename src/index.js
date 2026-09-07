@@ -1,4 +1,4 @@
-import express, { json,  static as serveStatic } from 'express';
+import express, { json, static as serveStatic } from 'express';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 const app = express();
@@ -18,17 +18,19 @@ app.post('/items', addItem);
 app.put('/items/:id', updateItem);
 app.delete('/items/:id', deleteItem);
 
-init().then(() => {
+init()
+  .then(() => {
     app.listen(3000, () => console.log('Listening on port 3000'));
-}).catch((err) => {
+  })
+  .catch((err) => {
     console.error(err);
     process.exit(1);
-});
+  });
 
 const gracefulShutdown = () => {
-    teardown()
-        .catch(() => {})
-        .then(() => process.exit());
+  teardown()
+    .catch(() => {})
+    .then(() => process.exit());
 };
 
 process.on('SIGINT', gracefulShutdown);
