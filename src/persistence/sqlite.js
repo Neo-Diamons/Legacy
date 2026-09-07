@@ -1,11 +1,15 @@
-const sqlite3 = require('sqlite3').verbose();
-const fs = require('fs');
+import sqlite3 from 'sqlite3';
+import fs from 'fs';
+import path from 'path';
+
+let db = sqlite3.verbose();
+
 const location = process.env.SQLITE_DB_LOCATION || '/etc/todos/todo.db';
 
-let db, dbAll, dbRun;
+let dbAll, dbRun;
 
 function init() {
-    const dirName = require('path').dirname(location);
+    const dirName = path.dirname(location);
     if (!fs.existsSync(dirName)) {
         fs.mkdirSync(dirName, { recursive: true });
     }
@@ -102,7 +106,7 @@ async function removeItem(id) {
     });
 }
 
-module.exports = {
+export default {
     init,
     teardown,
     getItems,

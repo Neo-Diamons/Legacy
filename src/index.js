@@ -1,20 +1,24 @@
-const express = require('express');
+import express, { json,  static as serveStatic } from 'express';
+import { dirname, join } from 'path';
+import { fileURLToPath } from 'url';
 const app = express();
-const db = require('./persistence');
-const getItems = require('./routes/getItems');
-const addItem = require('./routes/addItem');
-const updateItem = require('./routes/updateItem');
-const deleteItem = require('./routes/deleteItem');
+import { init, teardown } from './persistence/index.js';
+import getItems from './routes/getItems.js';
+import addItem from './routes/addItem.js';
+import updateItem from './routes/updateItem.js';
+import deleteItem from './routes/deleteItem.js';
 
-app.use(express.json());
-app.use(express.static(__dirname + '/static'));
+const __dirname = dirname(fileURLToPath(import.meta.url));
+
+app.use(json());
+app.use(serveStatic(join(__dirname, 'static')));
 
 app.get('/items', getItems);
 app.post('/items', addItem);
 app.put('/items/:id', updateItem);
 app.delete('/items/:id', deleteItem);
 
-db.init().then(() => {
+init().then(() => {
     app.listen(3000, () => console.log('Listening on port 3000'));
 }).catch((err) => {
     console.error(err);
@@ -22,7 +26,7 @@ db.init().then(() => {
 });
 
 const gracefulShutdown = () => {
-    db.teardown()
+    teardown()
         .catch(() => {})
         .then(() => process.exit());
 };

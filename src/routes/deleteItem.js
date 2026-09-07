@@ -1,6 +1,6 @@
-const db = require('../persistence');
+import { removeItem } from '../persistence/index.js';
 
-module.exports = async (req, res) => {
-    await db.removeItem(req.params.id);
+export default async (req, res) => {
+    await removeItem(req.params.id);
     res.sendStatus(200);
 };

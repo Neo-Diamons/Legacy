@@ -1,10 +1,10 @@
-const db = require('../persistence');
+import { updateItem, getItem } from '../persistence/index.js';
 
-module.exports = async (req, res) => {
-    await db.updateItem(req.params.id, {
+export default async (req, res) => {
+    await updateItem(req.params.id, {
         name: req.body.name,
         completed: req.body.completed,
     });
-    const item = await db.getItem(req.params.id);
+    const item = await getItem(req.params.id);
     res.send(item);
 };

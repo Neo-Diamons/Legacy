@@ -1,6 +1,6 @@
-const waitPort = require('wait-port');
-const fs = require('fs');
-const mysql = require('mysql2');
+import waitPort from 'wait-port';
+import { readFileSync } from 'fs';
+import { createPool } from 'mysql2';
 
 const {
     MYSQL_HOST: HOST,
@@ -16,10 +16,10 @@ const {
 let pool;
 
 async function init() {
-    const host = HOST_FILE ? fs.readFileSync(HOST_FILE) : HOST;
-    const user = USER_FILE ? fs.readFileSync(USER_FILE) : USER;
-    const password = PASSWORD_FILE ? fs.readFileSync(PASSWORD_FILE) : PASSWORD;
-    const database = DB_FILE ? fs.readFileSync(DB_FILE) : DB;
+    const host = HOST_FILE ? readFileSync(HOST_FILE) : HOST;
+    const user = USER_FILE ? readFileSync(USER_FILE) : USER;
+    const password = PASSWORD_FILE ? readFileSync(PASSWORD_FILE) : PASSWORD;
+    const database = DB_FILE ? readFileSync(DB_FILE) : DB;
 
     await waitPort({ 
         host, 
@@ -28,7 +28,7 @@ async function init() {
         waitForDns: true,
     });
 
-    pool = mysql.createPool({
+    pool = createPool({
         connectionLimit: 5,
         host,
         user,
@@ -124,7 +124,7 @@ async function removeItem(id) {
     });
 }
 
-module.exports = {
+export default {
     init,
     teardown,
     getItems,
