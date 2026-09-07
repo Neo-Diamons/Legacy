@@ -43,3 +43,8 @@ jobs:
         run: npm run test
         env:
           SQLITE_DB_LOCATION: file:test.db
+      - name: Format check
+        run: npm run format:check
+
+      - name: Lint
+        run: npm run lint
