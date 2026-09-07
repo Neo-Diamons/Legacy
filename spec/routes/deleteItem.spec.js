@@ -19,3 +19,43 @@ test('it removes item correctly', async () => {
     expect(res.sendStatus.mock.calls[0].length).toBe(1);
     expect(res.sendStatus.mock.calls[0][0]).toBe(200);
 });
+
+test('it removes item with a string id', async () => {
+    const req = { params: { id: 'abc-123' } };
+    const res = { sendStatus: jest.fn() };
+
+    await deleteItem(req, res);
+
+    expect(db.removeItem).toHaveBeenCalledWith('abc-123');
+    expect(res.sendStatus).toHaveBeenCalledWith(200);
+});
+
+test('it removes item with an empty id', async () => {
+    const req = { params: { id: '' } };
+    const res = { sendStatus: jest.fn() };
+
+    await deleteItem(req, res);
+
+    expect(db.removeItem).toHaveBeenCalledWith('');
+    expect(res.sendStatus).toHaveBeenCalledWith(200);
+});
+
+test('it removes item with a long id', async () => {
+    const id = 'a'.repeat(500);
+    const req = { params: { id } };
+    const res = { sendStatus: jest.fn() };
+
+    await deleteItem(req, res);
+
+    expect(db.removeItem).toHaveBeenCalledWith(id);
+    expect(res.sendStatus).toHaveBeenCalledWith(200);
+});
+
+test('it only calls removeItem once', async () => {
+    const req = { params: { id: 12345 } };
+    const res = { sendStatus: jest.fn() };
+
+    await deleteItem(req, res);
+
+    expect(db.removeItem).toHaveBeenCalledTimes(1);
+});

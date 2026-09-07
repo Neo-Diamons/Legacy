@@ -78,3 +78,125 @@ test('it can get a single item', async () => {
     const item = await getItem(ITEM.id);
     expect(item).toEqual(ITEM);
 });
+
+test('it can store an item with an empty name', async () => {
+    await db.init();
+
+    const item = {
+        id: 'empty-name-id',
+        name: '',
+        completed: false,
+    };
+
+    await db.storeItem(item);
+
+    const result = await db.getItem(item.id);
+
+    expect(result).toEqual(item);
+});
+
+test('it can store an item with a very long name', async () => {
+    await db.init();
+
+    const item = {
+        id: 'long-name-id',
+        name: 'A'.repeat(1000),
+        completed: false,
+    };
+
+    await db.storeItem(item);
+
+    const result = await db.getItem(item.id);
+
+    expect(result).toEqual(item);
+});
+
+test('it can store a completed item', async () => {
+    await db.init();
+
+    const item = {
+        id: 'completed-id',
+        name: 'Already completed',
+        completed: true,
+    };
+
+    await db.storeItem(item);
+
+    const result = await db.getItem(item.id);
+
+    expect(result).toEqual(item);
+});
+
+test('it returns no item for an unknown id', async () => {
+    await db.init();
+
+    const result = await db.getItem('this-id-does-not-exist');
+
+    expect(result).toBeUndefined();
+});
+
+test('it can store multiple items', async () => {
+    await db.init();
+
+    const item2 = {
+        id: 'second-id',
+        name: 'Second item',
+        completed: true,
+    };
+
+    await db.storeItem(ITEM);
+    await db.storeItem(item2);
+
+    const items = await db.getItems();
+
+    expect(items.length).toBe(2);
+    expect(items).toContainEqual(ITEM);
+    expect(items).toContainEqual(item2);
+});
+
+test('it only updates the selected item', async () => {
+    await db.init();
+
+    const item2 = {
+        id: 'second-item-id',
+        name: 'Second item',
+        completed: false,
+    };
+
+    await db.storeItem(ITEM);
+    await db.storeItem(item2);
+
+    await db.updateItem(
+        ITEM.id,
+        Object.assign({}, ITEM, { completed: true }),
+    );
+
+    const items = await db.getItems();
+
+    expect(items).toContainEqual({
+        ...ITEM,
+        completed: true,
+    });
+
+    expect(items).toContainEqual(item2);
+});
+
+test('it only removes the selected item', async () => {
+    await db.init();
+
+    const item2 = {
+        id: 'second-item-id',
+        name: 'Second item',
+        completed: false,
+    };
+
+    await db.storeItem(ITEM);
+    await db.storeItem(item2);
+
+    await db.removeItem(ITEM.id);
+
+    const items = await db.getItems();
+
+    expect(items.length).toBe(1);
+    expect(items[0]).toEqual(item2);
+});

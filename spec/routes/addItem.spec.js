@@ -27,3 +27,76 @@ test('it stores item correctly', async () => {
     expect(res.send.mock.calls[0].length).toBe(1);
     expect(res.send.mock.calls[0][0]).toEqual(expectedItem);
 });
+
+test('it can create an item with an empty name', async () => {
+    const id = 'empty-name-id';
+    const req = { body: { name: '' } };
+    const res = { send: jest.fn() };
+
+    uuid.mockReturnValue(id);
+
+    await addItem(req, res);
+
+    expect(db.storeItem).toHaveBeenCalledWith({
+        id,
+        name: '',
+        completed: false,
+    });
+
+    expect(res.send).toHaveBeenCalledWith({
+        id,
+        name: '',
+        completed: false,
+    });
+});
+
+test('it can create an item with a long name', async () => {
+    const id = 'long-name-id';
+    const name = 'A'.repeat(500);
+    const req = { body: { name } };
+    const res = { send: jest.fn() };
+
+    uuid.mockReturnValue(id);
+
+    await addItem(req, res);
+
+    expect(db.storeItem).toHaveBeenCalledWith({
+        id,
+        name,
+        completed: false,
+    });
+});
+
+test('it can create an item with special characters', async () => {
+    const id = 'special-character-id';
+    const name = 'Test @#$%éà !?';
+    const req = { body: { name } };
+    const res = { send: jest.fn() };
+
+    uuid.mockReturnValue(id);
+
+    await addItem(req, res);
+
+    expect(db.storeItem).toHaveBeenCalledWith({
+        id,
+        name,
+        completed: false,
+    });
+});
+
+test('it can create an item with spaces in the name', async () => {
+    const id = 'spaces-id';
+    const name = '   Test item   ';
+    const req = { body: { name } };
+    const res = { send: jest.fn() };
+
+    uuid.mockReturnValue(id);
+
+    await addItem(req, res);
+
+    expect(db.storeItem).toHaveBeenCalledWith({
+        id,
+        name,
+        completed: false,
+    });
+});
