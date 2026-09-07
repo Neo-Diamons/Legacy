@@ -3856,11 +3856,11 @@ function runModifiers(modifiers, data, ends) {
   var modifiersToRun = ends === undefined ? modifiers : modifiers.slice(0, findIndex(modifiers, 'name', ends));
   modifiersToRun.forEach(function (modifier) {
     if (modifier['function']) {
-      // eslint-disable-line dot-notation
+       
       console.warn('`modifier.function` is deprecated, use `modifier.fn`!');
     }
 
-    var fn = modifier['function'] || modifier.fn; // eslint-disable-line dot-notation
+    var fn = modifier['function'] || modifier.fn;  
 
     if (modifier.enabled && isFunction(fn)) {
       // Add properties to offsets to make them a complete clientRect object
@@ -8170,7 +8170,7 @@ function deprecated(validator, reason) {
     return validator.apply(undefined, [props, propName, componentName, location, propFullName].concat(args));
   };
 }
-/* eslint-disable no-underscore-dangle */
+ 
 
 
 function _resetWarned() {
@@ -8178,7 +8178,7 @@ function _resetWarned() {
 }
 
 deprecated._resetWarned = _resetWarned;
-/* eslint-enable no-underscore-dangle */
+ 
 
 module.exports = exports['default'];
 
@@ -9310,7 +9310,7 @@ var Transition_default = /*#__PURE__*/__webpack_require__.n(react_transition_gro
 // reading a dimension prop will cause the browser to recalculate,
 // which will let our animations work
 function triggerBrowserReflow(node) {
-  node.offsetHeight; // eslint-disable-line no-unused-expressions
+  node.offsetHeight;  
 }
 // CONCATENATED MODULE: ./src/utils/createChainedFunction.js
 /**
@@ -13572,7 +13572,7 @@ function (_React$Component) {
         props = _objectWithoutPropertiesLoose(_this$props2, ["bsPrefix", "active", "disabled", "className", "variant", "action", "as", "eventKey"]);
 
     return external_root_React_commonjs2_react_commonjs_react_amd_react_default.a.createElement(src_AbstractNavItem, _extends({}, props, {
-      eventKey: makeEventKey(eventKey, props.href) // eslint-disable-next-line
+      eventKey: makeEventKey(eventKey, props.href)  
       ,
       as: as || (action ? props.href ? 'a' : 'button' : 'div'),
       onClick: this.handleClick,
@@ -14179,7 +14179,7 @@ var Modal_defaultProps = {
   dialogAs: src_ModalDialog,
   manager: new BootstrapModalManager_BootstrapModalManager()
 };
-/* eslint-disable no-use-before-define, react/no-multi-comp */
+/* eslint-disable react/no-multi-comp */
 
 function DialogTransition(props) {
   return external_root_React_commonjs2_react_commonjs_react_amd_react_default.a.createElement(src_Fade, _extends({}, props, {
@@ -14200,7 +14200,7 @@ function BackdropTransition(props) {
     __self: this
   }));
 }
-/* eslint-enable no-use-before-define */
+ 
 
 
 var Modal_Modal =

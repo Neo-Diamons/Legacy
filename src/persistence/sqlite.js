@@ -6,8 +6,6 @@ let db = sqlite3.verbose();
 
 const location = process.env.SQLITE_DB_LOCATION || '/etc/todos/todo.db';
 
-let dbAll, dbRun;
-
 function init() {
   const dirName = path.dirname(location);
   if (!fs.existsSync(dirName)) {
@@ -20,13 +18,10 @@ function init() {
 
       if (process.env.NODE_ENV !== 'test') console.log(`Using sqlite database at ${location}`);
 
-      db.run(
-        'CREATE TABLE IF NOT EXISTS todo_items (id varchar(36), name varchar(255), completed boolean)',
-        (err, result) => {
-          if (err) return rej(err);
-          acc();
-        }
-      );
+      db.run('CREATE TABLE IF NOT EXISTS todo_items (id varchar(36), name varchar(255), completed boolean)', (err) => {
+        if (err) return rej(err);
+        acc();
+      });
     });
   });
 }

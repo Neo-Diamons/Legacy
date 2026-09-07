@@ -9,7 +9,6 @@ jest.unstable_mockModule('uuid', () => ({ v4: uuid }));
 const { default: addItem } = await import('../../src/routes/addItem.js');
 const { storeItem: _storeItem } = persistence;
 const db = persistence;
-const ITEM = { id: 12345 };
 
 beforeEach(() => {
   jest.clearAllMocks();
