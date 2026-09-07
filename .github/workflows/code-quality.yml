@@ -1,0 +1,31 @@
+name: Code Quality
+
+permissions:
+  contents: read
+
+on:
+  pull_request:
+    paths-ignore:
+      - '**/*.mdx'
+      - '**/*.txt'
+      - '**/*.png'
+      - '**/*.jpg'
+      - '**/*.jpeg'
+      - '**/*.gif'
+      - '**/*.svg'
+      - '**/*.webp'
+
+concurrency:
+  group: code-quality-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Lint (prettier + eslint)
+        run: npm run lint
+
+      - name: Test
+        run: npm run lint
