@@ -47,12 +47,15 @@ Copy the example env file and fill in the values:
 cp .env.example .env
 ```
  
-| Variable | Description | Required? |
-|---|---|---|
-| `MYSQL_HOST` | MySQL host | Optional — if unset, the app falls back to a local SQLite database |
-| `MYSQL_USER` | MySQL user | Required only if `MYSQL_HOST` is set |
-| `MYSQL_PASSWORD` | MySQL password | Required only if `MYSQL_HOST` is set |
-| `MYSQL_DB` | MySQL database name | Required only if `MYSQL_HOST` is set |
+| Variable | Description |
+|---|---|
+| `SQLITE_DB_LOCATION` | Path on disk to the SQLite database file used when no MySQL host is configured. This is the app's default persistence mode — the file (and its parent directory) is created automatically on startup if it doesn't exist. Defaults to `/etc/todos/todo.db` if unset. |
+| `MYSQL_HOST` | Hostname of the MySQL server. Setting this switches persistence from SQLite to MySQL (see `src/persistence/index.js`) — if it's left unset, the app ignores the other `MYSQL_*` variables entirely and uses SQLite instead. |
+| `MYSQL_USER` | Username used to authenticate against the MySQL server. Only read when `MYSQL_HOST` is set. |
+| `MYSQL_PASSWORD` | Password used to authenticate against the MySQL server. Only read when `MYSQL_HOST` is set. |
+| `MYSQL_DB` | Name of the MySQL database/schema the app connects to. Only read when `MYSQL_HOST` is set. |
+ 
+> Each `MYSQL_*` variable also has a `_FILE` variant (e.g. `MYSQL_PASSWORD_FILE`), which points to a file containing the value instead of the value itself — this is the pattern used for Docker/Kubernetes secrets, where sensitive values are mounted as files rather than passed as plain environment variables. If both a variable and its `_FILE` counterpart are set, the `_FILE` version wins.
  
 > Keep `.env.example` in sync whenever a new variable is introduced — this is part of the Definition of Done ("documentation updated").
 
