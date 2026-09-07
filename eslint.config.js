@@ -9,12 +9,11 @@ import { defineConfig, globalIgnores } from 'eslint/config'
 export default defineConfig([
   globalIgnores(['dist',
     'node_modules',
-    '*.min.js',
-    'react-*',
-    '*.min.js',
-    '*.min.css']),
+    '**/*.min.js',
+    '**/react-*',
+    '**/*.min.css']),
   {
-    files: ['**/*.{ts,tsx, js,jsx}'],
+    files: ['**/*.{ts,tsx,js,jsx}'],
     extends: [
       js.configs.recommended,
       tseslint.configs.recommended,
@@ -22,7 +21,27 @@ export default defineConfig([
       reactRefresh.configs.vite,
     ],
     languageOptions: {
-      globals: globals.browser,
+      globals: {
+        ...globals.node,
+        ...globals.browser,
+        React: 'readonly',
+        ReactBootstrap: 'readonly',
+        ReactDOM: 'readonly',
+      },
+      parserOptions: {
+        ecmaFeatures: {
+          jsx: true,
+        },
+      },
+    },
+  },
+  {
+    files: ['spec/**/*.js'],
+    languageOptions: {
+      globals: {
+        ...globals.node,
+        ...globals.jest,
+      },
     },
   },
   prettierConfig,
