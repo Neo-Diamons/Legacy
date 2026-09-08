@@ -36,7 +36,7 @@ export default defineConfig([
     },
   },
   {
-    files: ['spec/**/*.js'],
+    files: ['backend/spec/**/*.js'],
     languageOptions: {
       globals: {
         ...globals.node,

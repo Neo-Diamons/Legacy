@@ -11,7 +11,7 @@ import deleteItem from './routes/deleteItem.js';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 app.use(json());
-app.use(serveStatic(join(__dirname, 'static')));
+app.use(serveStatic(join(__dirname, '../frontend')));
 
 app.get('/items', getItems);
 app.post('/items', addItem);

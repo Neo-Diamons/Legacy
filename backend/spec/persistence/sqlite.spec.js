@@ -1,7 +1,7 @@
 import { existsSync, unlinkSync } from 'fs';
 const location = process.env.SQLITE_DB_LOCATION || '/etc/todos/todo.db';
 
-import sqlite from '../../src/persistence/sqlite.js';
+import sqlite from '../../persistence/sqlite.js';
 const db = sqlite;
 
 const { init, teardown, storeItem, getItems, updateItem, removeItem, getItem } = sqlite;

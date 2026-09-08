@@ -2,9 +2,9 @@ import { jest } from '@jest/globals';
 
 const persistence = { removeItem: jest.fn() };
 
-jest.unstable_mockModule('../../src/persistence/index.js', () => persistence);
+jest.unstable_mockModule('../../persistence/index.js', () => persistence);
 
-const { default: deleteItem } = await import('../../src/routes/deleteItem.js');
+const { default: deleteItem } = await import('../../routes/deleteItem.js');
 const { removeItem: _removeItem } = persistence;
 const db = persistence;
 

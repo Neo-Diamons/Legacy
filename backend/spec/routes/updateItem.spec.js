@@ -5,9 +5,9 @@ const persistence = {
   updateItem: jest.fn(),
 };
 
-jest.unstable_mockModule('../../src/persistence/index.js', () => persistence);
+jest.unstable_mockModule('../../persistence/index.js', () => persistence);
 
-const { default: updateItem } = await import('../../src/routes/updateItem.js');
+const { default: updateItem } = await import('../../routes/updateItem.js');
 const { getItem: _getItem, updateItem: _updateItem } = persistence;
 const db = persistence;
 const ITEM = { id: 12345 };

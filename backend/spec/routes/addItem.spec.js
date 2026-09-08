@@ -3,10 +3,10 @@ import { jest } from '@jest/globals';
 const persistence = { storeItem: jest.fn() };
 const uuid = jest.fn();
 
-jest.unstable_mockModule('../../src/persistence/index.js', () => persistence);
+jest.unstable_mockModule('../../persistence/index.js', () => persistence);
 jest.unstable_mockModule('uuid', () => ({ v4: uuid }));
 
-const { default: addItem } = await import('../../src/routes/addItem.js');
+const { default: addItem } = await import('../../routes/addItem.js');
 const { storeItem: _storeItem } = persistence;
 const db = persistence;
 

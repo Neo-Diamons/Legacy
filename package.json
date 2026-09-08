@@ -5,12 +5,12 @@
   "main": "index.js",
   "license": "MIT",
   "scripts": {
-    "dev": "nodemon -L src/index.js",
+    "dev": "nodemon -L backend/index.js",
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
-    "lint": "eslint src spec --ext .js,.jsx",
-    "lint:fix": "eslint src spec --ext .js,.jsx --fix",
-    "format": "prettier --write src spec",
-    "format:check": "prettier --check src spec"
+    "lint": "eslint backend frontend --ext .js,.jsx",
+    "lint:fix": "eslint backend frontend --ext .js,.jsx --fix",
+    "format": "prettier --write backend frontend",
+    "format:check": "prettier --check backend frontend"
   },
   "dependencies": {
     "eslint-plugin-react-hooks": "^7.1.1",

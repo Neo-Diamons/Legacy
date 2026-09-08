@@ -50,7 +50,7 @@ cp .env.example .env
 | Variable | Description |
 |---|---|
 | `SQLITE_DB_LOCATION` | Path on disk to the SQLite database file used when no MySQL host is configured. This is the app's default persistence mode — the file (and its parent directory) is created automatically on startup if it doesn't exist. Defaults to `/etc/todos/todo.db` if unset. |
-| `MYSQL_HOST` | Hostname of the MySQL server. Setting this switches persistence from SQLite to MySQL (see `src/persistence/index.js`) — if it's left unset, the app ignores the other `MYSQL_*` variables entirely and uses SQLite instead. |
+| `MYSQL_HOST` | Hostname of the MySQL server. Setting this switches persistence from SQLite to MySQL (see `backend/persistence/index.js`) — if it's left unset, the app ignores the other `MYSQL_*` variables entirely and uses SQLite instead. |
 | `MYSQL_USER` | Username used to authenticate against the MySQL server. Only read when `MYSQL_HOST` is set. |
 | `MYSQL_PASSWORD` | Password used to authenticate against the MySQL server. Only read when `MYSQL_HOST` is set. |
 | `MYSQL_DB` | Name of the MySQL database/schema the app connects to. Only read when `MYSQL_HOST` is set. |

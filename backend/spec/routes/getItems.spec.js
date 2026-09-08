@@ -2,9 +2,9 @@ import { jest } from '@jest/globals';
 
 const persistence = { getItems: jest.fn() };
 
-jest.unstable_mockModule('../../src/persistence/index.js', () => persistence);
+jest.unstable_mockModule('../../persistence/index.js', () => persistence);
 
-const { default: getItems } = await import('../../src/routes/getItems.js');
+const { default: getItems } = await import('../../routes/getItems.js');
 const { getItems: _getItems } = persistence;
 const db = persistence;
 const ITEMS = [{ id: 12345 }];
