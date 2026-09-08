@@ -1,0 +1,6 @@
+{
+  "name": "@legacy/frontend",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Static client — served by @legacy/backend. Lint/format run from the repo root."
+}
