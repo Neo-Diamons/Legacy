@@ -1,83 +1,164 @@
 # TodoList
- 
-## Project Summary
- 
-This project is based on the existing [`docker/getting-started-app`](https://github.com/docker/getting-started-app) TodoList application.
- 
-Core capabilities being built:
- 
-- Secure user authentication (GDPR-compatible)
+
+A small Todo application, originally based on
+[`docker/getting-started-app`](https://github.com/docker/getting-started-app),
+being modernised and extended as an Epitech group project.
+
+Planned capabilities (tracked on the
+[project Wiki](https://github.com/EpitechPGE45-2026/G-ING-900-PAR-9-1-legacy-9/wiki)):
+
+- Secure, GDPR-compatible user authentication
 - Project and task CRUD
-- Kanban-style workflow (columns / board)
+- Kanban-style board (columns / workflow)
 - Task priorities and deadlines
 - User notifications
-- Event-driven communication between components (at least one full event-driven workflow)
-- Automated quality checks (code-quality gate) and a complete CI/CD pipeline, with Docker image publication
-The team works in Scrum, with a prioritised backlog (MoSCoW) split across three sprints: **Foundation & Architecture → Core Features → Stabilisation & Quality**.
- 
+- At least one full event-driven workflow between components
+- Code-quality gate and a complete CI/CD pipeline with Docker image publication
+
+The team works in Scrum with a MoSCoW-prioritised backlog across three sprints:
+**Foundation & Architecture → Core Features → Stabilisation & Quality**.
+
 ---
- 
-## Tech Stack
- 
-- See project Wiki [`here`](https://github.com/EpitechPGE45-2026/G-ING-900-PAR-9-1-legacy-9/wiki)
+
+## Repository layout
+
+This is an npm **workspaces** monorepo:
+
+| Path        | Description                                                                |
+| ----------- | -------------------------------------------------------------------------- |
+| `backend/`  | Express 5 REST API (`@legacy/backend`). SQLite by default, MySQL optional. |
+| `frontend/` | Vite + React 19 + TypeScript single-page app (`@legacy/frontend`).         |
+
+All commands below are run from the repository root unless stated otherwise.
+Lint, formatting and CI are configured once at the root and cover both workspaces.
 
 ---
 
 ## Setup
- 
+
 ### 1. Prerequisites
- 
-- Node.js
-- npm 22
+
+- **Node.js 22.9+** (the backend relies on `node --env-file-if-exists`)
+- npm 10+ (ships with Node 22)
+
 ### 2. Install
- 
+
 ```bash
 git clone <repo-url>
 cd <repo-folder>
- 
-# install dependencies
 npm install
 ```
- 
-### 3. Environment Variables
- 
-Copy the example env file and fill in the values:
- 
+
+`npm install` at the root installs dependencies for every workspace.
+
+### 3. Environment variables
+
+Copy the example file and adjust the values:
+
 ```bash
 cp .env.example .env
 ```
- 
-| Variable | Description |
-|---|---|
-| `SQLITE_DB_LOCATION` | Path on disk to the SQLite database file used when no MySQL host is configured. This is the app's default persistence mode — the file (and its parent directory) is created automatically on startup if it doesn't exist. Defaults to `/etc/todos/todo.db` if unset. |
-| `MYSQL_HOST` | Hostname of the MySQL server. Setting this switches persistence from SQLite to MySQL (see `backend/persistence/index.js`) — if it's left unset, the app ignores the other `MYSQL_*` variables entirely and uses SQLite instead. |
-| `MYSQL_USER` | Username used to authenticate against the MySQL server. Only read when `MYSQL_HOST` is set. |
-| `MYSQL_PASSWORD` | Password used to authenticate against the MySQL server. Only read when `MYSQL_HOST` is set. |
-| `MYSQL_DB` | Name of the MySQL database/schema the app connects to. Only read when `MYSQL_HOST` is set. |
- 
-> Each `MYSQL_*` variable also has a `_FILE` variant (e.g. `MYSQL_PASSWORD_FILE`), which points to a file containing the value instead of the value itself — this is the pattern used for Docker/Kubernetes secrets, where sensitive values are mounted as files rather than passed as plain environment variables. If both a variable and its `_FILE` counterpart are set, the `_FILE` version wins.
- 
-> Keep `.env.example` in sync whenever a new variable is introduced — this is part of the Definition of Done ("documentation updated").
+
+The backend loads this root `.env` automatically on startup
+(`node --env-file-if-exists=../.env` — no `dotenv` dependency). If the file is
+missing, it falls back to the real process environment, which is the expected
+mode in production and containers.
+
+The frontend has no environment variables of its own: it calls the API using
+same-origin paths (`fetch('/items')`).
+
+| Variable             | Description                                                                                                                                                                                                                               |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `SQLITE_DB_LOCATION` | Path to the SQLite database file, used when no MySQL host is configured. This is the default persistence mode; the file and its parent directory are created on startup. Defaults to the repo-local `data/todo.db` (gitignored) if unset. |
+| `MYSQL_HOST`         | Hostname of the MySQL server. Setting it switches persistence from SQLite to MySQL (see `backend/persistence/index.js`). If unset, all other `MYSQL_*` variables are ignored.                                                             |
+| `MYSQL_USER`         | MySQL username. Only read when `MYSQL_HOST` is set.                                                                                                                                                                                       |
+| `MYSQL_PASSWORD`     | MySQL password. Only read when `MYSQL_HOST` is set.                                                                                                                                                                                       |
+| `MYSQL_DB`           | MySQL database/schema name. Only read when `MYSQL_HOST` is set.                                                                                                                                                                           |
+
+> Each `MYSQL_*` variable also has a `_FILE` variant (e.g. `MYSQL_PASSWORD_FILE`)
+> that points to a file containing the value — the pattern used for
+> Docker/Kubernetes secrets. If both are set, the `_FILE` variant wins.
+
+> Keep `.env.example` in sync whenever a new variable is introduced — it is part
+> of the Definition of Done ("documentation updated").
 
 ---
 
-## Run (Development)
- 
+## Development
+
 ```bash
 npm run dev
 ```
 
-- App available at: `http://localhost:3000`
+Runs both workspaces together (via `concurrently`):
 
-### Running tests
+- **Frontend** — Vite dev server: <http://localhost:5173>
+- **Backend** — Express API: <http://localhost:3000>
+
+The Vite dev server proxies `/items` to the backend, so no CORS configuration is
+needed locally. Run the sides independently with:
+
+```bash
+npm run dev:backend
+npm run dev:frontend
+```
+
+---
+
+## Production build
+
+```bash
+npm run build   # tsc -b, then vite build -> frontend/dist
+npm start       # starts the backend API only (port 3000)
+```
+
+`npm run build` produces a static bundle in `frontend/dist`. Because the client
+calls the API with same-origin paths, `frontend/dist` must be served behind a
+proxy or CDN that forwards `/items` and `/items/*` to the backend. The backend
+enables CORS, but there is currently no build-time setting for a cross-origin
+API URL — using a separate origin would require changing the client code.
+
+---
+
+## API
+
+| Method   | Path         | Description                                                 |
+| -------- | ------------ | ----------------------------------------------------------- |
+| `GET`    | `/items`     | List all items                                              |
+| `POST`   | `/items`     | Create an item (`{ "name": string }`)                       |
+| `PUT`    | `/items/:id` | Update an item (`{ "name": string, "completed": boolean }`) |
+| `DELETE` | `/items/:id` | Delete an item                                              |
+
+---
+
+## Tests
 
 ```bash
 npm run test
 ```
 
+Runs the backend Jest suite (`backend/spec/`). Tests use SQLite; set
+`SQLITE_DB_LOCATION` to an isolated file to avoid touching your dev database.
+
+---
+
+## Lint & formatting
+
+```bash
+npm run lint          # ESLint (flat config, both workspaces)
+npm run lint:fix
+npm run format        # Prettier --write
+npm run format:check  # Prettier --check
+```
+
+CI (`.github/workflows/code-quality.yml`) runs format check, lint and tests on
+every pull request using Node 22.
+
 ---
 
 ## Contributing
- 
-- Work happens through short-lived branches and small Pull Requests (see contribution guide on the Wiki).
-- Every PR requires at least one approval, passing CI, and required test coverage before merge — see the Definition of Done on the Wiki.
+
+- Work through short-lived branches and small pull requests (see the Wiki
+  contribution guide).
+- Every PR requires at least one approval, passing CI and the required test
+  coverage before merge — see the Definition of Done on the Wiki.

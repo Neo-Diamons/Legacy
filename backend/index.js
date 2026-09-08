@@ -1,6 +1,5 @@
-import express, { json, static as serveStatic } from 'express';
-import { dirname, join } from 'path';
-import { fileURLToPath } from 'url';
+import express, { json } from 'express';
+import cors from 'cors';
 const app = express();
 import { init, teardown } from './persistence/index.js';
 import getItems from './routes/getItems.js';
@@ -8,10 +7,8 @@ import addItem from './routes/addItem.js';
 import updateItem from './routes/updateItem.js';
 import deleteItem from './routes/deleteItem.js';
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-
+app.use(cors());
 app.use(json());
-app.use(serveStatic(join(__dirname, '../frontend')));
 
 app.get('/items', getItems);
 app.post('/items', addItem);

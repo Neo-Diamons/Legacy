@@ -5,11 +5,12 @@
   "type": "module",
   "main": "index.js",
   "scripts": {
-    "dev": "nodemon -L index.js",
-    "start": "node index.js",
+    "dev": "nodemon -L --env-file-if-exists=../.env index.js",
+    "start": "node --env-file-if-exists=../.env index.js",
     "test": "node --experimental-vm-modules ../node_modules/jest/bin/jest.js"
   },
   "dependencies": {
+    "cors": "^2.8.5",
     "express": "^5.2.1",
     "mysql2": "^3.16.1",
     "sqlite3": "^5.1.7",

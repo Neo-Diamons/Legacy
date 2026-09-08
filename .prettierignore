@@ -1,5 +1,4 @@
 node_modules/
-*.min.js
-react-*
+dist/
 *.min.js
 *.min.css

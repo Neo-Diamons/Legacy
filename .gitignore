@@ -3,5 +3,13 @@ node_modules/
 
 # Database
 data/
+*.db
+
+# Build output
+dist/
+dist-ssr/
+*.tsbuildinfo
 
 .env
+.env.local
+*.local

@@ -6,7 +6,11 @@
   "license": "MIT",
   "workspaces": ["backend", "frontend"],
   "scripts": {
-    "dev": "npm run dev --workspace backend",
+    "dev": "concurrently -n backend,frontend -c blue,magenta \"npm:dev:backend\" \"npm:dev:frontend\"",
+    "dev:backend": "npm run dev --workspace backend",
+    "dev:frontend": "npm run dev --workspace frontend",
+    "build": "npm run build --workspace frontend",
+    "preview": "npm run preview --workspace frontend",
     "start": "npm run start --workspace backend",
     "test": "npm run test --workspace backend",
     "lint": "eslint .",
@@ -16,12 +20,15 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",
+    "concurrently": "^9.1.2",
     "eslint": "^9.39.5",
     "eslint-config-prettier": "^10.1.8",
-    "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.4.20",
     "globals": "^15.14.0",
-    "prettier": "^3.9.6"
+    "prettier": "^3.9.6",
+    "typescript": "~5.8.3",
+    "typescript-eslint": "^8.20.0"
   },
   "overrides": {
     "tar": "7.5.4",

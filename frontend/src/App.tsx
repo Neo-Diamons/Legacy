@@ -1,5 +1,13 @@
-function App() {
-  const { Container, Row, Col } = ReactBootstrap;
+import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import { Button, Col, Container, Form, InputGroup, Row } from 'react-bootstrap';
+
+interface Item {
+  id: string;
+  name: string;
+  completed: boolean;
+}
+
+export default function App() {
   return (
     <Container>
       <Row>
@@ -12,31 +20,33 @@ function App() {
 }
 
 function TodoListCard() {
-  const [items, setItems] = React.useState(null);
+  const [items, setItems] = useState<Item[] | null>(null);
 
-  React.useEffect(() => {
-    fetch('/items')
+  useEffect(() => {
+    fetch(`/items`)
       .then((r) => r.json())
       .then(setItems);
   }, []);
 
-  const onNewItem = React.useCallback(
-    (newItem) => {
-      setItems([...items, newItem]);
+  const onNewItem = useCallback(
+    (newItem: Item) => {
+      setItems([...(items ?? []), newItem]);
     },
     [items]
   );
 
-  const onItemUpdate = React.useCallback(
-    (item) => {
+  const onItemUpdate = useCallback(
+    (item: Item) => {
+      if (!items) return;
       const index = items.findIndex((i) => i.id === item.id);
       setItems([...items.slice(0, index), item, ...items.slice(index + 1)]);
     },
     [items]
   );
 
-  const onItemRemoval = React.useCallback(
-    (item) => {
+  const onItemRemoval = useCallback(
+    (item: Item) => {
+      if (!items) return;
       const index = items.findIndex((i) => i.id === item.id);
       setItems([...items.slice(0, index), ...items.slice(index + 1)]);
     },
@@ -46,32 +56,30 @@ function TodoListCard() {
   if (items === null) return 'Loading...';
 
   return (
-    <React.Fragment>
+    <>
       <AddItemForm onNewItem={onNewItem} />
       {items.length === 0 && <p className="text-center">No items yet! Add one above!</p>}
       {items.map((item) => (
         <ItemDisplay item={item} key={item.id} onItemUpdate={onItemUpdate} onItemRemoval={onItemRemoval} />
       ))}
-    </React.Fragment>
+    </>
   );
 }
 
-function AddItemForm({ onNewItem }) {
-  const { Form, InputGroup, Button } = ReactBootstrap;
+function AddItemForm({ onNewItem }: { onNewItem: (item: Item) => void }) {
+  const [newItem, setNewItem] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
-  const [newItem, setNewItem] = React.useState('');
-  const [submitting, setSubmitting] = React.useState(false);
-
-  const submitNewItem = (e) => {
+  const submitNewItem = (e: FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
-    fetch('/items', {
+    fetch(`/items`, {
       method: 'POST',
       body: JSON.stringify({ name: newItem }),
       headers: { 'Content-Type': 'application/json' },
     })
       .then((r) => r.json())
-      .then((item) => {
+      .then((item: Item) => {
         onNewItem(item);
         setSubmitting(false);
         setNewItem('');
@@ -88,19 +96,23 @@ function AddItemForm({ onNewItem }) {
           placeholder="New Item"
           aria-describedby="basic-addon1"
         />
-        <InputGroup.Append>
-          <Button type="submit" variant="success" disabled={!newItem.length} className={submitting ? 'disabled' : ''}>
-            {submitting ? 'Adding...' : 'Add Item'}
-          </Button>
-        </InputGroup.Append>
+        <Button type="submit" variant="success" disabled={!newItem.length} className={submitting ? 'disabled' : ''}>
+          {submitting ? 'Adding...' : 'Add Item'}
+        </Button>
       </InputGroup>
     </Form>
   );
 }
 
-function ItemDisplay({ item, onItemUpdate, onItemRemoval }) {
-  const { Container, Row, Col, Button } = ReactBootstrap;
-
+function ItemDisplay({
+  item,
+  onItemUpdate,
+  onItemRemoval,
+}: {
+  item: Item;
+  onItemUpdate: (item: Item) => void;
+  onItemRemoval: (item: Item) => void;
+}) {
   const toggleCompletion = () => {
     fetch(`/items/${item.id}`, {
       method: 'PUT',
@@ -144,5 +156,3 @@ function ItemDisplay({ item, onItemUpdate, onItemRemoval }) {
     </Container>
   );
 }
-
-ReactDOM.render(<App />, document.getElementById('root'));

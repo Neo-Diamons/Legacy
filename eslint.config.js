@@ -1,18 +1,13 @@
 import js from '@eslint/js';
 import globals from 'globals';
-import react from 'eslint-plugin-react';
 import reactHooks from 'eslint-plugin-react-hooks';
+import reactRefresh from 'eslint-plugin-react-refresh';
+import tseslint from 'typescript-eslint';
 import prettier from 'eslint-config-prettier';
 
 export default [
   {
-    ignores: [
-      '**/node_modules',
-      'frontend/js/babel.min.js',
-      'frontend/js/react.production.min.js',
-      'frontend/js/react-dom.production.min.js',
-      'frontend/js/react-bootstrap.js',
-    ],
+    ignores: ['**/node_modules', 'frontend/dist'],
   },
   js.configs.recommended,
 
@@ -32,26 +27,22 @@ export default [
     },
   },
 
-  // Frontend — browser globals, in-browser JSX
+  // Frontend — Vite + React + TypeScript
+  ...tseslint.configs.recommended.map((config) => ({
+    ...config,
+    files: ['frontend/**/*.{ts,tsx}'],
+  })),
   {
-    files: ['frontend/js/app.js'],
-    plugins: { react, 'react-hooks': reactHooks },
+    files: ['frontend/**/*.{ts,tsx}'],
+    plugins: { 'react-hooks': reactHooks, 'react-refresh': reactRefresh },
     languageOptions: {
       ecmaVersion: 'latest',
-      sourceType: 'script',
-      parserOptions: { ecmaFeatures: { jsx: true } },
-      globals: {
-        ...globals.browser,
-        React: 'readonly',
-        ReactDOM: 'readonly',
-        ReactBootstrap: 'readonly',
-      },
+      sourceType: 'module',
+      globals: { ...globals.browser },
     },
-    settings: { react: { version: '18' } },
     rules: {
       ...reactHooks.configs.flat.recommended.rules,
-      'react/jsx-uses-vars': 'error',
-      'react/jsx-uses-react': 'error',
+      ...reactRefresh.configs.vite.rules,
     },
   },
 
