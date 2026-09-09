@@ -5,11 +5,11 @@ const config: JestConfigWithTsJest = {
   extensionsToTreatAsEsm: ['.ts'],
   testEnvironment: 'node',
   moduleNameMapper: {
-    '^@db$': '<rootDir>/db/index.ts',
-    '^@db/(.*)\\.js$': '<rootDir>/db/$1',
-    '^@model/(.*)\\.js$': '<rootDir>/model/$1',
-    '^@service/(.*)\\.js$': '<rootDir>/service/$1',
-    '^@controller/(.*)\\.js$': '<rootDir>/controller/$1',
+    '^@db$': '<rootDir>/src/db/index.ts',
+    '^@db/(.*)\\.js$': '<rootDir>/src/db/$1',
+    '^@model/(.*)\\.js$': '<rootDir>/src/model/$1',
+    '^@service/(.*)\\.js$': '<rootDir>/src/service/$1',
+    '^@controller/(.*)\\.js$': '<rootDir>/src/controller/$1',
     '^(\\.{1,2}/.*)\\.js$': '$1',
   },
   transform: {

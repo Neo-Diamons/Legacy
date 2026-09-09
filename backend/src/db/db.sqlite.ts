@@ -6,7 +6,7 @@ import { drizzle, type BetterSQLite3Database } from 'drizzle-orm/better-sqlite3'
 import { migrate } from 'drizzle-orm/better-sqlite3/migrator';
 
 const location = process.env.SQLITE_DB_LOCATION || '/etc/todos/todo.db';
-const migrationsFolder = path.join(path.dirname(fileURLToPath(import.meta.url)), '../drizzle/sqlite');
+const migrationsFolder = path.join(path.dirname(fileURLToPath(import.meta.url)), '../../drizzle/sqlite');
 
 let connection: Database.Database;
 

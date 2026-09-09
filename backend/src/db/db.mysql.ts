@@ -17,7 +17,7 @@ const {
   MYSQL_DB_FILE: DB_FILE,
 } = process.env;
 
-const migrationsFolder = path.join(path.dirname(fileURLToPath(import.meta.url)), '../drizzle/mysql');
+const migrationsFolder = path.join(path.dirname(fileURLToPath(import.meta.url)), '../../drizzle/mysql');
 
 const fromEnv = (value?: string, file?: string) => (file ? fs.readFileSync(file, 'utf8') : value);
 

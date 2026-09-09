@@ -11,11 +11,11 @@
     "types": ["node", "jest"],
     "baseUrl": ".",
     "paths": {
-      "@db": ["./db/index.ts"],
-      "@db/*": ["./db/*"],
-      "@model/*": ["./model/*"],
-      "@service/*": ["./service/*"],
-      "@controller/*": ["./controller/*"]
+      "@db": ["./src/db/index.ts"],
+      "@db/*": ["./src/db/*"],
+      "@model/*": ["./src/model/*"],
+      "@service/*": ["./src/service/*"],
+      "@controller/*": ["./src/controller/*"]
     }
   },
   "include": ["**/*.ts"],
