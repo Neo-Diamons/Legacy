@@ -1,6 +1,7 @@
 import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
 import { serve } from '@hono/node-server';
+import { Scalar } from '@scalar/hono-api-reference';
 import '@db';
 import { itemController } from '@controller/item.controller.js';
 import { createRouter, registerErrorHandler } from '@http/app.js';
@@ -13,6 +14,27 @@ app.use(logger());
 app.route('/items', itemController);
 
 registerErrorHandler(app);
+
+app.doc('/doc', {
+  openapi: '3.0.0',
+  info: {
+    version: '1.0.0',
+    title: 'Legacy',
+  },
+});
+app.get(
+  '/scalar',
+  Scalar({
+    url: '/doc',
+    hideClientButton: true,
+    agent: {
+      disabled: true,
+    },
+    mcp: {
+      disabled: true,
+    },
+  })
+);
 
 serve(
   {
