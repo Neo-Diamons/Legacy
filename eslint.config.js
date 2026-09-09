@@ -11,9 +11,13 @@ export default [
   },
   js.configs.recommended,
 
-  // Backend — Node / ESM
+  // Backend — Node / ESM / TypeScript
+  ...tseslint.configs.recommended.map((config) => ({
+    ...config,
+    files: ['backend/**/*.ts'],
+  })),
   {
-    files: ['backend/**/*.js'],
+    files: ['backend/**/*.{js,ts}'],
     languageOptions: {
       ecmaVersion: 'latest',
       sourceType: 'module',
@@ -21,7 +25,7 @@ export default [
     },
   },
   {
-    files: ['backend/spec/**/*.js'],
+    files: ['backend/spec/**/*.{js,ts}'],
     languageOptions: {
       globals: { ...globals.node, ...globals.jest },
     },

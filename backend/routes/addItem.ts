@@ -1,13 +1,15 @@
+import type { Context } from 'hono';
 import { storeItem } from '../persistence/index.js';
 import { v4 as uuid } from 'uuid';
 
-export default async (req, res) => {
+export default async (c: Context) => {
+  const body = await c.req.json();
   const item = {
     id: uuid(),
-    name: req.body.name,
+    name: body.name,
     completed: false,
   };
 
   await storeItem(item);
-  res.send(item);
+  return c.json(item);
 };

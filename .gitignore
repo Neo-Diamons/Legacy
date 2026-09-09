@@ -4,6 +4,7 @@ node_modules/
 # Database
 data/
 *.db
+*.db-journal
 
 # Build output
 dist/
@@ -11,5 +12,6 @@ dist-ssr/
 *.tsbuildinfo
 
 .env
+.env.test
 .env.local
 *.local

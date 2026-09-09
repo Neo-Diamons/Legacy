@@ -1,6 +1,7 @@
+import type { Context } from 'hono';
 import { removeItem } from '../persistence/index.js';
 
-export default async (req, res) => {
-  await removeItem(req.params.id);
-  res.sendStatus(200);
+export default async (c: Context) => {
+  await removeItem(c.req.param('id')!);
+  return c.body(null, 200);
 };

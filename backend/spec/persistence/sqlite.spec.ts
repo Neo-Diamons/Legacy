@@ -22,7 +22,7 @@ afterEach(async () => {
   try {
     await teardown();
   } catch (error) {
-    if (error.code !== 'SQLITE_MISUSE') {
+    if ((error as NodeJS.ErrnoException).code !== 'SQLITE_MISUSE') {
       throw error;
     }
   }

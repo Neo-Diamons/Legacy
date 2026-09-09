@@ -1,0 +1,15 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "NodeNext",
+    "strict": true,
+    "verbatimModuleSyntax": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "types": ["node", "jest"]
+  },
+  "include": ["**/*.ts"],
+  "exclude": ["node_modules"]
+}

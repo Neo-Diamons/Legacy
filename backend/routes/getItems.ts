@@ -1,6 +1,7 @@
+import type { Context } from 'hono';
 import { getItems } from '../persistence/index.js';
 
-export default async (req, res) => {
+export default async (c: Context) => {
   const items = await getItems();
-  res.send(items);
+  return c.json(items);
 };

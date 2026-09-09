@@ -24,10 +24,10 @@ The team works in Scrum with a MoSCoW-prioritised backlog across three sprints:
 
 This is an npm **workspaces** monorepo:
 
-| Path        | Description                                                                |
-| ----------- | -------------------------------------------------------------------------- |
-| `backend/`  | Express 5 REST API (`@legacy/backend`). SQLite by default, MySQL optional. |
-| `frontend/` | Vite + React 19 + TypeScript single-page app (`@legacy/frontend`).         |
+| Path        | Description                                                                                         |
+| ----------- | --------------------------------------------------------------------------------------------------- |
+| `backend/`  | Hono REST API in TypeScript (`@legacy/backend`), run with `tsx`. SQLite by default, MySQL optional. |
+| `frontend/` | Vite + React 19 + TypeScript single-page app (`@legacy/frontend`).                                  |
 
 All commands below are run from the repository root unless stated otherwise.
 Lint, formatting and CI are configured once at the root and cover both workspaces.
@@ -70,7 +70,7 @@ same-origin paths (`fetch('/items')`).
 | Variable             | Description                                                                                                                                                                                                                               |
 | -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `SQLITE_DB_LOCATION` | Path to the SQLite database file, used when no MySQL host is configured. This is the default persistence mode; the file and its parent directory are created on startup. Defaults to the repo-local `data/todo.db` (gitignored) if unset. |
-| `MYSQL_HOST`         | Hostname of the MySQL server. Setting it switches persistence from SQLite to MySQL (see `backend/persistence/index.js`). If unset, all other `MYSQL_*` variables are ignored.                                                             |
+| `MYSQL_HOST`         | Hostname of the MySQL server. Setting it switches persistence from SQLite to MySQL (see `backend/persistence/index.ts`). If unset, all other `MYSQL_*` variables are ignored.                                                             |
 | `MYSQL_USER`         | MySQL username. Only read when `MYSQL_HOST` is set.                                                                                                                                                                                       |
 | `MYSQL_PASSWORD`     | MySQL password. Only read when `MYSQL_HOST` is set.                                                                                                                                                                                       |
 | `MYSQL_DB`           | MySQL database/schema name. Only read when `MYSQL_HOST` is set.                                                                                                                                                                           |
@@ -93,7 +93,7 @@ npm run dev
 Runs both workspaces together (via `concurrently`):
 
 - **Frontend** — Vite dev server: <http://localhost:5173>
-- **Backend** — Express API: <http://localhost:3000>
+- **Backend** — Hono API: <http://localhost:3000>
 
 The Vite dev server proxies `/items` to the backend, so no CORS configuration is
 needed locally. Run the sides independently with:
@@ -137,8 +137,11 @@ API URL — using a separate origin would require changing the client code.
 npm run test
 ```
 
-Runs the backend Jest suite (`backend/spec/`). Tests use SQLite; set
-`SQLITE_DB_LOCATION` to an isolated file to avoid touching your dev database.
+Runs the backend Jest suite (`backend/spec/`), TypeScript via `ts-jest`. Tests
+use SQLite against an isolated file: `backend/.env.test` sets
+`SQLITE_DB_LOCATION=./test.db` and is loaded automatically
+(`node --env-file-if-exists=.env.test`), so `npm run test` works with no extra
+setup and never touches your dev database.
 
 ---
 

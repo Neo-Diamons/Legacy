@@ -1,14 +1,15 @@
-import express, { json } from 'express';
-import cors from 'cors';
-const app = express();
+import { Hono } from 'hono';
+import { cors } from 'hono/cors';
+import { serve } from '@hono/node-server';
 import { init, teardown } from './persistence/index.js';
 import getItems from './routes/getItems.js';
 import addItem from './routes/addItem.js';
 import updateItem from './routes/updateItem.js';
 import deleteItem from './routes/deleteItem.js';
 
+const app = new Hono();
+
 app.use(cors());
-app.use(json());
 
 app.get('/items', getItems);
 app.post('/items', addItem);
@@ -17,7 +18,7 @@ app.delete('/items/:id', deleteItem);
 
 init()
   .then(() => {
-    app.listen(3000, () => console.log('Listening on port 3000'));
+    serve({ fetch: app.fetch, port: 3000 }, () => console.log('Listening on port 3000'));
   })
   .catch((err) => {
     console.error(err);

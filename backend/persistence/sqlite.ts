@@ -1,12 +1,15 @@
 import sqlite3 from 'sqlite3';
 import fs from 'fs';
 import path from 'path';
+import type { Item, ItemUpdate, Persistence } from './index.js';
 
-let db = sqlite3.verbose();
+sqlite3.verbose();
+
+let db: sqlite3.Database;
 
 const location = process.env.SQLITE_DB_LOCATION || '/etc/todos/todo.db';
 
-function init() {
+function init(): Promise<void> {
   const dirName = path.dirname(location);
   if (!fs.existsSync(dirName)) {
     fs.mkdirSync(dirName, { recursive: true });
@@ -26,7 +29,7 @@ function init() {
   });
 }
 
-async function teardown() {
+async function teardown(): Promise<void> {
   return new Promise((acc, rej) => {
     db.close((err) => {
       if (err) rej(err);
@@ -35,14 +38,14 @@ async function teardown() {
   });
 }
 
-async function getItems() {
+async function getItems(): Promise<Item[]> {
   return new Promise((acc, rej) => {
-    db.all('SELECT * FROM todo_items', (err, rows) => {
+    db.all('SELECT * FROM todo_items', (err, rows: Item[]) => {
       if (err) return rej(err);
       acc(
         rows.map((item) =>
           Object.assign({}, item, {
-            completed: item.completed === 1,
+            completed: Boolean(item.completed),
           })
         )
       );
@@ -50,14 +53,14 @@ async function getItems() {
   });
 }
 
-async function getItem(id) {
+async function getItem(id: string): Promise<Item | undefined> {
   return new Promise((acc, rej) => {
-    db.all('SELECT * FROM todo_items WHERE id=?', [id], (err, rows) => {
+    db.all('SELECT * FROM todo_items WHERE id=?', [id], (err, rows: Item[]) => {
       if (err) return rej(err);
       acc(
         rows.map((item) =>
           Object.assign({}, item, {
-            completed: item.completed === 1,
+            completed: Boolean(item.completed),
           })
         )[0]
       );
@@ -65,7 +68,7 @@ async function getItem(id) {
   });
 }
 
-async function storeItem(item) {
+async function storeItem(item: Item): Promise<void> {
   return new Promise((acc, rej) => {
     db.run(
       'INSERT INTO todo_items (id, name, completed) VALUES (?, ?, ?)',
@@ -78,7 +81,7 @@ async function storeItem(item) {
   });
 }
 
-async function updateItem(id, item) {
+async function updateItem(id: string, item: ItemUpdate): Promise<void> {
   return new Promise((acc, rej) => {
     db.run('UPDATE todo_items SET name=?, completed=? WHERE id = ?', [item.name, item.completed ? 1 : 0, id], (err) => {
       if (err) return rej(err);
@@ -87,7 +90,7 @@ async function updateItem(id, item) {
   });
 }
 
-async function removeItem(id) {
+async function removeItem(id: string): Promise<void> {
   return new Promise((acc, rej) => {
     db.run('DELETE FROM todo_items WHERE id = ?', [id], (err) => {
       if (err) return rej(err);
@@ -96,7 +99,7 @@ async function removeItem(id) {
   });
 }
 
-export default {
+const sqlite: Persistence = {
   init,
   teardown,
   getItems,
@@ -105,3 +108,5 @@ export default {
   updateItem,
   removeItem,
 };
+
+export default sqlite;
