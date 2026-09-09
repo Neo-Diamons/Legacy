@@ -2,8 +2,9 @@ import { existsSync, unlinkSync } from 'fs';
 const location = process.env.SQLITE_DB_LOCATION || '/etc/todos/todo.db';
 
 import { itemService as db } from '@service/item.service.js';
+import { init, teardown } from '@db/db.sqlite.js';
 
-const { init, teardown, storeItem, getItems, updateItem, removeItem, getItem } = db;
+const { storeItem, getItems, updateItem, removeItem, getItem } = db;
 
 const ITEM = {
   id: '7aef3d7c-d301-4846-8358-2a91ec9d6be3',
@@ -11,10 +12,11 @@ const ITEM = {
   completed: false,
 };
 
-beforeEach(() => {
+beforeEach(async () => {
   if (existsSync(location)) {
     unlinkSync(location);
   }
+  await init();
 });
 
 afterEach(async () => {
@@ -27,13 +29,7 @@ afterEach(async () => {
   }
 });
 
-test('it initializes correctly', async () => {
-  await init();
-});
-
 test('it can store and retrieve items', async () => {
-  await init();
-
   await storeItem(ITEM);
 
   const items = await getItems();
@@ -42,8 +38,6 @@ test('it can store and retrieve items', async () => {
 });
 
 test('it can update an existing item', async () => {
-  await init();
-
   const initialItems = await getItems();
   expect(initialItems.length).toBe(0);
 
@@ -58,13 +52,10 @@ test('it can update an existing item', async () => {
 });
 
 test('updateItem returns 0 for an unknown id', async () => {
-  await init();
-
   expect(await updateItem('this-id-does-not-exist', { name: 'x', completed: false })).toBe(0);
 });
 
 test('it can remove an existing item', async () => {
-  await init();
   await storeItem(ITEM);
 
   const removed = await removeItem(ITEM.id);
@@ -75,13 +66,10 @@ test('it can remove an existing item', async () => {
 });
 
 test('removeItem returns 0 for an unknown id', async () => {
-  await init();
-
   expect(await removeItem('this-id-does-not-exist')).toBe(0);
 });
 
 test('it can get a single item', async () => {
-  await init();
   await storeItem(ITEM);
 
   const item = await getItem(ITEM.id);
@@ -89,8 +77,6 @@ test('it can get a single item', async () => {
 });
 
 test('it can store an item with an empty name', async () => {
-  await db.init();
-
   const item = {
     id: 'empty-name-id',
     name: '',
@@ -105,8 +91,6 @@ test('it can store an item with an empty name', async () => {
 });
 
 test('it can store an item with a very long name', async () => {
-  await db.init();
-
   const item = {
     id: 'long-name-id',
     name: 'A'.repeat(1000),
@@ -121,8 +105,6 @@ test('it can store an item with a very long name', async () => {
 });
 
 test('it can store a completed item', async () => {
-  await db.init();
-
   const item = {
     id: 'completed-id',
     name: 'Already completed',
@@ -137,16 +119,12 @@ test('it can store a completed item', async () => {
 });
 
 test('it returns no item for an unknown id', async () => {
-  await db.init();
-
   const result = await db.getItem('this-id-does-not-exist');
 
   expect(result).toBeUndefined();
 });
 
 test('it can store multiple items', async () => {
-  await db.init();
-
   const item2 = {
     id: 'second-id',
     name: 'Second item',
@@ -164,8 +142,6 @@ test('it can store multiple items', async () => {
 });
 
 test('it only updates the selected item', async () => {
-  await db.init();
-
   const item2 = {
     id: 'second-item-id',
     name: 'Second item',
@@ -188,8 +164,6 @@ test('it only updates the selected item', async () => {
 });
 
 test('it only removes the selected item', async () => {
-  await db.init();
-
   const item2 = {
     id: 'second-item-id',
     name: 'Second item',

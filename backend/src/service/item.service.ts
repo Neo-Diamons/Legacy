@@ -8,8 +8,6 @@ import { todoItems as mysqlItems } from '@model/item.mysql.model.js';
 export type { Item, ItemUpdate };
 
 interface ItemService {
-  init(): Promise<void>;
-  teardown(): Promise<void>;
   getItems(): Promise<Item[]>;
   getItem(id: string): Promise<Item | undefined>;
   storeItem(item: Item): Promise<void>;
@@ -18,8 +16,6 @@ interface ItemService {
 }
 
 const sqliteItemService: ItemService = {
-  init: sqlite.init,
-  teardown: sqlite.teardown,
   async getItems() {
     return sqlite.db.select().from(sqliteItems).all();
   },
@@ -42,8 +38,6 @@ const sqliteItemService: ItemService = {
 };
 
 const mysqlItemService: ItemService = {
-  init: mysql.init,
-  teardown: mysql.teardown,
   async getItems() {
     return mysql.db.select().from(mysqlItems);
   },
