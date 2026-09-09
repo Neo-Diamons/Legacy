@@ -33,7 +33,15 @@ export async function init(): Promise<void> {
 
   await waitPort({ host, port: 3306, timeout: 10000, waitForDns: true });
 
-  pool = createPool({ connectionLimit: 5, host, user, password, database, charset: 'utf8mb4' });
+  pool = createPool({
+    connectionLimit: 5,
+    host,
+    user,
+    password,
+    database,
+    charset: 'utf8mb4',
+    flags: ['FOUND_ROWS'],
+  });
   db = drizzle(pool);
 
   await migrate(db, { migrationsFolder });

@@ -13,8 +13,8 @@ interface ItemService {
   getItems(): Promise<Item[]>;
   getItem(id: string): Promise<Item | undefined>;
   storeItem(item: Item): Promise<void>;
-  updateItem(id: string, item: ItemUpdate): Promise<void>;
-  removeItem(id: string): Promise<void>;
+  updateItem(id: string, item: ItemUpdate): Promise<number>;
+  removeItem(id: string): Promise<number>;
 }
 
 const sqliteItemService: ItemService = {
@@ -30,14 +30,14 @@ const sqliteItemService: ItemService = {
     sqlite.db.insert(sqliteItems).values(item).run();
   },
   async updateItem(id, item) {
-    sqlite.db
+    return sqlite.db
       .update(sqliteItems)
       .set({ name: item.name, completed: item.completed })
       .where(eq(sqliteItems.id, id))
-      .run();
+      .run().changes;
   },
   async removeItem(id) {
-    sqlite.db.delete(sqliteItems).where(eq(sqliteItems.id, id)).run();
+    return sqlite.db.delete(sqliteItems).where(eq(sqliteItems.id, id)).run().changes;
   },
 };
 
@@ -55,10 +55,15 @@ const mysqlItemService: ItemService = {
     await mysql.db.insert(mysqlItems).values(item);
   },
   async updateItem(id, item) {
-    await mysql.db.update(mysqlItems).set({ name: item.name, completed: item.completed }).where(eq(mysqlItems.id, id));
+    const [res] = await mysql.db
+      .update(mysqlItems)
+      .set({ name: item.name, completed: item.completed })
+      .where(eq(mysqlItems.id, id));
+    return res.affectedRows;
   },
   async removeItem(id) {
-    await mysql.db.delete(mysqlItems).where(eq(mysqlItems.id, id));
+    const [res] = await mysql.db.delete(mysqlItems).where(eq(mysqlItems.id, id));
+    return res.affectedRows;
   },
 };
 

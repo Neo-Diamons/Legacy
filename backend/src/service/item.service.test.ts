@@ -49,21 +49,35 @@ test('it can update an existing item', async () => {
 
   await storeItem(ITEM);
 
-  await updateItem(ITEM.id, Object.assign({}, ITEM, { completed: !ITEM.completed }));
+  const changed = await updateItem(ITEM.id, Object.assign({}, ITEM, { completed: !ITEM.completed }));
+  expect(changed).toBe(1);
 
   const items = await getItems();
   expect(items.length).toBe(1);
   expect(items[0].completed).toBe(!ITEM.completed);
 });
 
+test('updateItem returns 0 for an unknown id', async () => {
+  await init();
+
+  expect(await updateItem('this-id-does-not-exist', { name: 'x', completed: false })).toBe(0);
+});
+
 test('it can remove an existing item', async () => {
   await init();
   await storeItem(ITEM);
 
-  await removeItem(ITEM.id);
+  const removed = await removeItem(ITEM.id);
+  expect(removed).toBe(1);
 
   const items = await getItems();
   expect(items.length).toBe(0);
+});
+
+test('removeItem returns 0 for an unknown id', async () => {
+  await init();
+
+  expect(await removeItem('this-id-does-not-exist')).toBe(0);
 });
 
 test('it can get a single item', async () => {

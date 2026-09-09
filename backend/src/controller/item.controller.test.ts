@@ -14,12 +14,16 @@ const { persistence, uuid } = vi.hoisted(() => ({
 vi.mock('@service/item.service.js', () => ({ itemService: persistence }));
 vi.mock('uuid', () => ({ v4: uuid }));
 
-const { Hono } = await import('hono');
 const { itemController } = await import('@controller/item.controller.js');
+const { createRouter, registerErrorHandler } = await import('@http/app.js');
 const db = persistence;
 
-const app = new Hono();
+const app = createRouter();
 app.route('/items', itemController);
+registerErrorHandler(app);
+
+const ID = '3fa85f64-5717-4562-b3fc-2c963f66afa6';
+const ID2 = '11111111-1111-4111-8111-111111111111';
 
 const get = () => app.request('/items');
 
@@ -105,7 +109,7 @@ describe('GET /items', () => {
 
 describe('POST /items', () => {
   test('it stores item correctly', async () => {
-    const id = 'something-not-a-uuid';
+    const id = ID;
     const name = 'A sample item';
 
     uuid.mockReturnValue(id);
@@ -187,44 +191,37 @@ describe('POST /items', () => {
 });
 
 describe('PUT /items/:id', () => {
-  const ITEM = { id: 12345 };
+  beforeEach(() => {
+    db.updateItem.mockResolvedValue(1);
+  });
 
   test('it updates items correctly', async () => {
-    db.getItem.mockReturnValue(Promise.resolve(ITEM));
-
-    const res = await put('1234', { name: 'New title', completed: false });
+    const res = await put(ID, { name: 'New title', completed: false });
 
     expect(db.updateItem).toHaveBeenCalledTimes(1);
-    expect(db.updateItem).toHaveBeenCalledWith('1234', {
+    expect(db.updateItem).toHaveBeenCalledWith(ID, {
       name: 'New title',
       completed: false,
     });
 
-    expect(db.getItem).toHaveBeenCalledTimes(1);
-    expect(db.getItem).toHaveBeenCalledWith('1234');
-
-    expect(await res.json()).toEqual(ITEM);
+    expect(await res.json()).toEqual({ id: ID, name: 'New title', completed: false });
   });
 
   test('it updates an item with an empty name', async () => {
-    db.getItem.mockReturnValue(Promise.resolve(ITEM));
+    const res = await put(ID, { name: '', completed: false });
 
-    const res = await put('1234', { name: '', completed: false });
-
-    expect(db.updateItem).toHaveBeenCalledWith('1234', {
+    expect(db.updateItem).toHaveBeenCalledWith(ID, {
       name: '',
       completed: false,
     });
 
-    expect(await res.json()).toEqual(ITEM);
+    expect(await res.json()).toEqual({ id: ID, name: '', completed: false });
   });
 
   test('it can mark an item as completed', async () => {
-    db.getItem.mockReturnValue(Promise.resolve(ITEM));
+    await put(ID, { name: 'Finished task', completed: true });
 
-    await put('1234', { name: 'Finished task', completed: true });
-
-    expect(db.updateItem).toHaveBeenCalledWith('1234', {
+    expect(db.updateItem).toHaveBeenCalledWith(ID, {
       name: 'Finished task',
       completed: true,
     });
@@ -233,67 +230,103 @@ describe('PUT /items/:id', () => {
   test('it updates an item with a very long name', async () => {
     const longName = 'A'.repeat(500);
 
-    db.getItem.mockReturnValue(Promise.resolve(ITEM));
+    await put(ID, { name: longName, completed: false });
 
-    await put('1234', { name: longName, completed: false });
-
-    expect(db.updateItem).toHaveBeenCalledWith('1234', {
+    expect(db.updateItem).toHaveBeenCalledWith(ID, {
       name: longName,
       completed: false,
     });
   });
 
   test('it updates an item with special characters', async () => {
-    db.getItem.mockReturnValue(Promise.resolve(ITEM));
+    await put(ID, { name: 'Tâche @#$% éà !?', completed: false });
 
-    await put('1234', { name: 'Tâche @#$% éà !?', completed: false });
-
-    expect(db.updateItem).toHaveBeenCalledWith('1234', {
+    expect(db.updateItem).toHaveBeenCalledWith(ID, {
       name: 'Tâche @#$% éà !?',
       completed: false,
     });
   });
 
-  test('it updates an item with a string id', async () => {
-    db.getItem.mockReturnValue(Promise.resolve(ITEM));
+  test('it accepts any valid uuid id', async () => {
+    await put(ID2, { name: 'Updated item', completed: true });
 
-    await put('abc-123', { name: 'Updated item', completed: true });
-
-    expect(db.updateItem).toHaveBeenCalledWith('abc-123', {
+    expect(db.updateItem).toHaveBeenCalledWith(ID2, {
       name: 'Updated item',
       completed: true,
     });
+  });
 
-    expect(db.getItem).toHaveBeenCalledWith('abc-123');
+  test('it rejects a non-uuid id with 422', async () => {
+    const res = await put('abc-123', { name: 'x', completed: false });
+
+    expect(res.status).toBe(422);
+    expect(await res.json()).toEqual({
+      message: 'Validation failed',
+      issues: [{ path: ['id'], message: expect.any(String) }],
+    });
+    expect(db.updateItem).not.toHaveBeenCalled();
+  });
+
+  test('it returns 404 when the item does not exist', async () => {
+    db.updateItem.mockResolvedValue(0);
+
+    const res = await put(ID, { name: 'x', completed: false });
+
+    expect(res.status).toBe(404);
+    expect(await res.json()).toEqual({ message: 'Item not found' });
+    expect(db.updateItem).toHaveBeenCalledWith(ID, { name: 'x', completed: false });
+  });
+
+  test('it rejects a missing completed field with 422', async () => {
+    const res = await put(ID, { name: 'x' });
+
+    expect(res.status).toBe(422);
+    expect(await res.json()).toEqual({
+      message: 'Validation failed',
+      issues: [{ path: ['completed'], message: expect.any(String) }],
+    });
+    expect(db.updateItem).not.toHaveBeenCalled();
   });
 });
 
 describe('DELETE /items/:id', () => {
+  beforeEach(() => {
+    db.removeItem.mockResolvedValue(1);
+  });
+
   test('it removes item correctly', async () => {
-    const res = await del('12345');
+    const res = await del(ID);
 
     expect(db.removeItem).toHaveBeenCalledTimes(1);
-    expect(db.removeItem).toHaveBeenCalledWith('12345');
+    expect(db.removeItem).toHaveBeenCalledWith(ID);
     expect(res.status).toBe(200);
   });
 
-  test('it removes item with a string id', async () => {
-    const res = await del('abc-123');
+  test('it removes an item for any valid uuid id', async () => {
+    const res = await del(ID2);
 
-    expect(db.removeItem).toHaveBeenCalledWith('abc-123');
+    expect(db.removeItem).toHaveBeenCalledWith(ID2);
     expect(res.status).toBe(200);
   });
 
-  test('it removes item with a long id', async () => {
-    const id = 'a'.repeat(500);
-    const res = await del(id);
+  test('it rejects a non-uuid id with 422', async () => {
+    const res = await del('a'.repeat(500));
 
-    expect(db.removeItem).toHaveBeenCalledWith(id);
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(422);
+    expect(db.removeItem).not.toHaveBeenCalled();
+  });
+
+  test('it returns 404 when the item does not exist', async () => {
+    db.removeItem.mockResolvedValue(0);
+
+    const res = await del(ID);
+
+    expect(res.status).toBe(404);
+    expect(db.removeItem).toHaveBeenCalledWith(ID);
   });
 
   test('it only calls removeItem once', async () => {
-    await del('12345');
+    await del(ID);
 
     expect(db.removeItem).toHaveBeenCalledTimes(1);
   });

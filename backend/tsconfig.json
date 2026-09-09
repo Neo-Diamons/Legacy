@@ -12,7 +12,9 @@
     "paths": {
       "@db": ["./src/db/index.ts"],
       "@db/*": ["./src/db/*"],
+      "@http/*": ["./src/http/*"],
       "@model/*": ["./src/model/*"],
+      "@schemas/*": ["./src/schemas/*"],
       "@service/*": ["./src/service/*"],
       "@controller/*": ["./src/controller/*"]
     }

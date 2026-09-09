@@ -10,7 +10,9 @@ export default defineConfig(({ mode }) => ({
     alias: [
       { find: /^@db$/, replacement: src('db/index.ts') },
       { find: /^@db\/(.*)\.js$/, replacement: src('db/$1') },
+      { find: /^@http\/(.*)\.js$/, replacement: src('http/$1') },
       { find: /^@model\/(.*)\.js$/, replacement: src('model/$1') },
+      { find: /^@schemas\/(.*)\.js$/, replacement: src('schemas/$1') },
       { find: /^@service\/(.*)\.js$/, replacement: src('service/$1') },
       { find: /^@controller\/(.*)\.js$/, replacement: src('controller/$1') },
     ],

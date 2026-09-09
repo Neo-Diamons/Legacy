@@ -18,12 +18,14 @@
   },
   "dependencies": {
     "@hono/node-server": "^2.1.1",
+    "@hono/zod-openapi": "^1.6.3",
     "better-sqlite3": "^13.0.3",
     "drizzle-orm": "^0.45.2",
     "hono": "^4.13.7",
     "mysql2": "^3.24.4",
     "uuid": "^14.0.2",
-    "wait-port": "^1.1.0"
+    "wait-port": "^1.1.0",
+    "zod": "^4.5.4"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^9.6.0",
