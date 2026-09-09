@@ -1,12 +1,16 @@
 {
   "name": "legacy-todolist",
-  "version": "1.0.0",
+  "version": "0.0.0",
   "private": true,
   "type": "module",
   "license": "MIT",
-  "workspaces": ["backend", "frontend"],
+  "packageManager": "npm@11.19.0",
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
   "engines": {
-    "node": ">=24 <25",
+    "node": ">=24.13.0 <25",
     "npm": ">=11 <12"
   },
   "scripts": {
@@ -19,29 +23,31 @@
     "test": "npm run test --workspace backend",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
+    "typecheck": "npm run typecheck --workspaces --if-present",
     "format": "prettier --write backend frontend eslint.config.ts",
     "format:check": "prettier --check backend frontend eslint.config.ts"
   },
   "devDependencies": {
-    "@eslint/js": "^9.39.5",
-    "concurrently": "^9.1.2",
-    "eslint": "^9.39.5",
+    "@eslint/js": "^10.0.1",
+    "concurrently": "^10.0.5",
+    "eslint": "^10.10.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-react-hooks": "^7.1.1",
-    "eslint-plugin-react-refresh": "^0.4.20",
-    "globals": "^15.14.0",
+    "eslint-plugin-react-refresh": "^0.5.6",
+    "globals": "^17.12.0",
     "jiti": "^2.7.0",
     "prettier": "^3.9.6",
-    "typescript": "~5.8.3",
-    "typescript-eslint": "^8.20.0"
+    "typescript": "~6.0.3",
+    "typescript-eslint": "^8.70.0"
   },
   "overrides": {
-    "tar": "7.5.4",
-    "glob": "11.1.0",
-    "semver": "7.5.2",
-    "cross-spawn": "7.0.5",
-    "braces": "3.0.3",
-    "http-cache-semantics": "4.1.1",
-    "socks": "2.8.1"
+    "@esbuild-kit/core-utils": {
+      "esbuild": "^0.25.10"
+    }
+  },
+  "allowScripts": {
+    "esbuild@0.25.12": true,
+    "esbuild@0.28.2": true,
+    "better-sqlite3@13.0.3": true
   }
 }

@@ -1,9 +1,11 @@
 import { fileURLToPath } from 'node:url';
+import { loadEnv } from 'vite';
 import { defineConfig } from 'vitest/config';
 
+const root = fileURLToPath(new URL('.', import.meta.url));
 const src = (path: string) => fileURLToPath(new URL(`./src/${path}`, import.meta.url));
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   resolve: {
     alias: [
       { find: /^@db$/, replacement: src('db/index.ts') },
@@ -17,5 +19,6 @@ export default defineConfig({
     globals: true,
     environment: 'node',
     include: ['src/**/*.test.ts'],
+    env: loadEnv(mode, root, ''),
   },
-});
+}));

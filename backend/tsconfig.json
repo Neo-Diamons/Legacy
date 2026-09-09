@@ -9,7 +9,6 @@
     "isolatedModules": true,
     "noEmit": true,
     "types": ["node", "vitest/globals"],
-    "baseUrl": ".",
     "paths": {
       "@db": ["./src/db/index.ts"],
       "@db/*": ["./src/db/*"],
