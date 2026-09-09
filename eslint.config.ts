@@ -25,7 +25,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ['backend/spec/**/*.{js,ts}'],
+    files: ['backend/**/*.test.{js,ts}'],
     languageOptions: {
       globals: { ...globals.node, ...globals.vitest },
     },
