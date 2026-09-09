@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
+import { logger } from 'hono/logger';
 import { serve } from '@hono/node-server';
 import '@db';
 import { itemController } from '@controller/item.controller.js';
@@ -7,6 +8,7 @@ import { itemController } from '@controller/item.controller.js';
 const app = new Hono();
 
 app.use(cors());
+app.use(logger());
 
 app.route('/items', itemController);
 
