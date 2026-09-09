@@ -5,6 +5,10 @@
   "type": "module",
   "license": "MIT",
   "workspaces": ["backend", "frontend"],
+  "engines": {
+    "node": ">=24 <25",
+    "npm": ">=11 <12"
+  },
   "scripts": {
     "dev": "concurrently -n backend,frontend -c blue,magenta \"npm:dev:backend\" \"npm:dev:frontend\"",
     "dev:backend": "npm run dev --workspace backend",
@@ -15,8 +19,8 @@
     "test": "npm run test --workspace backend",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "format": "prettier --write backend frontend eslint.config.js",
-    "format:check": "prettier --check backend frontend eslint.config.js"
+    "format": "prettier --write backend frontend eslint.config.ts",
+    "format:check": "prettier --check backend frontend eslint.config.ts"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",
@@ -26,6 +30,7 @@
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.4.20",
     "globals": "^15.14.0",
+    "jiti": "^2.7.0",
     "prettier": "^3.9.6",
     "typescript": "~5.8.3",
     "typescript-eslint": "^8.20.0"

@@ -4,6 +4,10 @@
   "private": true,
   "type": "module",
   "description": "React + TypeScript client built with Vite. Lint/format run from the repo root.",
+  "engines": {
+    "node": ">=24 <25",
+    "npm": ">=11 <12"
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",

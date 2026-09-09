@@ -5,7 +5,7 @@ import reactRefresh from 'eslint-plugin-react-refresh';
 import tseslint from 'typescript-eslint';
 import prettier from 'eslint-config-prettier';
 
-export default [
+export default tseslint.config(
   {
     ignores: ['**/node_modules', 'frontend/dist'],
   },
@@ -50,5 +50,5 @@ export default [
     },
   },
 
-  prettier,
-];
+  prettier
+);
