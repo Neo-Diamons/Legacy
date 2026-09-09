@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { serve } from '@hono/node-server';
-import './db/index.js';
+import '@db';
 import getItems from './routes/getItems.js';
 import addItem from './routes/addItem.js';
 import updateItem from './routes/updateItem.js';

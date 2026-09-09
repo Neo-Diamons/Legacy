@@ -8,7 +8,14 @@
     "esModuleInterop": true,
     "isolatedModules": true,
     "noEmit": true,
-    "types": ["node", "jest"]
+    "types": ["node", "jest"],
+    "baseUrl": ".",
+    "paths": {
+      "@db": ["./db/index.ts"],
+      "@db/*": ["./db/*"],
+      "@model/*": ["./model/*"],
+      "@service/*": ["./service/*"]
+    }
   },
   "include": ["**/*.ts"],
   "exclude": ["node_modules"],

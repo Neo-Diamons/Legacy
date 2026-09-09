@@ -1,7 +1,7 @@
 import { existsSync, unlinkSync } from 'fs';
 const location = process.env.SQLITE_DB_LOCATION || '/etc/todos/todo.db';
 
-import { itemService as db } from '../../service/item.service.js';
+import { itemService as db } from '@service/item.service.js';
 
 const { init, teardown, storeItem, getItems, updateItem, removeItem, getItem } = db;
 

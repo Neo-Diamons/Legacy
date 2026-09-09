@@ -1,5 +1,5 @@
 import type { Context } from 'hono';
-import { itemService } from '../service/item.service.js';
+import { itemService } from '@service/item.service.js';
 import { v4 as uuid } from 'uuid';
 
 export default async (c: Context) => {
