@@ -1,14 +1,14 @@
 import type { Context } from 'hono';
-import { updateItem, getItem } from '../persistence/index.js';
+import { itemService } from '../service/item.service.js';
 
 export default async (c: Context) => {
   const id = c.req.param('id')!;
   const body = await c.req.json();
 
-  await updateItem(id, {
+  await itemService.updateItem(id, {
     name: body.name,
     completed: body.completed,
   });
-  const item = await getItem(id);
+  const item = await itemService.getItem(id);
   return c.json(item);
 };

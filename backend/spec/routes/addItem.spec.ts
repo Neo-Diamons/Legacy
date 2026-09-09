@@ -3,7 +3,7 @@ import { jest } from '@jest/globals';
 const persistence = { storeItem: jest.fn() };
 const uuid = jest.fn();
 
-jest.unstable_mockModule('../../persistence/index.js', () => persistence);
+jest.unstable_mockModule('../../service/item.service.js', () => ({ itemService: persistence }));
 jest.unstable_mockModule('uuid', () => ({ v4: uuid }));
 
 const { Hono } = await import('hono');

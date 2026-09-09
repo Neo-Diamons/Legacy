@@ -5,7 +5,7 @@ const persistence = {
   updateItem: jest.fn(),
 };
 
-jest.unstable_mockModule('../../persistence/index.js', () => persistence);
+jest.unstable_mockModule('../../service/item.service.js', () => ({ itemService: persistence }));
 
 const { Hono } = await import('hono');
 const { default: updateItem } = await import('../../routes/updateItem.js');

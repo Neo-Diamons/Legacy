@@ -1,7 +1,7 @@
 import type { Context } from 'hono';
-import { removeItem } from '../persistence/index.js';
+import { itemService } from '../service/item.service.js';
 
 export default async (c: Context) => {
-  await removeItem(c.req.param('id')!);
+  await itemService.removeItem(c.req.param('id')!);
   return c.body(null, 200);
 };

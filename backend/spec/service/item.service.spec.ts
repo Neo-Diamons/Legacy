@@ -1,10 +1,9 @@
 import { existsSync, unlinkSync } from 'fs';
 const location = process.env.SQLITE_DB_LOCATION || '/etc/todos/todo.db';
 
-import sqlite from '../../persistence/sqlite.js';
-const db = sqlite;
+import { itemService as db } from '../../service/item.service.js';
 
-const { init, teardown, storeItem, getItems, updateItem, removeItem, getItem } = sqlite;
+const { init, teardown, storeItem, getItems, updateItem, removeItem, getItem } = db;
 
 const ITEM = {
   id: '7aef3d7c-d301-4846-8358-2a91ec9d6be3',
