@@ -6,6 +6,9 @@ data/
 *.db
 *.db-journal
 
+# Test coverage
+coverage/
+
 # Build output
 dist/
 dist-ssr/

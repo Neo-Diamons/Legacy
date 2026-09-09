@@ -21,6 +21,7 @@
     "preview": "npm run preview --workspace frontend",
     "start": "npm run start --workspace backend",
     "test": "npm run test --workspace backend",
+    "test:coverage": "npm run test:coverage --workspaces --if-present",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "typecheck": "npm run typecheck --workspaces --if-present",

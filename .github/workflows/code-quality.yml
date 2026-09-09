@@ -26,6 +26,9 @@ jobs:
   code-quality:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: write
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -57,9 +60,31 @@ jobs:
 
       - name: Test
         if: '!cancelled()'
-        run: npm run test
+        run: npm run test:coverage
         env:
           SQLITE_DB_LOCATION: ./test.db
+
+      - name: Upload coverage
+        if: '!cancelled()'
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: '*/coverage/'
+          if-no-files-found: ignore
+
+      - name: Coverage report (backend)
+        if: '!cancelled()'
+        uses: davelosert/vitest-coverage-report-action@v2
+        with:
+          name: backend
+          working-directory: backend
+
+      # - name: Coverage report (frontend)
+      #   if: '!cancelled()'
+      #   uses: davelosert/vitest-coverage-report-action@v2
+      #   with:
+      #     name: frontend
+      #     working-directory: frontend
 
       - name: Build
         run: npm run build

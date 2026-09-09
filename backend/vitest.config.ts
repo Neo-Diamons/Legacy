@@ -20,5 +20,13 @@ export default defineConfig(({ mode }) => ({
     environment: 'node',
     include: ['src/**/*.test.ts'],
     env: loadEnv(mode, root, ''),
+    coverage: {
+      provider: 'v8',
+      all: true,
+      reporter: ['text', 'html', 'lcov', 'json', 'json-summary'],
+      reportsDirectory: './coverage',
+      include: ['src/**/*.ts'],
+      exclude: ['src/**/*.test.ts', 'src/index.ts', 'src/db/**'],
+    },
   },
 }));
