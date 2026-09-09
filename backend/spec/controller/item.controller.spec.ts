@@ -1,16 +1,18 @@
-import { jest } from '@jest/globals';
+import { vi } from 'vitest';
 
-const persistence = {
-  getItems: jest.fn(),
-  getItem: jest.fn(),
-  storeItem: jest.fn(),
-  updateItem: jest.fn(),
-  removeItem: jest.fn(),
-};
-const uuid = jest.fn();
+const { persistence, uuid } = vi.hoisted(() => ({
+  persistence: {
+    getItems: vi.fn(),
+    getItem: vi.fn(),
+    storeItem: vi.fn(),
+    updateItem: vi.fn(),
+    removeItem: vi.fn(),
+  },
+  uuid: vi.fn(),
+}));
 
-jest.unstable_mockModule('@service/item.service.js', () => ({ itemService: persistence }));
-jest.unstable_mockModule('uuid', () => ({ v4: uuid }));
+vi.mock('@service/item.service.js', () => ({ itemService: persistence }));
+vi.mock('uuid', () => ({ v4: uuid }));
 
 const { Hono } = await import('hono');
 const { itemController } = await import('@controller/item.controller.js');
@@ -38,7 +40,7 @@ const put = (id: string, body: unknown) =>
 const del = (id: string) => app.request(`/items/${id}`, { method: 'DELETE' });
 
 beforeEach(() => {
-  jest.clearAllMocks();
+  vi.clearAllMocks();
 });
 
 describe('GET /items', () => {
