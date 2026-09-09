@@ -2,19 +2,13 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { serve } from '@hono/node-server';
 import '@db';
-import getItems from '@controller/getItems.js';
-import addItem from '@controller/addItem.js';
-import updateItem from '@controller/updateItem.js';
-import deleteItem from '@controller/deleteItem.js';
+import { itemController } from '@controller/item.controller.js';
 
 const app = new Hono();
 
 app.use(cors());
 
-app.get('/items', getItems);
-app.post('/items', addItem);
-app.put('/items/:id', updateItem);
-app.delete('/items/:id', deleteItem);
+app.route('/items', itemController);
 
 serve(
   {
