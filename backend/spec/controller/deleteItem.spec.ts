@@ -5,7 +5,7 @@ const persistence = { removeItem: jest.fn() };
 jest.unstable_mockModule('@service/item.service.js', () => ({ itemService: persistence }));
 
 const { Hono } = await import('hono');
-const { default: deleteItem } = await import('../../routes/deleteItem.js');
+const { default: deleteItem } = await import('@controller/deleteItem.js');
 const db = persistence;
 
 const app = new Hono();

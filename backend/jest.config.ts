@@ -9,6 +9,7 @@ const config: JestConfigWithTsJest = {
     '^@db/(.*)\\.js$': '<rootDir>/db/$1',
     '^@model/(.*)\\.js$': '<rootDir>/model/$1',
     '^@service/(.*)\\.js$': '<rootDir>/service/$1',
+    '^@controller/(.*)\\.js$': '<rootDir>/controller/$1',
     '^(\\.{1,2}/.*)\\.js$': '$1',
   },
   transform: {

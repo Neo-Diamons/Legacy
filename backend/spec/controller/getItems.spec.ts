@@ -5,7 +5,7 @@ const persistence = { getItems: jest.fn() };
 jest.unstable_mockModule('@service/item.service.js', () => ({ itemService: persistence }));
 
 const { Hono } = await import('hono');
-const { default: getItems } = await import('../../routes/getItems.js');
+const { default: getItems } = await import('@controller/getItems.js');
 const db = persistence;
 
 const app = new Hono();

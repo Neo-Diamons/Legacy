@@ -8,7 +8,7 @@ const persistence = {
 jest.unstable_mockModule('@service/item.service.js', () => ({ itemService: persistence }));
 
 const { Hono } = await import('hono');
-const { default: updateItem } = await import('../../routes/updateItem.js');
+const { default: updateItem } = await import('@controller/updateItem.js');
 const db = persistence;
 
 const app = new Hono();

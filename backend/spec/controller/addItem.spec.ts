@@ -7,7 +7,7 @@ jest.unstable_mockModule('@service/item.service.js', () => ({ itemService: persi
 jest.unstable_mockModule('uuid', () => ({ v4: uuid }));
 
 const { Hono } = await import('hono');
-const { default: addItem } = await import('../../routes/addItem.js');
+const { default: addItem } = await import('@controller/addItem.js');
 const db = persistence;
 
 const app = new Hono();

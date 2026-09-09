@@ -2,10 +2,10 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { serve } from '@hono/node-server';
 import '@db';
-import getItems from './routes/getItems.js';
-import addItem from './routes/addItem.js';
-import updateItem from './routes/updateItem.js';
-import deleteItem from './routes/deleteItem.js';
+import getItems from '@controller/getItems.js';
+import addItem from '@controller/addItem.js';
+import updateItem from '@controller/updateItem.js';
+import deleteItem from '@controller/deleteItem.js';
 
 const app = new Hono();
 

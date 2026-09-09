@@ -14,7 +14,8 @@
       "@db": ["./db/index.ts"],
       "@db/*": ["./db/*"],
       "@model/*": ["./model/*"],
-      "@service/*": ["./service/*"]
+      "@service/*": ["./service/*"],
+      "@controller/*": ["./controller/*"]
     }
   },
   "include": ["**/*.ts"],
