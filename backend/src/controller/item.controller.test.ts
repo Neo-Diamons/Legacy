@@ -1,4 +1,5 @@
 import { vi } from 'vitest';
+import { ItemListSchema, ItemResponseSchema } from '@schemas/item.schemas.js';
 
 const { persistence, uuid } = vi.hoisted(() => ({
   persistence: {
@@ -23,6 +24,8 @@ registerErrorHandler(app);
 
 const ID = '3fa85f64-5717-4562-b3fc-2c963f66afa6';
 const ID2 = '11111111-1111-4111-8111-111111111111';
+const ID3 = '22222222-2222-4222-8222-222222222222';
+const ID4 = '33333333-3333-4333-8333-333333333333';
 
 const get = () => app.request('/items');
 
@@ -48,10 +51,10 @@ beforeEach(() => {
 });
 
 describe('GET /items', () => {
-  const ITEMS = [{ id: 12345 }];
+  const ITEMS = [{ id: ID, name: 'A sample item', completed: false }];
 
   test('it gets items correctly', async () => {
-    db.getItems.mockReturnValue(Promise.resolve(ITEMS));
+    db.getItems.mockResolvedValue(ITEMS);
 
     const res = await get();
 
@@ -60,7 +63,7 @@ describe('GET /items', () => {
   });
 
   test('it returns an empty list when there are no items', async () => {
-    db.getItems.mockReturnValue(Promise.resolve([]));
+    db.getItems.mockResolvedValue([]);
 
     const res = await get();
 
@@ -70,12 +73,12 @@ describe('GET /items', () => {
 
   test('it returns multiple items correctly', async () => {
     const items = [
-      { id: 1, name: 'First item', completed: false },
-      { id: 2, name: 'Second item', completed: true },
-      { id: 3, name: 'Third item', completed: false },
+      { id: ID, name: 'First item', completed: false },
+      { id: ID2, name: 'Second item', completed: true },
+      { id: ID3, name: 'Third item', completed: false },
     ];
 
-    db.getItems.mockReturnValue(Promise.resolve(items));
+    db.getItems.mockResolvedValue(items);
 
     const res = await get();
 
@@ -84,9 +87,9 @@ describe('GET /items', () => {
   });
 
   test('it returns items with an empty name', async () => {
-    const items = [{ id: 1, name: '', completed: false }];
+    const items = [{ id: ID, name: '', completed: false }];
 
-    db.getItems.mockReturnValue(Promise.resolve(items));
+    db.getItems.mockResolvedValue(items);
 
     const res = await get();
 
@@ -95,15 +98,27 @@ describe('GET /items', () => {
 
   test('it returns completed and incomplete items', async () => {
     const items = [
-      { id: 1, name: 'Completed task', completed: true },
-      { id: 2, name: 'Pending task', completed: false },
+      { id: ID, name: 'Completed task', completed: true },
+      { id: ID2, name: 'Pending task', completed: false },
     ];
 
-    db.getItems.mockReturnValue(Promise.resolve(items));
+    db.getItems.mockResolvedValue(items);
 
     const res = await get();
 
     expect(await res.json()).toEqual(items);
+  });
+
+  test('the response body conforms to ItemListSchema', async () => {
+    db.getItems.mockResolvedValue([
+      { id: ID, name: 'A sample item', completed: false },
+      { id: ID2, name: 'Another item', completed: true },
+    ]);
+
+    const res = await get();
+    const body = await res.json();
+
+    expect(() => ItemListSchema.parse(body)).not.toThrow();
   });
 });
 
@@ -125,7 +140,7 @@ describe('POST /items', () => {
   });
 
   test('it can create an item with an empty name', async () => {
-    const id = 'empty-name-id';
+    const id = ID2;
 
     uuid.mockReturnValue(id);
 
@@ -145,7 +160,7 @@ describe('POST /items', () => {
   });
 
   test('it can create an item with a long name', async () => {
-    const id = 'long-name-id';
+    const id = ID3;
     const name = 'A'.repeat(500);
 
     uuid.mockReturnValue(id);
@@ -160,7 +175,7 @@ describe('POST /items', () => {
   });
 
   test('it can create an item with special characters', async () => {
-    const id = 'special-character-id';
+    const id = ID4;
     const name = 'Test @#$%éà !?';
 
     uuid.mockReturnValue(id);
@@ -175,7 +190,7 @@ describe('POST /items', () => {
   });
 
   test('it can create an item with spaces in the name', async () => {
-    const id = 'spaces-id';
+    const id = ID;
     const name = '   Test item   ';
 
     uuid.mockReturnValue(id);
@@ -187,6 +202,15 @@ describe('POST /items', () => {
       name,
       completed: false,
     });
+  });
+
+  test('the response body conforms to ItemResponseSchema', async () => {
+    uuid.mockReturnValue(ID);
+
+    const res = await post({ name: 'A sample item' });
+    const body = await res.json();
+
+    expect(() => ItemResponseSchema.parse(body)).not.toThrow();
   });
 });
 
@@ -205,6 +229,13 @@ describe('PUT /items/:id', () => {
     });
 
     expect(await res.json()).toEqual({ id: ID, name: 'New title', completed: false });
+  });
+
+  test('the response body conforms to ItemResponseSchema', async () => {
+    const res = await put(ID, { name: 'New title', completed: true });
+    const body = await res.json();
+
+    expect(() => ItemResponseSchema.parse(body)).not.toThrow();
   });
 
   test('it updates an item with an empty name', async () => {
