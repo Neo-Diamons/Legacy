@@ -1,5 +1,5 @@
 import { vi } from 'vitest';
-import { ItemListSchema, ItemResponseSchema } from '@schemas/item.schemas.js';
+import { ItemListResponseSchema, ItemResponseSchema } from '@schemas/item.schemas.js';
 
 const { persistence, uuid } = vi.hoisted(() => ({
   persistence: {
@@ -109,7 +109,7 @@ describe('GET /items', () => {
     expect(await res.json()).toEqual(items);
   });
 
-  test('the response body conforms to ItemListSchema', async () => {
+  test('the response body conforms to ItemListResponseSchema', async () => {
     db.getItems.mockResolvedValue([
       { id: ID, name: 'A sample item', completed: false },
       { id: ID2, name: 'Another item', completed: true },
@@ -118,7 +118,7 @@ describe('GET /items', () => {
     const res = await get();
     const body = await res.json();
 
-    expect(() => ItemListSchema.parse(body)).not.toThrow();
+    expect(() => ItemListResponseSchema.parse(body)).not.toThrow();
   });
 });
 
