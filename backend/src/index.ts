@@ -3,7 +3,7 @@ import { logger } from 'hono/logger';
 import { serve } from '@hono/node-server';
 import { Scalar } from '@scalar/hono-api-reference';
 import { parsePort } from '@utils/port.js';
-import '@db';
+import { driver } from '@db';
 import { itemController } from '@controller/item.controller.js';
 import { createRouter, registerErrorHandler } from '@http/app.js';
 
@@ -66,7 +66,7 @@ app.get(
   })
 );
 
-serve(
+const server = serve(
   {
     fetch: app.fetch,
     port: parsePort(process.env.BACKEND_PORT, 3000),
@@ -75,3 +75,41 @@ serve(
     console.log(`Server is running on http://localhost:${info.port}`);
   }
 );
+
+let shuttingDown = false;
+
+async function shutdown(signal: NodeJS.Signals) {
+  if (shuttingDown) return;
+  shuttingDown = true;
+
+  console.error(`Received ${signal}, shutting down...`);
+
+  setTimeout(() => {
+    console.error('Shutdown timed out, forcing exit');
+    if ('closeAllConnections' in server) server.closeAllConnections();
+    process.exit(1);
+  }, 5_000).unref();
+
+  await new Promise<void>((resolve) => {
+    server.close((err) => {
+      if (err) {
+        console.error('Error closing HTTP server', err);
+        process.exitCode = 1;
+      }
+      resolve();
+    });
+    if ('closeIdleConnections' in server) server.closeIdleConnections();
+  });
+
+  try {
+    await driver.teardown();
+  } catch (err) {
+    console.error('Error during database teardown', err);
+    process.exitCode = 1;
+  }
+
+  process.exit(process.exitCode ?? 0);
+}
+
+process.on('SIGINT', shutdown);
+process.on('SIGTERM', shutdown);

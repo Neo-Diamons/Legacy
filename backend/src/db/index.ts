@@ -4,16 +4,11 @@ import * as mysql from '@db/db.mysql.js';
 
 export { useMysql, sqlite, mysql };
 
-const driver = useMysql ? mysql : sqlite;
+export const driver = useMysql ? mysql : sqlite;
 
-await driver.init();
-
-const shutdown = () => {
-  driver
-    .teardown()
-    .catch(() => {})
-    .finally(() => process.exit());
-};
-
-process.on('SIGINT', shutdown);
-process.on('SIGTERM', shutdown);
+try {
+  await driver.init();
+} catch (err) {
+  console.error(`Failed to initialize ${useMysql ? 'mysql' : 'sqlite'} database`, err);
+  process.exit(1);
+}
