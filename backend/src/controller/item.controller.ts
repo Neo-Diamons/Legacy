@@ -41,7 +41,7 @@ const createItem = createRoute({
     },
   },
   responses: {
-    200: {
+    201: {
       content: { 'application/json': { schema: ItemResponseSchema } },
       description: 'The created item',
     },
@@ -60,7 +60,7 @@ itemController.openapi(createItem, async (c) => {
   };
 
   await itemService.storeItem(item);
-  return c.json(item, 200);
+  return c.json(item, 201);
 });
 
 const updateItem = createRoute({
@@ -109,7 +109,7 @@ const deleteItem = createRoute({
     params: ItemParamsSchema,
   },
   responses: {
-    200: { description: 'Item deleted' },
+    204: { description: 'Item deleted' },
     404: {
       content: { 'application/json': { schema: ErrorResponseSchema } },
       description: 'Item not found',
@@ -126,5 +126,5 @@ itemController.openapi(deleteItem, async (c) => {
   if (!removed) {
     throw new HTTPException(404, { message: 'Item not found' });
   }
-  return c.body(null, 200);
+  return c.body(null, 204);
 });
