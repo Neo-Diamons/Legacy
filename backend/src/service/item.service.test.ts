@@ -1,8 +1,8 @@
 import { existsSync, unlinkSync } from 'fs';
-const location = process.env.SQLITE_DB_LOCATION || '/etc/todos/todo.db';
 
 import { itemService as db } from '@service/item.service.js';
 import { init, teardown } from '@db/db.sqlite.js';
+import { sqliteLocation } from '@db/config.js';
 
 const { storeItem, getItems, updateItem, removeItem, getItem } = db;
 
@@ -13,8 +13,8 @@ const ITEM = {
 };
 
 beforeEach(async () => {
-  if (existsSync(location)) {
-    unlinkSync(location);
+  if (existsSync(sqliteLocation)) {
+    unlinkSync(sqliteLocation);
   }
   await init();
 });
