@@ -1,4 +1,4 @@
-import { useMysql } from '@db/driver.js';
+import { useMysql } from '@db/config.js';
 import * as sqlite from '@db/db.sqlite.js';
 import * as mysql from '@db/db.mysql.js';
 
