@@ -15,6 +15,7 @@ export default defineConfig(({ mode }) => ({
       { find: /^@schemas\/(.*)\.js$/, replacement: src('schemas/$1') },
       { find: /^@service\/(.*)\.js$/, replacement: src('service/$1') },
       { find: /^@controller\/(.*)\.js$/, replacement: src('controller/$1') },
+      { find: /^@utils\/(.*)\.js$/, replacement: src('utils/$1') },
     ],
   },
   test: {

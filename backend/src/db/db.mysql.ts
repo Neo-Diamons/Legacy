@@ -5,6 +5,7 @@ import { createPool, type Pool } from 'mysql2/promise';
 import { drizzle, type MySql2Database } from 'drizzle-orm/mysql2';
 import { migrate } from 'drizzle-orm/mysql2/migrator';
 import waitPort from 'wait-port';
+import { parsePort } from '@utils/port.js';
 
 const {
   MYSQL_HOST: HOST,
@@ -29,7 +30,7 @@ export let db: MySql2Database;
 
 export async function init(): Promise<void> {
   const host = fromEnv(HOST, HOST_FILE);
-  const port = Number(fromEnv(PORT, PORT_FILE)) || 3306;
+  const port = parsePort(fromEnv(PORT, PORT_FILE), 3306);
   const user = fromEnv(USER, USER_FILE);
   const password = fromEnv(PASSWORD, PASSWORD_FILE);
   const database = fromEnv(DB, DB_FILE);

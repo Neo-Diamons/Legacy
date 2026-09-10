@@ -2,6 +2,7 @@ import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
 import { serve } from '@hono/node-server';
 import { Scalar } from '@scalar/hono-api-reference';
+import { parsePort } from '@utils/port.js';
 import '@db';
 import { itemController } from '@controller/item.controller.js';
 import { createRouter, registerErrorHandler } from '@http/app.js';
@@ -39,7 +40,7 @@ app.get(
 serve(
   {
     fetch: app.fetch,
-    port: 3000,
+    port: parsePort(process.env.BACKEND_PORT, 3000),
   },
   (info) => {
     console.log(`Server is running on http://localhost:${info.port}`);

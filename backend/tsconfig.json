@@ -16,7 +16,8 @@
       "@model/*": ["./src/model/*"],
       "@schemas/*": ["./src/schemas/*"],
       "@service/*": ["./src/service/*"],
-      "@controller/*": ["./src/controller/*"]
+      "@controller/*": ["./src/controller/*"],
+      "@utils/*": ["./src/utils/*"]
     }
   },
   "include": ["**/*.ts"],
