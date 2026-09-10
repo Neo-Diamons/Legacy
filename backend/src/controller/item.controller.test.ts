@@ -12,7 +12,6 @@ const { persistence, uuid } = vi.hoisted(() => ({
 }));
 
 vi.mock('@service/item.service.js', () => ({ itemService: persistence }));
-vi.mock('uuid', () => ({ v4: uuid }));
 
 const { itemController } = await import('@controller/item.controller.js');
 const { createRouter, registerErrorHandler } = await import('@http/app.js');
@@ -45,6 +44,7 @@ const del = (id: string) => app.request(`/items/${id}`, { method: 'DELETE' });
 
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.spyOn(crypto, 'randomUUID').mockImplementation(() => uuid());
 });
 
 describe('GET /items', () => {
