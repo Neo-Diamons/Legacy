@@ -17,17 +17,24 @@ function parsePort(value: string | undefined, fallback: number): number {
 export default defineConfig(({ mode }) => {
   const env = {
     ...process.env,
-    ...loadEnv(mode, repoRoot, ['BACKEND_PORT', 'FRONTEND_PORT']),
+    ...loadEnv(mode, repoRoot, ['BACKEND_PORT', 'FRONTEND_PORT', 'BACKEND_URL']),
   };
   const backendPort = parsePort(env.BACKEND_PORT, 3000);
+  const backendUrl = env.BACKEND_URL?.trim() || `http://localhost:${backendPort}`;
+
+  const proxy = {
+    '/items': backendUrl,
+  };
 
   return {
     plugins: [react()],
     server: {
       port: parsePort(env.FRONTEND_PORT, 5173),
-      proxy: {
-        '/items': `http://localhost:${backendPort}`,
-      },
+      proxy,
+    },
+    preview: {
+      port: parsePort(env.FRONTEND_PORT, 4173),
+      proxy,
     },
   };
 });
