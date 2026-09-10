@@ -1,17 +1,24 @@
-FROM node:22 AS builder
+FROM node:24 AS base
+
+FROM base AS builder
 
 WORKDIR /app
 
-COPY package*.json .
+COPY package*.json tsconfig.json vite.config.ts ./
 
-RUN npm install
+RUN npm i
 
-COPY . .
-
-ENV SQLITE_DB_LOCATION="./todo.db"
+COPY index.html src/ ./
 
 RUN npm run build
 
-FROM nginx:alpine
 
-COPY --from=builder /app/dist /usr/share/nginx/html
+FROM base as runner
+
+WORKDIR /app
+
+COPY --from=builder  /app/dist /app/dist
+
+EXPOSE 5173
+
+CMD ["npx", "vite", "preview", "--host", "0.0.0.0", "--port", "5173"]
