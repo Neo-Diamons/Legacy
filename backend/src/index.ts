@@ -66,15 +66,26 @@ app.get(
   })
 );
 
+const backendPort = parsePort(process.env.BACKEND_PORT, 3000);
+
 const server = serve(
   {
     fetch: app.fetch,
-    port: parsePort(process.env.BACKEND_PORT, 3000),
+    port: backendPort,
   },
   (info) => {
     console.log(`Server is running on http://localhost:${info.port}`);
   }
 );
+
+server.on('error', (err: NodeJS.ErrnoException) => {
+  if (err.code === 'EADDRINUSE') {
+    console.error(`Port ${backendPort} is already in use`);
+  } else {
+    console.error('HTTP server error', err);
+  }
+  process.exit(1);
+});
 
 let shuttingDown = false;
 
