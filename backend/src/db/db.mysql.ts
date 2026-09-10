@@ -1,11 +1,10 @@
 import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
 import { createPool, type Pool } from 'mysql2/promise';
 import { drizzle, type MySql2Database } from 'drizzle-orm/mysql2';
 import { migrate } from 'drizzle-orm/mysql2/migrator';
 import waitPort from 'wait-port';
 import { parsePort } from '@utils/port.js';
+import { resolveMigrationsFolder } from '@db/config.js';
 
 const {
   MYSQL_HOST: HOST,
@@ -20,9 +19,10 @@ const {
   MYSQL_DB_FILE: DB_FILE,
 } = process.env;
 
-const migrationsFolder = path.join(path.dirname(fileURLToPath(import.meta.url)), '../../drizzle/mysql');
-
-const fromEnv = (value?: string, file?: string) => (file ? fs.readFileSync(file, 'utf8') : value);
+const fromEnv = (value?: string, file?: string): string | undefined => {
+  const raw = file ? fs.readFileSync(file, 'utf8') : value;
+  return raw?.trim() || undefined;
+};
 
 let pool: Pool;
 
@@ -49,7 +49,7 @@ export async function init(): Promise<void> {
   });
   db = drizzle(pool);
 
-  await migrate(db, { migrationsFolder });
+  await migrate(db, { migrationsFolder: resolveMigrationsFolder('mysql') });
 
   console.log(`Connected to mysql db at host ${host}`);
 }

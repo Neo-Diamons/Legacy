@@ -17,9 +17,14 @@
     "dev": "concurrently -n backend,frontend -c blue,magenta \"npm:dev:backend\" \"npm:dev:frontend\"",
     "dev:backend": "npm run dev --workspace backend",
     "dev:frontend": "npm run dev --workspace frontend",
-    "build": "npm run build --workspace frontend",
+    "build": "npm run build:backend && npm run build:frontend",
+    "build:backend": "npm run build --workspace backend",
+    "build:frontend": "npm run build --workspace frontend",
     "preview": "npm run preview --workspace frontend",
-    "start": "npm run start --workspace backend",
+    "prestart": "npm run build",
+    "start": "concurrently -n backend,frontend -c blue,magenta \"npm:start:backend\" \"npm:start:frontend\"",
+    "start:backend": "npm run start --workspace backend",
+    "start:frontend": "npm run preview --workspace frontend",
     "test": "npm run test --workspace backend",
     "test:coverage": "npm run test:coverage --workspaces --if-present",
     "lint": "eslint .",
@@ -44,6 +49,12 @@
   "overrides": {
     "@esbuild-kit/core-utils": {
       "esbuild": "^0.25.10"
+    },
+    "tsdown": {
+      "typescript": "$typescript"
+    },
+    "rolldown-plugin-dts": {
+      "typescript": "$typescript"
     }
   },
   "allowScripts": {
