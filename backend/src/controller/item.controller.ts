@@ -4,7 +4,7 @@ import { itemService } from '@service/item.service.js';
 import { createRouter } from '@http/app.js';
 import {
   CreateItemBodySchema,
-  ItemListSchema,
+  ItemListResponseSchema,
   ItemParamsSchema,
   ItemResponseSchema,
   UpdateItemBodySchema,
@@ -20,7 +20,7 @@ const listItem = createRoute({
   summary: 'List all items',
   responses: {
     200: {
-      content: { 'application/json': { schema: ItemListSchema } },
+      content: { 'application/json': { schema: ItemListResponseSchema } },
       description: 'The list of items',
     },
   },

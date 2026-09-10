@@ -9,8 +9,13 @@ export const ItemResponseSchema = z
   .openapi('Item');
 export type ItemResponse = z.infer<typeof ItemResponseSchema>;
 
-export const ItemListSchema = z.array(ItemResponseSchema).openapi('ItemList');
-export type ItemList = z.infer<typeof ItemListSchema>;
+export const ItemListResponseSchema = z.array(ItemResponseSchema).openapi('ItemListResponse');
+export type ItemListResponse = z.infer<typeof ItemListResponseSchema>;
+
+export const ItemParamsSchema = z.object({
+  id: z.uuid().openapi({ param: { name: 'id', in: 'path' }, example: '3fa85f64-5717-4562-b3fc-2c963f66afa6' }),
+});
+export type ItemParams = z.infer<typeof ItemParamsSchema>;
 
 export const CreateItemBodySchema = z
   .object({
@@ -28,8 +33,3 @@ export const UpdateItemBodySchema = z
   .strict()
   .openapi('UpdateItem');
 export type UpdateBodyItem = z.infer<typeof UpdateItemBodySchema>;
-
-export const ItemParamsSchema = z.object({
-  id: z.uuid().openapi({ param: { name: 'id', in: 'path' }, example: '3fa85f64-5717-4562-b3fc-2c963f66afa6' }),
-});
-export type ItemParams = z.infer<typeof ItemParamsSchema>;
