@@ -9,6 +9,8 @@ import waitPort from 'wait-port';
 const {
   MYSQL_HOST: HOST,
   MYSQL_HOST_FILE: HOST_FILE,
+  MYSQL_PORT: PORT,
+  MYSQL_PORT_FILE: PORT_FILE,
   MYSQL_USER: USER,
   MYSQL_USER_FILE: USER_FILE,
   MYSQL_PASSWORD: PASSWORD,
@@ -27,15 +29,17 @@ export let db: MySql2Database;
 
 export async function init(): Promise<void> {
   const host = fromEnv(HOST, HOST_FILE);
+  const port = Number(fromEnv(PORT, PORT_FILE)) || 3306;
   const user = fromEnv(USER, USER_FILE);
   const password = fromEnv(PASSWORD, PASSWORD_FILE);
   const database = fromEnv(DB, DB_FILE);
 
-  await waitPort({ host, port: 3306, timeout: 10000, waitForDns: true });
+  await waitPort({ host, port, timeout: 10000, waitForDns: true });
 
   pool = createPool({
     connectionLimit: 5,
     host,
+    port,
     user,
     password,
     database,
