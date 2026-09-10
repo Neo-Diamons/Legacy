@@ -24,10 +24,10 @@ The team works in Scrum with a MoSCoW-prioritised backlog across three sprints:
 
 This is an npm **workspaces** monorepo:
 
-| Path        | Description                                                                                         |
-| ----------- | --------------------------------------------------------------------------------------------------- |
-| `backend/`  | Hono REST API in TypeScript (`@legacy/backend`), run with `tsx`. SQLite by default, MySQL optional. |
-| `frontend/` | Vite + React 19 + TypeScript single-page app (`@legacy/frontend`).                                  |
+| Path        | Description                                                                                                   |
+| ----------- | ----------------------------------------------------------------------------------------------------------------- |
+| `backend/`  | Hono REST API in TypeScript (`@legacy/backend`). `tsx` in dev, bundled with `tsdown` for production. Drizzle ORM over SQLite by default, MySQL optional. Requests validated with `@hono/zod-openapi`; OpenAPI spec + Scalar UI served at runtime. |
+| `frontend/` | Vite + React 19 + TypeScript single-page app (`@legacy/frontend`), styled with Bootstrap / react-bootstrap.       |
 
 All commands below are run from the repository root unless stated otherwise.
 Lint, formatting and CI are configured once at the root and cover both workspaces.
@@ -38,14 +38,16 @@ Lint, formatting and CI are configured once at the root and cover both workspace
 
 ### 1. Prerequisites
 
-- **Node.js 22.9+** (the backend relies on `node --env-file-if-exists`)
-- npm 10+ (ships with Node 22)
+- **Node.js 24.13+ (`<25`)** — pinned in `.nvmrc` (`nvm use`). The backend relies
+  on `node --env-file-if-exists`.
+- **npm 11+ (`<12`)** — ships with Node 24. The repo pins `packageManager` to
+  `npm@11.19.0`.
 
 ### 2. Install
 
 ```bash
-git clone <repo-url>
-cd <repo-folder>
+git clone git@github.com:Neo-Diamons/Legacy.git
+cd Legacy
 npm install
 ```
 
@@ -60,27 +62,40 @@ cp .env.example .env
 ```
 
 The backend loads this root `.env` automatically on startup
-(`node --env-file-if-exists=../.env` — no `dotenv` dependency). If the file is
-missing, it falls back to the real process environment, which is the expected
-mode in production and containers.
+(`node --env-file-if-exists=../.env`). If the file is
+missing, it falls back to the real process environment.
 
-The frontend has no environment variables of its own: it calls the API using
-same-origin paths (`fetch('/items')`).
-
-| Variable             | Description                                                                                                                                                                                                                               |
-| -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `SQLITE_DB_LOCATION` | Path to the SQLite database file, used when no MySQL host is configured. This is the default persistence mode; the file and its parent directory are created on startup. Defaults to the repo-local `data/todo.db` (gitignored) if unset. |
-| `MYSQL_HOST`         | Hostname of the MySQL server. Setting it switches persistence from SQLite to MySQL (see `backend/service/item.service.ts`). If unset, all other `MYSQL_*` variables are ignored.                                                             |
-| `MYSQL_USER`         | MySQL username. Only read when `MYSQL_HOST` is set.                                                                                                                                                                                       |
-| `MYSQL_PASSWORD`     | MySQL password. Only read when `MYSQL_HOST` is set.                                                                                                                                                                                       |
-| `MYSQL_DB`           | MySQL database/schema name. Only read when `MYSQL_HOST` is set.                                                                                                                                                                           |
+| Variable               | Description                                                                                                                        |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `FRONTEND_PORT`        | Vite dev (`5173`) / preview (`4173`) port. Seeds the default CORS allowlist.                                                         |
+| `BACKEND_PORT`         | Hono API port. Default `3000`.                                                                                                      |
+| `BACKEND_URL`          | Backend the dev/preview proxy forwards `/items*` to. Default `http://localhost:<BACKEND_PORT>`. Not baked into the frontend bundle.  |
+| `CORS_ALLOWED_ORIGINS` | Comma-separated API origin allowlist (scheme + host + optional port). Default: `localhost` and `127.0.0.1` on `<FRONTEND_PORT>`. Invalid entries fail startup. |
+| `SQLITE_DB_LOCATION`   | SQLite file path. Default `/etc/todos/todo.db`. Used unless MySQL is configured.                                                     |
+| `MYSQL_HOST`           | MySQL host. Setting it (or `MYSQL_HOST_FILE`) switches persistence to MySQL; otherwise every `MYSQL_*` var is ignored.               |
+| `MYSQL_PORT`           | MySQL port. Default `3306`.                                                                                                         |
+| `MYSQL_USER`           | MySQL username.                                                                                                                     |
+| `MYSQL_PASSWORD`       | MySQL password.                                                                                                                     |
+| `MYSQL_DB`             | MySQL database name.                                                                                                                |
 
 > Each `MYSQL_*` variable also has a `_FILE` variant (e.g. `MYSQL_PASSWORD_FILE`)
-> that points to a file containing the value — the pattern used for
-> Docker/Kubernetes secrets. If both are set, the `_FILE` variant wins.
+> that points to a file containing the value.
+> If both are set, the `_FILE` variant wins.
 
-> Keep `.env.example` in sync whenever a new variable is introduced — it is part
-> of the Definition of Done ("documentation updated").
+---
+
+## Database migrations
+
+Schema lives in `backend/src/model/` (separate SQLite and MySQL models). The
+backend applies pending migrations on startup; you only regenerate SQL after
+changing a model:
+
+```bash
+npm run db:generate --workspace backend   # write migration SQL from the models
+npm run db:migrate  --workspace backend   # apply now, without starting the server
+```
+
+Configs: `backend/drizzle.config.sqlite.ts`, `backend/drizzle.config.mysql.ts`.
 
 ---
 
@@ -95,8 +110,9 @@ Runs both workspaces together (via `concurrently`):
 - **Frontend** — Vite dev server: <http://localhost:5173>
 - **Backend** — Hono API: <http://localhost:3000>
 
-The Vite dev server proxies `/items` to the backend, so no CORS configuration is
-needed locally. Run the sides independently with:
+The Vite dev server proxies `/items` and `/items/*` to the backend (so does
+`vite preview`), so CORS is not exercised locally. Run the sides independently
+with:
 
 ```bash
 npm run dev:backend
@@ -108,40 +124,42 @@ npm run dev:frontend
 ## Production build
 
 ```bash
-npm run build   # tsc -b, then vite build -> frontend/dist
-npm start       # starts the backend API only (port 3000)
+npm run build   # backend: tsdown -> dist/index.mjs   frontend: tsc -b + vite build -> dist
+npm start       # prestart builds, then runs backend + vite preview
 ```
 
-`npm run build` produces a static bundle in `frontend/dist`. Because the client
-calls the API with same-origin paths, `frontend/dist` must be served behind a
-proxy or CDN that forwards `/items` and `/items/*` to the backend. The backend
-enables CORS, but there is currently no build-time setting for a cross-origin
-API URL — using a separate origin would require changing the client code.
+`prestart` builds both workspaces, so `npm start` needs no prior build. It runs
+the backend bundle and `vite preview` together; `vite preview` serves
+`frontend/dist` on `FRONTEND_PORT` (default `4173`) and proxies `/items*` to
+`BACKEND_URL`.
+
+Any other host for `frontend/dist` (nginx, CDN) must forward `/items*` to the
+backend — the client uses same-origin paths. A cross-origin API needs its origin
+in `CORS_ALLOWED_ORIGINS` plus a client-code change (no build-time API URL).
 
 ---
 
 ## API
 
-| Method   | Path         | Description                                                 |
-| -------- | ------------ | ----------------------------------------------------------- |
-| `GET`    | `/items`     | List all items                                              |
-| `POST`   | `/items`     | Create an item (`{ "name": string }`)                       |
-| `PUT`    | `/items/:id` | Update an item (`{ "name": string, "completed": boolean }`) |
-| `DELETE` | `/items/:id` | Delete an item                                              |
+The backend serves its own reference docs, generated from the zod schemas:
+
+- **Scalar UI** — <http://localhost:3000/scalar>
+- **OpenAPI 3.0 spec** — <http://localhost:3000/doc>
 
 ---
 
 ## Tests
 
 ```bash
-npm run test
+npm run test            # vitest run (backend)
+npm run test:coverage   # vitest run --coverage (v8), all workspaces if present
 ```
 
-Runs the backend Jest suite (`backend/spec/`), TypeScript via `ts-jest`. Tests
-use SQLite against an isolated file: `backend/.env.test` sets
-`SQLITE_DB_LOCATION=./test.db` and is loaded automatically
-(`node --env-file-if-exists=.env.test`), so `npm run test` works with no extra
-setup and never touches your dev database.
+Backend specs are colocated as `backend/src/**/*.test.ts` and run on **Vitest**.
+Tests use SQLite against an isolated file: `backend/.env.test` sets
+`SQLITE_DB_LOCATION=./test.db` and is picked up by `vitest.config.ts`
+(`loadEnv`), so `npm run test` works with no extra setup and never touches your
+dev database. Coverage uses the `@vitest/coverage-v8` provider.
 
 ---
 
@@ -152,10 +170,12 @@ npm run lint          # ESLint (flat config, both workspaces)
 npm run lint:fix
 npm run format        # Prettier --write
 npm run format:check  # Prettier --check
+npm run typecheck     # tsc --noEmit / tsc -b per workspace
 ```
 
-CI (`.github/workflows/code-quality.yml`) runs format check, lint and tests on
-every pull request using Node 22.
+CI (`.github/workflows/code-quality.yml`) runs on every pull request with the
+Node version from `.nvmrc`: format check, lint, typecheck, `test:coverage` (with
+a PR coverage report), production build, and `npm audit --audit-level=high`.
 
 ---
 
@@ -163,5 +183,5 @@ every pull request using Node 22.
 
 - Work through short-lived branches and small pull requests (see the Wiki
   contribution guide).
-- Every PR requires at least one approval, passing CI and the required test
-  coverage before merge — see the Definition of Done on the Wiki.
+- Every PR requires at least one approval, passing CI, see the Definition of
+  Done on the Wiki.
