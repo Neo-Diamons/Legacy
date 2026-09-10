@@ -120,7 +120,7 @@ describe('POST /items', () => {
 
     expect(db.storeItem).toHaveBeenCalledTimes(1);
     expect(db.storeItem).toHaveBeenCalledWith(expectedItem);
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(201);
     expect(await res.json()).toEqual(expectedItem);
   });
 
@@ -299,14 +299,14 @@ describe('DELETE /items/:id', () => {
 
     expect(db.removeItem).toHaveBeenCalledTimes(1);
     expect(db.removeItem).toHaveBeenCalledWith(ID);
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(204);
   });
 
   test('it removes an item for any valid uuid id', async () => {
     const res = await del(ID2);
 
     expect(db.removeItem).toHaveBeenCalledWith(ID2);
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(204);
   });
 
   test('it rejects a non-uuid id with 422', async () => {
