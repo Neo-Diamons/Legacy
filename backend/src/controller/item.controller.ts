@@ -1,6 +1,5 @@
 import { createRoute } from '@hono/zod-openapi';
 import { HTTPException } from 'hono/http-exception';
-import { v4 as uuid } from 'uuid';
 import { itemService } from '@service/item.service.js';
 import { createRouter } from '@http/app.js';
 import {
@@ -55,7 +54,7 @@ const createItem = createRoute({
 itemController.openapi(createItem, async (c) => {
   const { name } = c.req.valid('json');
   const item = {
-    id: uuid(),
+    id: crypto.randomUUID(),
     name,
     completed: false,
   };
