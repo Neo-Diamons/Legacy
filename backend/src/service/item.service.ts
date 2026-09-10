@@ -1,7 +1,5 @@
 import { eq } from 'drizzle-orm';
-import { useMysql } from '@db/driver.js';
-import * as sqlite from '@db/db.sqlite.js';
-import * as mysql from '@db/db.mysql.js';
+import { useMysql, sqlite, mysql } from '@db';
 import { todoItems as sqliteItems, type Item, type ItemUpdate } from '@model/item.sqlite.model.js';
 import { todoItems as mysqlItems } from '@model/item.mysql.model.js';
 

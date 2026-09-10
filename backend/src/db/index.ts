@@ -2,6 +2,8 @@ import { useMysql } from '@db/driver.js';
 import * as sqlite from '@db/db.sqlite.js';
 import * as mysql from '@db/db.mysql.js';
 
+export { useMysql, sqlite, mysql };
+
 const driver = useMysql ? mysql : sqlite;
 
 await driver.init();
