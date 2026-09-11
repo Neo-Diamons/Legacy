@@ -8,7 +8,7 @@ export function resolveMigrationsFolder(dialect: 'mysql' | 'sqlite'): string {
 
   if (!fs.existsSync(folder)) {
     throw new Error(
-      `Migrations folder not found: ${folder} (cwd: ${process.cwd()}). Run from the backend/ workspace root.`,
+      `Migrations folder not found: ${folder} (cwd: ${process.cwd()}). Run from the backend/ workspace root.`
     );
   }
 
