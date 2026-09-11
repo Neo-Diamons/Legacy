@@ -25,6 +25,8 @@
     "start": "concurrently -n backend,frontend -c blue,magenta \"npm:start:backend\" \"npm:start:frontend\"",
     "start:backend": "npm run start --workspace backend",
     "start:frontend": "npm run preview --workspace frontend",
+    "db:studio:sqlite": "npm run db:studio --workspace backend",
+    "db:studio:mysql": "npm run db:studio:mysql --workspace backend",
     "test": "npm run test --workspace backend",
     "test:coverage": "npm run test:coverage --workspaces --if-present",
     "lint": "eslint .",

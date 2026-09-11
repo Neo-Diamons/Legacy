@@ -16,7 +16,9 @@
     "test:coverage": "vitest run --coverage",
     "typecheck": "tsc --noEmit",
     "db:generate": "drizzle-kit generate --config=drizzle.config.sqlite.ts && drizzle-kit generate --config=drizzle.config.mysql.ts",
-    "db:migrate": "drizzle-kit migrate --config=drizzle.config.sqlite.ts && drizzle-kit migrate --config=drizzle.config.mysql.ts"
+    "db:migrate": "drizzle-kit migrate --config=drizzle.config.sqlite.ts && drizzle-kit migrate --config=drizzle.config.mysql.ts",
+    "db:studio": "node --env-file-if-exists=../.env ../node_modules/.bin/drizzle-kit studio --config=drizzle.config.sqlite.ts",
+    "db:studio:mysql": "node --env-file-if-exists=../.env ../node_modules/.bin/drizzle-kit studio --config=drizzle.config.mysql.ts"
   },
   "dependencies": {
     "@hono/node-server": "^2.1.1",
