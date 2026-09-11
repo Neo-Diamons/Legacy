@@ -1,43 +1,67 @@
 {
+  "name": "legacy-todolist",
+  "version": "0.0.0",
+  "private": true,
   "type": "module",
-  "name": "101-app",
-  "version": "1.0.0",
-  "main": "index.js",
   "license": "MIT",
-  "scripts": {
-    "dev": "nodemon -L src/index.js",
-    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
-    "lint": "eslint src spec --ext .js,.jsx",
-    "lint:fix": "eslint src spec --ext .js,.jsx --fix",
-    "format": "prettier --write src spec",
-    "format:check": "prettier --check src spec"
+  "packageManager": "npm@11.19.0",
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
+  "engines": {
+    "node": ">=24.13.0 <25",
+    "npm": ">=11 <12"
   },
-  "dependencies": {
-    "eslint-plugin-react-hooks": "^7.1.1",
-    "eslint-plugin-react-refresh": "^0.5.6",
-    "express": "^5.2.1",
-    "mysql2": "^3.16.1",
-    "sqlite3": "^5.1.7",
-    "typescript-eslint": "^8.69.0",
-    "uuid": "^13.0.0",
-    "wait-port": "^1.1.0"
+  "scripts": {
+    "dev": "concurrently -n backend,frontend -c blue,magenta \"npm:dev:backend\" \"npm:dev:frontend\"",
+    "dev:backend": "npm run dev --workspace backend",
+    "dev:frontend": "npm run dev --workspace frontend",
+    "build": "npm run build:backend && npm run build:frontend",
+    "build:backend": "npm run build --workspace backend",
+    "build:frontend": "npm run build --workspace frontend",
+    "preview": "npm run preview --workspace frontend",
+    "prestart": "npm run build",
+    "start": "concurrently -n backend,frontend -c blue,magenta \"npm:start:backend\" \"npm:start:frontend\"",
+    "start:backend": "npm run start --workspace backend",
+    "start:frontend": "npm run preview --workspace frontend",
+    "db:studio:sqlite": "npm run db:studio --workspace backend",
+    "db:studio:mysql": "npm run db:studio:mysql --workspace backend",
+    "test": "npm run test --workspace backend",
+    "test:coverage": "npm run test:coverage --workspaces --if-present",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "format": "prettier --write backend frontend eslint.config.ts",
+    "format:check": "prettier --check backend frontend eslint.config.ts"
   },
   "devDependencies": {
-    "eslint": "^9.39.5",
+    "@eslint/js": "^10.0.1",
+    "concurrently": "^10.0.5",
+    "eslint": "^10.10.0",
     "eslint-config-prettier": "^10.1.8",
-    "eslint-plugin-prettier": "^5.5.6",
-    "eslint-plugin-react": "^7.37.5",
-    "jest": "^29.7.0",
-    "nodemon": "^3.1.9",
-    "prettier": "^3.9.6"
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.6",
+    "globals": "^17.12.0",
+    "jiti": "^2.7.0",
+    "prettier": "^3.9.6",
+    "typescript": "~6.0.3",
+    "typescript-eslint": "^8.70.0"
   },
   "overrides": {
-    "tar": "7.5.4",
-    "glob": "11.1.0",
-    "semver": "7.5.2",
-    "cross-spawn": "7.0.5",
-    "braces": "3.0.3",
-    "http-cache-semantics": "4.1.1",
-    "socks": "2.8.1"
+    "@esbuild-kit/core-utils": {
+      "esbuild": "^0.25.10"
+    },
+    "tsdown": {
+      "typescript": "$typescript"
+    },
+    "rolldown-plugin-dts": {
+      "typescript": "$typescript"
+    }
+  },
+  "allowScripts": {
+    "esbuild@0.25.12": true,
+    "esbuild@0.28.2": true,
+    "better-sqlite3@13.0.3": true
   }
 }

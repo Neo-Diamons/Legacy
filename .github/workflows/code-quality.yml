@@ -4,6 +4,8 @@ permissions:
   contents: read
 
 on:
+  push:
+    branches: [main]
   pull_request:
     paths-ignore:
       - '**/*.mdx'
@@ -14,35 +16,79 @@ on:
       - '**/*.gif'
       - '**/*.svg'
       - '**/*.webp'
+  workflow_dispatch:
 
 concurrency:
-  group: code-quality-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  group: code-quality-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  lint:
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
+  code-quality:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: write
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       - name: Setup Node
         uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version-file: '.nvmrc'
           cache: npm
 
       - name: Install dependencies
         run: npm ci
 
+      - name: Verify native deps
+        run: node -e "require('better-sqlite3'); console.log('better-sqlite3 ok')"
+
       - name: Format check
         run: npm run format:check
 
       - name: Lint
+        if: '!cancelled()'
         run: npm run lint
 
+      - name: Typecheck
+        if: '!cancelled()'
+        run: npm run typecheck
+
       - name: Test
-        run: npm run test
+        if: '!cancelled()'
+        run: npm run test:coverage
         env:
-          SQLITE_DB_LOCATION: file:test.db
+          SQLITE_DB_LOCATION: ./test.db
+
+      - name: Upload coverage
+        if: '!cancelled()'
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage
+          path: '*/coverage/'
+          if-no-files-found: ignore
+
+      - name: Coverage report (backend)
+        if: '!cancelled()'
+        uses: davelosert/vitest-coverage-report-action@v2
+        with:
+          name: backend
+          working-directory: backend
+
+      # - name: Coverage report (frontend)
+      #   if: '!cancelled()'
+      #   uses: davelosert/vitest-coverage-report-action@v2
+      #   with:
+      #     name: frontend
+      #     working-directory: frontend
+
+      - name: Build
+        run: npm run build
+
+      - name: Audit
+        if: '!cancelled()'
+        run: npm audit --audit-level=high
