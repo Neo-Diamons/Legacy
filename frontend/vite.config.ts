@@ -24,6 +24,7 @@ export default defineConfig(({ mode }) => {
 
   const proxy = {
     '/items': backendUrl,
+    '/ws': { target: backendUrl, ws: true },
   };
 
   return {

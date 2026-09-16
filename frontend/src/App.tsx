@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { Button, Col, Container, Form, InputGroup, Row } from 'react-bootstrap';
 
 interface Item {
@@ -19,6 +19,11 @@ export default function App() {
   );
 }
 
+type ItemEvent =
+  | { type: 'item.created'; item: Item }
+  | { type: 'item.updated'; item: Item }
+  | { type: 'item.deleted'; id: string };
+
 function TodoListCard() {
   const [items, setItems] = useState<Item[] | null>(null);
 
@@ -28,45 +33,42 @@ function TodoListCard() {
       .then(setItems);
   }, []);
 
-  const onNewItem = useCallback(
-    (newItem: Item) => {
-      setItems([...(items ?? []), newItem]);
-    },
-    [items]
-  );
+  useEffect(() => {
+    const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const socket = new WebSocket(`${protocol}//${location.host}/ws`);
 
-  const onItemUpdate = useCallback(
-    (item: Item) => {
-      if (!items) return;
-      const index = items.findIndex((i) => i.id === item.id);
-      setItems([...items.slice(0, index), item, ...items.slice(index + 1)]);
-    },
-    [items]
-  );
+    socket.addEventListener('message', (event) => {
+      const message: ItemEvent = JSON.parse(event.data);
+      setItems((current) => {
+        if (!current) return current;
+        switch (message.type) {
+          case 'item.created':
+            return current.some((i) => i.id === message.item.id) ? current : [...current, message.item];
+          case 'item.updated':
+            return current.map((i) => (i.id === message.item.id ? message.item : i));
+          case 'item.deleted':
+            return current.filter((i) => i.id !== message.id);
+        }
+      });
+    });
 
-  const onItemRemoval = useCallback(
-    (item: Item) => {
-      if (!items) return;
-      const index = items.findIndex((i) => i.id === item.id);
-      setItems([...items.slice(0, index), ...items.slice(index + 1)]);
-    },
-    [items]
-  );
+    return () => socket.close();
+  }, []);
 
   if (items === null) return 'Loading...';
 
   return (
     <>
-      <AddItemForm onNewItem={onNewItem} />
+      <AddItemForm />
       {items.length === 0 && <p className="text-center">No items yet! Add one above!</p>}
       {items.map((item) => (
-        <ItemDisplay item={item} key={item.id} onItemUpdate={onItemUpdate} onItemRemoval={onItemRemoval} />
+        <ItemDisplay item={item} key={item.id} />
       ))}
     </>
   );
 }
 
-function AddItemForm({ onNewItem }: { onNewItem: (item: Item) => void }) {
+function AddItemForm() {
   const [newItem, setNewItem] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -77,13 +79,10 @@ function AddItemForm({ onNewItem }: { onNewItem: (item: Item) => void }) {
       method: 'POST',
       body: JSON.stringify({ name: newItem }),
       headers: { 'Content-Type': 'application/json' },
-    })
-      .then((r) => r.json())
-      .then((item: Item) => {
-        onNewItem(item);
-        setSubmitting(false);
-        setNewItem('');
-      });
+    }).then(() => {
+      setSubmitting(false);
+      setNewItem('');
+    });
   };
 
   return (
@@ -104,15 +103,7 @@ function AddItemForm({ onNewItem }: { onNewItem: (item: Item) => void }) {
   );
 }
 
-function ItemDisplay({
-  item,
-  onItemUpdate,
-  onItemRemoval,
-}: {
-  item: Item;
-  onItemUpdate: (item: Item) => void;
-  onItemRemoval: (item: Item) => void;
-}) {
+function ItemDisplay({ item }: { item: Item }) {
   const toggleCompletion = () => {
     fetch(`/items/${item.id}`, {
       method: 'PUT',
@@ -121,13 +112,11 @@ function ItemDisplay({
         completed: !item.completed,
       }),
       headers: { 'Content-Type': 'application/json' },
-    })
-      .then((r) => r.json())
-      .then(onItemUpdate);
+    });
   };
 
   const removeItem = () => {
-    fetch(`/items/${item.id}`, { method: 'DELETE' }).then(() => onItemRemoval(item));
+    fetch(`/items/${item.id}`, { method: 'DELETE' });
   };
 
   return (
