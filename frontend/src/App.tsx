@@ -20,9 +20,7 @@ export default function App() {
 }
 
 type ItemEvent =
-  | { type: 'item.created'; item: Item }
-  | { type: 'item.updated'; item: Item }
-  | { type: 'item.deleted'; id: string };
+  { type: 'item.created'; item: Item } | { type: 'item.updated'; item: Item } | { type: 'item.deleted'; id: string };
 
 function TodoListCard() {
   const [items, setItems] = useState<Item[] | null>(null);
