@@ -10,6 +10,7 @@ import {
   UpdateItemBodySchema,
 } from '@schemas/item.schemas.js';
 import { ErrorResponseSchema } from '@schemas/error.schemas.js';
+import { broadcastItemEvent } from '@ws/broadcast.js';
 
 export const itemController = createRouter();
 
@@ -60,6 +61,7 @@ itemController.openapi(createItem, async (c) => {
   };
 
   await itemService.storeItem(item);
+  broadcastItemEvent({ type: 'item.created', item });
   return c.json(item, 201);
 });
 
@@ -97,7 +99,9 @@ itemController.openapi(updateItem, async (c) => {
   if (!changed) {
     throw new HTTPException(404, { message: 'Item not found' });
   }
-  return c.json({ id, name, completed }, 200);
+  const item = { id, name, completed };
+  broadcastItemEvent({ type: 'item.updated', item });
+  return c.json(item, 200);
 });
 
 const deleteItem = createRoute({
@@ -126,5 +130,6 @@ itemController.openapi(deleteItem, async (c) => {
   if (!removed) {
     throw new HTTPException(404, { message: 'Item not found' });
   }
+  broadcastItemEvent({ type: 'item.deleted', id });
   return c.body(null, 204);
 });

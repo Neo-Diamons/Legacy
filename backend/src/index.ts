@@ -6,6 +6,7 @@ import { parsePort } from '@utils/port.js';
 import { driver } from '@db';
 import { itemController } from '@controller/item.controller.js';
 import { createRouter, registerErrorHandler } from '@http/app.js';
+import { registerWebSocket } from '@ws/broadcast.js';
 
 const app = createRouter();
 
@@ -43,6 +44,8 @@ app.use(logger());
 
 app.route('/items', itemController);
 
+const injectWebSocket = registerWebSocket(app);
+
 registerErrorHandler(app);
 
 app.doc('/doc', {
@@ -77,6 +80,8 @@ const server = serve(
     console.log(`Server is running on http://localhost:${info.port}`);
   }
 );
+
+injectWebSocket(server);
 
 server.on('error', (err: NodeJS.ErrnoException) => {
   if (err.code === 'EADDRINUSE') {
