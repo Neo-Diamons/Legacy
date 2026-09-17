@@ -37,3 +37,250 @@ body {
 button:focus {
   border: 1px solid #333;
 }
+
+.app-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 25px;
+}
+
+.user-avatar-toggle {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: none;
+  background-color: #4f8ef7;
+  color: white;
+  font-weight: 600;
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.user-avatar-toggle::after {
+  display: none;
+}
+
+.page {
+  padding-bottom: 40px;
+}
+
+.page-header {
+  margin-bottom: 25px;
+}
+
+.page-header-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.page-title {
+  font-size: 1.5rem;
+}
+
+.page-greeting {
+  font-size: 1.75rem;
+  margin-bottom: 4px;
+}
+
+.widget-card {
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 0 1em #ccc;
+  padding: 20px;
+  height: 100%;
+}
+
+.widget-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+
+.widget-title {
+  font-size: 1.1rem;
+  margin-bottom: 0;
+}
+
+.widget-card > .widget-title {
+  margin-bottom: 18px;
+}
+
+.empty-state {
+  color: #6c757d;
+}
+
+/* Task row, shared by the Home and Project-detail screens */
+.task-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.task-row:last-child {
+  border-bottom: none;
+}
+
+.task-row-check {
+  margin-top: 3px;
+}
+
+.task-row-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+
+.task-row-title.completed {
+  text-decoration: line-through;
+  color: #6c757d;
+}
+
+.task-row-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.task-row-delete {
+  margin-top: -4px;
+}
+
+/* Projects */
+.project-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+.project-card {
+  border: transparent;
+  border-radius: 8px;
+  box-shadow: 0 0 1em #ccc;
+}
+
+.project-card-clickable {
+  cursor: pointer;
+  transition: box-shadow 0.15s ease-in-out;
+}
+
+.project-card-clickable:hover {
+  box-shadow: 0 0 1em #aaa;
+}
+
+.project-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.project-name {
+  font-weight: 500;
+}
+
+.project-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: inline-block;
+}
+
+.project-dot-inline {
+  margin-right: 4px;
+  vertical-align: middle;
+}
+
+.project-progress {
+  height: 6px;
+}
+
+.project-detail-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.back-link {
+  padding-left: 0;
+  margin-bottom: 10px;
+}
+
+.color-swatch-picker {
+  display: flex;
+  gap: 10px;
+}
+
+.color-swatch {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+}
+
+.color-swatch.selected {
+  border-color: #333;
+}
+
+/* Profile */
+.profile-card {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 30px;
+  align-items: flex-start;
+}
+
+.profile-identity {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.profile-avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background-color: #4f8ef7;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 1.1rem;
+  flex-shrink: 0;
+}
+
+.profile-name-form {
+  min-width: 240px;
+}
+
+.stat-card {
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 0 1em #ccc;
+  padding: 16px;
+  text-align: center;
+}
+
+.stat-value {
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.stat-label {
+  color: #6c757d;
+  font-size: 0.85rem;
+}
