@@ -40,7 +40,7 @@ const mockProjects: Project[] = [
 const mockTasks: Task[] = [
   {
     id: 't-1',
-    title: 'Relire la maquette de la page contact',
+    name: 'Relire la maquette de la page contact',
     projectId: 'p-1',
     projectName: 'Site vitrine client',
     dueDate: '2026-09-10',
@@ -49,7 +49,7 @@ const mockTasks: Task[] = [
   },
   {
     id: 't-2',
-    title: 'Ecrire les tests pour /me/tasks',
+    name: 'Ecrire les tests pour /me/tasks',
     projectId: 'p-2',
     projectName: 'Refonte API interne',
     dueDate: '2026-09-12',
@@ -58,7 +58,7 @@ const mockTasks: Task[] = [
   },
   {
     id: 't-3',
-    title: 'Préparer la démo du sprint',
+    name: 'Préparer la démo du sprint',
     projectId: 'p-3',
     projectName: 'Sprint qualité',
     dueDate: '2026-09-09',
@@ -67,7 +67,7 @@ const mockTasks: Task[] = [
   },
   {
     id: 't-4',
-    title: 'Mettre à jour le wiki de contribution',
+    name: 'Mettre à jour le wiki de contribution',
     projectId: 'p-3',
     projectName: 'Sprint qualité',
     dueDate: null,
