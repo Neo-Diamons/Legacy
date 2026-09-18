@@ -5,7 +5,7 @@ export interface CurrentUser {
   joinedAt: string; // ISO date
 }
 
-export type TaskPriority = 'low' | 'medium' | 'high';
+export type TaskPriority = 'low' | 'medium' | 'high' | 'urgent';
 
 export interface Project {
   id: string;
@@ -16,8 +16,10 @@ export interface Project {
 
 export interface Task {
   id: string;
-  title: string;
+  name: string;
   projectId: string; // every task belongs to exactly one project
+  projectName: string;
+  description: string | null;
   dueDate: string | null; // ISO date, null when no deadline
   priority: TaskPriority;
   completed: boolean;
