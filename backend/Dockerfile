@@ -22,18 +22,14 @@ RUN npm ci --workspace=backend && \
 FROM base AS runner
 WORKDIR /app
 
-RUN apk add --no-cache gcompat
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 hono
 
 COPY --from=builder --chown=hono:nodejs /app/node_modules /app/node_modules
 COPY --from=builder --chown=hono:nodejs /app/backend/dist /app/dist
-COPY --from=builder --chown=hono:nodejs /app/backend/package.json /app/package.json
 COPY --from=builder --chown=hono:nodejs /app/backend/drizzle /app/drizzle
-COPY --from=builder --chown=hono:nodejs /app/backend/drizzle.config.*.ts /app/
 
 USER hono
 EXPOSE 3000
-ENV NODE_ENV=production
 
-CMD ["node", "/app/dist/index.js"]
+CMD ["node", "/app/dist/index.mjs"]
