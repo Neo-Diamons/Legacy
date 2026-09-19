@@ -48,7 +48,16 @@ describe('ws/broadcast', () => {
     await waitForOpen(ws);
 
     const message = waitForMessage(ws);
-    const item = { id: '1', name: 'Test', completed: false };
+    const item = {
+      id: '1',
+      name: 'Test',
+      completed: false,
+      priority: 'medium' as const,
+      description: null,
+      dueDate: null,
+      overdue: false,
+      createdAt: '2026-01-01T00:00:00.000Z',
+    };
     broadcastItemEvent({ type: 'item.created', item });
 
     await expect(message).resolves.toEqual({ type: 'item.created', item });
@@ -61,7 +70,16 @@ describe('ws/broadcast', () => {
     await waitForOpen(ws);
 
     const updated = waitForMessage(ws);
-    const item = { id: '2', name: 'Updated', completed: true };
+    const item = {
+      id: '2',
+      name: 'Updated',
+      completed: true,
+      priority: 'medium' as const,
+      description: null,
+      dueDate: null,
+      overdue: false,
+      createdAt: '2026-01-01T00:00:00.000Z',
+    };
     broadcastItemEvent({ type: 'item.updated', item });
     await expect(updated).resolves.toEqual({ type: 'item.updated', item });
 
@@ -78,7 +96,16 @@ describe('ws/broadcast', () => {
     await Promise.all([waitForOpen(ws1), waitForOpen(ws2)]);
 
     const [m1, m2] = [waitForMessage(ws1), waitForMessage(ws2)];
-    const item = { id: '3', name: 'Multi', completed: false };
+    const item = {
+      id: '3',
+      name: 'Multi',
+      completed: false,
+      priority: 'medium' as const,
+      description: null,
+      dueDate: null,
+      overdue: false,
+      createdAt: '2026-01-01T00:00:00.000Z',
+    };
     broadcastItemEvent({ type: 'item.created', item });
 
     await expect(m1).resolves.toEqual({ type: 'item.created', item });

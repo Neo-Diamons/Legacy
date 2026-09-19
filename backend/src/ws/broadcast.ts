@@ -1,16 +1,11 @@
 import { createNodeWebSocket } from '@hono/node-ws';
 import type { OpenAPIHono } from '@hono/zod-openapi';
 import type { WSContext } from 'hono/ws';
-
-export interface ItemPayload {
-  id: string;
-  name: string;
-  completed: boolean;
-}
+import type { ItemResponse } from '@schemas/item.schemas.js';
 
 export type ItemEvent =
-  | { type: 'item.created'; item: ItemPayload }
-  | { type: 'item.updated'; item: ItemPayload }
+  | { type: 'item.created'; item: ItemResponse }
+  | { type: 'item.updated'; item: ItemResponse }
   | { type: 'item.deleted'; id: string };
 
 export const clients = new Set<WSContext>();
