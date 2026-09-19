@@ -1,18 +1,43 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
-import { afterEach, describe, expect, test, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 import App from '../src/App';
 
 
 const item = (id: string, name: string, completed = false) => ({ id, name, completed });
 
+class MockWebSocket {
+	static instances: MockWebSocket[] = [];
+	listeners: Record<string, ((event: { data: string }) => void)[]> = {};
+
+	constructor() {
+		MockWebSocket.instances.push(this);
+	}
+
+	addEventListener(type: string, listener: (event: { data: string }) => void) {
+		(this.listeners[type] ??= []).push(listener);
+	}
+
+	removeEventListener() {}
+
+	close() {}
+
+	emit(type: string, data: unknown) {
+		for (const listener of this.listeners[type] ?? []) listener({ data: JSON.stringify(data) });
+	}
+}
 
 afterEach(() => {
 	cleanup();
 	vi.restoreAllMocks();
+	MockWebSocket.instances = [];
 });
 
 describe('App', () => {
+	beforeEach(() => {
+		vi.stubGlobal('WebSocket', MockWebSocket);
+	});
+
 	test('shows loading and empty-list message', async () => {
 		let resolveItems: (items: unknown[]) => void = () => undefined;
 		vi.stubGlobal(
@@ -56,6 +81,10 @@ describe('App', () => {
 				body: JSON.stringify({ name: createdItem.name }),
 			})
 		);
+
+		const [socket] = MockWebSocket.instances;
+		socket.emit('message', { type: 'item.created', item: createdItem });
+
 		expect(await screen.findByText(createdItem.name)).toBeInTheDocument();
 		expect(screen.getByPlaceholderText('New Item')).toHaveValue('');
 	});
@@ -83,11 +112,16 @@ describe('App', () => {
 				body: JSON.stringify({ name: firstItem.name, completed: true }),
 			})
 		);
+
+		const [socket] = MockWebSocket.instances;
+		socket.emit('message', { type: 'item.updated', item: updatedItem });
 		expect(await screen.findByRole('button', { name: 'Mark item as incomplete' })).toBeInTheDocument();
 
 		const updatedItemContainer = screen.getByText(updatedItem.name).closest('.item');
 		fireEvent.click(within(updatedItemContainer as HTMLElement).getByRole('button', { name: 'Remove Item' }));
 		expect(fetchMock).toHaveBeenNthCalledWith(3, `/items/${updatedItem.id}`, { method: 'DELETE' });
+
+		socket.emit('message', { type: 'item.deleted', id: updatedItem.id });
 		await waitFor(() => expect(screen.queryByText(updatedItem.name)).not.toBeInTheDocument());
 		expect(screen.getByText(completedItem.name)).toBeInTheDocument();
 	});
