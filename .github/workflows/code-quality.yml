@@ -79,12 +79,12 @@ jobs:
           name: backend
           working-directory: backend
 
-      # - name: Coverage report (frontend)
-      #   if: '!cancelled()'
-      #   uses: davelosert/vitest-coverage-report-action@v2
-      #   with:
-      #     name: frontend
-      #     working-directory: frontend
+      - name: Coverage report (frontend)
+        if: '!cancelled()'
+        uses: davelosert/vitest-coverage-report-action@v2
+        with:
+          name: frontend
+          working-directory: frontend
 
       - name: Build
         run: npm run build
