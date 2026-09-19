@@ -1,0 +1,1 @@
+ALTER TABLE `todo_items` ADD `created_at` datetime DEFAULT CURRENT_TIMESTAMP NOT NULL;

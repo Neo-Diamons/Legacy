@@ -8,6 +8,34 @@
       "when": 1788965339459,
       "tag": "0000_sparkling_hellfire_club",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1789731903747,
+      "tag": "0001_rainy_mentallo",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1789736008257,
+      "tag": "0002_clear_expediter",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1789736292761,
+      "tag": "0003_high_zarek",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1789740253496,
+      "tag": "0004_many_paladin",
+      "breakpoints": true
     }
   ]
 }

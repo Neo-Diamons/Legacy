@@ -10,6 +10,10 @@ const ITEM = {
   id: '7aef3d7c-d301-4846-8358-2a91ec9d6be3',
   name: 'Test',
   completed: false,
+  priority: 'medium' as const,
+  description: null,
+  dueDate: null,
+  createdAt: new Date('2026-01-01T00:00:00.000Z'),
 };
 
 beforeEach(async () => {
@@ -52,7 +56,15 @@ test('it can update an existing item', async () => {
 });
 
 test('updateItem returns 0 for an unknown id', async () => {
-  expect(await updateItem('this-id-does-not-exist', { name: 'x', completed: false })).toBe(0);
+  expect(
+    await updateItem('this-id-does-not-exist', {
+      name: 'x',
+      completed: false,
+      priority: 'medium',
+      description: null,
+      dueDate: null,
+    })
+  ).toBe(0);
 });
 
 test('it can remove an existing item', async () => {
@@ -81,6 +93,10 @@ test('it can store an item with an empty name', async () => {
     id: 'empty-name-id',
     name: '',
     completed: false,
+    priority: 'medium' as const,
+    description: null,
+    dueDate: null,
+    createdAt: new Date('2026-01-01T00:00:00.000Z'),
   };
 
   await db.storeItem(item);
@@ -95,6 +111,10 @@ test('it can store an item with a very long name', async () => {
     id: 'long-name-id',
     name: 'A'.repeat(1000),
     completed: false,
+    priority: 'medium' as const,
+    description: null,
+    dueDate: null,
+    createdAt: new Date('2026-01-01T00:00:00.000Z'),
   };
 
   await db.storeItem(item);
@@ -109,6 +129,10 @@ test('it can store a completed item', async () => {
     id: 'completed-id',
     name: 'Already completed',
     completed: true,
+    priority: 'medium' as const,
+    description: null,
+    dueDate: null,
+    createdAt: new Date('2026-01-01T00:00:00.000Z'),
   };
 
   await db.storeItem(item);
@@ -116,6 +140,24 @@ test('it can store a completed item', async () => {
   const result = await db.getItem(item.id);
 
   expect(result).toEqual(item);
+});
+
+test('it can store and update an item with a description', async () => {
+  const item = {
+    id: 'described-id',
+    name: 'Buy milk',
+    completed: false,
+    priority: 'medium' as const,
+    description: 'Whole or oat, whichever is cheaper',
+    dueDate: null,
+    createdAt: new Date('2026-01-01T00:00:00.000Z'),
+  };
+
+  await db.storeItem(item);
+  expect(await db.getItem(item.id)).toEqual(item);
+
+  await db.updateItem(item.id, { ...item, description: null });
+  expect((await db.getItem(item.id))?.description).toBeNull();
 });
 
 test('it returns no item for an unknown id', async () => {
@@ -129,6 +171,10 @@ test('it can store multiple items', async () => {
     id: 'second-id',
     name: 'Second item',
     completed: true,
+    priority: 'medium' as const,
+    description: null,
+    dueDate: null,
+    createdAt: new Date('2026-01-01T00:00:00.000Z'),
   };
 
   await db.storeItem(ITEM);
@@ -146,6 +192,10 @@ test('it only updates the selected item', async () => {
     id: 'second-item-id',
     name: 'Second item',
     completed: false,
+    priority: 'medium' as const,
+    description: null,
+    dueDate: null,
+    createdAt: new Date('2026-01-01T00:00:00.000Z'),
   };
 
   await db.storeItem(ITEM);
@@ -168,6 +218,10 @@ test('it only removes the selected item', async () => {
     id: 'second-item-id',
     name: 'Second item',
     completed: false,
+    priority: 'medium' as const,
+    description: null,
+    dueDate: null,
+    createdAt: new Date('2026-01-01T00:00:00.000Z'),
   };
 
   await db.storeItem(ITEM);
