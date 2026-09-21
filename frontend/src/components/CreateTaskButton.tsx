@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useState, type SubmitEvent } from 'react';
 import { Button, Form, Modal } from 'react-bootstrap';
 
 import { useAppData } from '../context/appDataContext';
@@ -7,21 +7,21 @@ import type { TaskPriority } from '../types';
 export function CreateTaskButton({ projectId }: { projectId: string }) {
   const { createTask } = useAppData();
   const [show, setShow] = useState(false);
-  const [title, setTitle] = useState('');
+  const [name, setName] = useState('');
   const [priority, setPriority] = useState<TaskPriority>('medium');
   const [dueDate, setDueDate] = useState('');
 
   const close = () => {
     setShow(false);
-    setTitle('');
+    setName('');
     setPriority('medium');
     setDueDate('');
   };
 
-  const submit = (e: FormEvent) => {
+  const submit = (e: SubmitEvent) => {
     e.preventDefault();
-    if (!title.trim()) return;
-    createTask({ title, projectId, priority, dueDate: dueDate || null });
+    if (!name.trim()) return;
+    createTask({ name, projectId, priority, dueDate: dueDate || null });
     close();
   };
 
@@ -40,12 +40,12 @@ export function CreateTaskButton({ projectId }: { projectId: string }) {
           </Modal.Header>
           <Modal.Body>
             <Form.Group className="mb-3" controlId="task-title">
-              <Form.Label>Titre</Form.Label>
+              <Form.Label>Nom</Form.Label>
               <Form.Control
                 autoFocus
                 type="text"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
+                value={name}
+                onChange={(e) => setName(e.target.value)}
                 placeholder="Ex : Relire la maquette"
               />
             </Form.Group>
@@ -55,6 +55,7 @@ export function CreateTaskButton({ projectId }: { projectId: string }) {
                 <option value="low">Basse</option>
                 <option value="medium">Moyenne</option>
                 <option value="high">Haute</option>
+                <option value="urgent">Urgente</option>
               </Form.Select>
             </Form.Group>
             <Form.Group controlId="task-due-date">
@@ -66,7 +67,7 @@ export function CreateTaskButton({ projectId }: { projectId: string }) {
             <Button variant="outline-secondary" onClick={close}>
               Annuler
             </Button>
-            <Button type="submit" variant="success" disabled={!title.trim()}>
+            <Button type="submit" variant="success" disabled={!name.trim()}>
               Créer la tâche
             </Button>
           </Modal.Footer>

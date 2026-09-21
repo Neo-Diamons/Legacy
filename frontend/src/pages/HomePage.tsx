@@ -6,7 +6,7 @@ import { useAppData } from '../context/appDataContext';
 
 const MAX_TASKS_SHOWN = 6;
 
-export function HomePage() {
+export function HomePage({ onSelectProject }: { onSelectProject: (projectId: string) => void }) {
   const { loading, user, projects, tasks, toggleTask, projectStats } = useAppData();
 
   const upcomingTasks = [...tasks]
@@ -76,7 +76,12 @@ export function HomePage() {
             <div className="project-grid">
               {!loading &&
                 projects.map((project) => (
-                  <ProjectCard key={project.id} project={project} stats={projectStats(project.id)} />
+                  <ProjectCard
+                    key={project.id}
+                    project={project}
+                    stats={projectStats(project.id)}
+                    onClick={() => onSelectProject(project.id)}
+                  />
                 ))}
             </div>
           </section>

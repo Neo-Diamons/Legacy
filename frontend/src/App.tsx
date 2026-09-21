@@ -11,6 +11,12 @@ type Tab = 'home' | 'projects' | 'profile';
 
 export default function App() {
   const [tab, setTab] = useState<Tab>('home');
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+
+  const openProject = (projectId: string) => {
+    setSelectedProjectId(projectId);
+    setTab('projects');
+  };
 
   return (
     <AppDataProvider>
@@ -28,8 +34,10 @@ export default function App() {
           <UserMenu onProfileClick={() => setTab('profile')} />
         </div>
 
-        {tab === 'home' && <HomePage />}
-        {tab === 'projects' && <ProjectsPage />}
+        {tab === 'home' && <HomePage onSelectProject={openProject} />}
+        {tab === 'projects' && (
+          <ProjectsPage selectedProjectId={selectedProjectId} onSelectProject={setSelectedProjectId} />
+        )}
         {tab === 'profile' && <ProfilePage />}
       </Container>
     </AppDataProvider>

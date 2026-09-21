@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { Button, Placeholder } from 'react-bootstrap';
 
 import { CreateProjectButton } from '../components/CreateProjectButton';
@@ -7,14 +6,19 @@ import { ProjectCard } from '../components/ProjectCard';
 import { TaskRow } from '../components/TaskRow';
 import { useAppData } from '../context/appDataContext';
 
-export function ProjectsPage() {
+export function ProjectsPage({
+  selectedProjectId,
+  onSelectProject,
+}: {
+  selectedProjectId: string | null;
+  onSelectProject: (projectId: string | null) => void;
+}) {
   const { loading, projects, projectStats } = useAppData();
-  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
 
   const selectedProject = projects.find((p) => p.id === selectedProjectId) ?? null;
 
   if (selectedProject) {
-    return <ProjectDetail projectId={selectedProject.id} onBack={() => setSelectedProjectId(null)} />;
+    return <ProjectDetail projectId={selectedProject.id} onBack={() => onSelectProject(null)} />;
   }
 
   return (
@@ -52,7 +56,7 @@ export function ProjectsPage() {
               key={project.id}
               project={project}
               stats={projectStats(project.id)}
-              onClick={() => setSelectedProjectId(project.id)}
+              onClick={() => onSelectProject(project.id)}
             />
           ))}
       </div>
@@ -88,7 +92,13 @@ function ProjectDetail({ projectId, onBack }: { projectId: string; onBack: () =>
         </div>
         <div className="d-flex gap-2">
           <CreateTaskButton projectId={project.id} />
-          <Button variant="outline-danger" size="sm" onClick={handleDeleteProject}>
+          <Button
+            variant="outline-danger"
+            size="sm"
+            disabled
+            title="Bientôt disponible"
+            onClick={handleDeleteProject}
+          >
             Supprimer le projet
           </Button>
         </div>
