@@ -8,7 +8,7 @@ export interface NewProjectInput {
 }
 
 export interface NewTaskInput {
-  title: string;
+  name: string;
   projectId: string;
   priority: TaskPriority;
   dueDate: string | null;

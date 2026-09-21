@@ -1,13 +1,7 @@
 import { Badge, Button, Form } from 'react-bootstrap';
 
 import type { Project, Task } from '../types';
-import { formatShortDate } from '../utils/format';
-
-const PRIORITY_LABELS: Record<Task['priority'], { label: string; variant: string }> = {
-  high: { label: 'Haute', variant: 'danger' },
-  medium: { label: 'Moyenne', variant: 'warning' },
-  low: { label: 'Basse', variant: 'secondary' },
-};
+import { formatShortDate, PRIORITY_LABELS } from '../utils/format';
 
 export function TaskRow({
   task,
@@ -30,7 +24,7 @@ export function TaskRow({
         className="task-row-check"
       />
       <div className="task-row-body">
-        <span className={`task-row-title ${task.completed ? 'completed' : ''}`}>{task.title}</span>
+        <span className={`task-row-title ${task.completed ? 'completed' : ''}`}>{task.name}</span>
         <span className="task-row-meta">
           <Badge bg={PRIORITY_LABELS[task.priority].variant} className="me-2">
             {PRIORITY_LABELS[task.priority].label}

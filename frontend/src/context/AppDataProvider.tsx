@@ -1,22 +1,20 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 
 import type { CurrentUser, Project, ProjectStats, Task } from '../types';
 import { AppDataContext, type AppDataContextValue, type NewProjectInput, type NewTaskInput } from './appDataContext';
+import { createItem, deleteItem, fetchItems, openItemSocket, updateItem, type ItemResponse } from '../services/items';
 
 /**
- * TODO(backend): this whole file is a mock persistence layer.
+ * TODO(backend): `user` and `projects` are still a mock.
  *
- * The real backend currently exposes a single global, user-less `/items`
- * list (see backend/routes/*.js) — there is no authentication and no
- * notion of "project" yet. This provider stands in for that future API:
- * - `GET /me`                    -> seeds `user`
- * - `GET/POST/DELETE /projects`  -> seeds/mutates `projects`
- * - `GET/POST/PATCH/DELETE /projects/:id/tasks` -> seeds/mutates `tasks`
+ * The real backend exposes a single global, user-less `/items` list (and a
+ * `/ws` socket broadcasting item.created/updated/deleted) — no
+ * authentication and no notion of "project" yet. Tasks below are backed by
+ * that real API; project assignment is tracked client-side only until a
+ * real projects endpoint exists.
  *
- * Everything here lives in React state only: it resets on every page
- * reload. That's expected for a mock — once real endpoints exist, only
- * the bodies of the functions below need to change; every component that
- * calls `useAppData()` can stay exactly as it is.
+ * - `GET /me`                    -> would seed `user`
+ * - `GET/POST/DELETE /projects`  -> would seed/mutate `projects`
  */
 
 const SEED_USER: CurrentUser = {
@@ -26,53 +24,7 @@ const SEED_USER: CurrentUser = {
   joinedAt: '2026-01-14',
 };
 
-const SEED_PROJECTS: Project[] = [
-  { id: 'p-1', name: 'Site vitrine client', color: '#4f8ef7', createdAt: '2026-02-03' },
-  { id: 'p-2', name: 'Refonte API interne', color: '#f7a24f', createdAt: '2026-03-11' },
-];
-
-const SEED_TASKS: Task[] = [
-  {
-    id: 't-1',
-    title: 'Relire la maquette de la page contact',
-    projectId: 'p-1',
-    dueDate: '2026-09-14',
-    priority: 'high',
-    completed: false,
-    createdAt: '2026-09-01',
-  },
-  {
-    id: 't-2',
-    title: 'Ecrire les tests pour la route de login',
-    projectId: 'p-2',
-    dueDate: '2026-09-18',
-    priority: 'medium',
-    completed: false,
-    createdAt: '2026-09-02',
-  },
-  {
-    id: 't-3',
-    title: 'Préparer la démo du sprint',
-    projectId: 'p-1',
-    dueDate: '2026-09-12',
-    priority: 'high',
-    completed: false,
-    createdAt: '2026-09-03',
-  },
-  {
-    id: 't-4',
-    title: 'Mettre à jour le wiki de contribution',
-    projectId: 'p-2',
-    dueDate: null,
-    priority: 'low',
-    completed: true,
-    createdAt: '2026-08-20',
-  },
-];
-
-// Simulated network latency for the initial load, kept low so the app stays
-// snappy (acceptance criterion: "Loads within acceptable time").
-const INITIAL_LOAD_MS = 250;
+const SEED_PROJECTS: Project[] = [{ id: 'p-1', name: 'Mon projet', color: '#4f8ef7', createdAt: '2026-01-14' }];
 
 let idCounter = 0;
 function generateId(prefix: string): string {
@@ -80,20 +32,79 @@ function generateId(prefix: string): string {
   return `${prefix}-${Date.now()}-${idCounter}`;
 }
 
+function toTask(item: ItemResponse, projects: Project[], assignments: Record<string, string>): Task {
+  const projectId = assignments[item.id] ?? '';
+  const project = projects.find((p) => p.id === projectId);
+  return {
+    id: item.id,
+    name: item.name,
+    description: item.description,
+    projectId,
+    projectName: project?.name ?? '',
+    dueDate: item.dueDate,
+    priority: item.priority,
+    completed: item.completed,
+    createdAt: item.createdAt,
+  };
+}
+
 export function AppDataProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<CurrentUser>(SEED_USER);
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [tasks, setTasks] = useState<Task[]>([]);
+  const [projects, setProjects] = useState<Project[]>(SEED_PROJECTS);
+  const [items, setItems] = useState<ItemResponse[]>([]);
+  const [assignments, setAssignments] = useState<Record<string, string>>({});
+
+  const projectsRef = useRef(projects);
+  useEffect(() => {
+    projectsRef.current = projects;
+  }, [projects]);
+
+  const itemsRef = useRef(items);
+  useEffect(() => {
+    itemsRef.current = items;
+  }, [items]);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setProjects(SEED_PROJECTS);
-      setTasks(SEED_TASKS);
-      setLoading(false);
-    }, INITIAL_LOAD_MS);
-    return () => clearTimeout(timer);
+    fetchItems()
+      .then((fetched) => {
+        setItems(fetched);
+        // Every existing item defaults to the current first project until real project scoping exists.
+        setAssignments((prev) => {
+          const defaultProjectId = projectsRef.current[0]?.id;
+          if (!defaultProjectId) return prev;
+          const next = { ...prev };
+          for (const item of fetched) {
+            if (!(item.id in next)) next[item.id] = defaultProjectId;
+          }
+          return next;
+        });
+      })
+      .catch(console.error)
+      .finally(() => setLoading(false));
+
+    return openItemSocket((event) => {
+      switch (event.type) {
+        case 'item.created':
+          setItems((prev) => (prev.some((i) => i.id === event.item.id) ? prev : [...prev, event.item]));
+          setAssignments((prev) => {
+            const defaultProjectId = projectsRef.current[0]?.id;
+            if (event.item.id in prev || !defaultProjectId) return prev;
+            return { ...prev, [event.item.id]: defaultProjectId };
+          });
+          break;
+        case 'item.updated':
+          setItems((prev) => prev.map((i) => (i.id === event.item.id ? event.item : i)));
+          break;
+        case 'item.deleted':
+          setItems((prev) => prev.filter((i) => i.id !== event.id));
+          setAssignments((prev) => Object.fromEntries(Object.entries(prev).filter(([id]) => id !== event.id)));
+          break;
+      }
+    });
   }, []);
+
+  const tasks = useMemo(() => items.map((item) => toTask(item, projects, assignments)), [items, projects, assignments]);
 
   const createProject = (input: NewProjectInput): Project => {
     const project: Project = {
@@ -108,29 +119,61 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
 
   const deleteProject = (projectId: string) => {
     setProjects((prev) => prev.filter((project) => project.id !== projectId));
-    setTasks((prev) => prev.filter((task) => task.projectId !== projectId));
+    setAssignments((prev) => Object.fromEntries(Object.entries(prev).filter(([, pid]) => pid !== projectId)));
   };
 
   const createTask = (input: NewTaskInput): Task => {
-    const task: Task = {
+    const project = projects.find((p) => p.id === input.projectId);
+
+    createItem({
+      name: input.name.trim(),
+      priority: input.priority,
+      dueDate: input.dueDate,
+    })
+      .then((item) => {
+        setItems((prev) => (prev.some((i) => i.id === item.id) ? prev : [...prev, item]));
+        setAssignments((prev) => ({ ...prev, [item.id]: input.projectId }));
+      })
+      .catch(console.error);
+
+    // NewTaskInput/createTask's contract requires a synchronous return, but no current
+    // caller reads it — the real task is applied above once the API call resolves.
+    return {
       id: generateId('t'),
-      title: input.title.trim(),
+      name: input.name.trim(),
       projectId: input.projectId,
+      projectName: project?.name ?? '',
+      description: null,
       priority: input.priority,
       dueDate: input.dueDate,
       completed: false,
       createdAt: new Date().toISOString(),
     };
-    setTasks((prev) => [...prev, task]);
-    return task;
   };
 
   const toggleTask = (taskId: string) => {
-    setTasks((prev) => prev.map((task) => (task.id === taskId ? { ...task, completed: !task.completed } : task)));
+    const item = itemsRef.current.find((i) => i.id === taskId);
+    if (!item) return;
+    updateItem(taskId, {
+      name: item.name,
+      completed: !item.completed,
+      description: item.description,
+      priority: item.priority,
+      dueDate: item.dueDate,
+    })
+      .then((updated) => {
+        setItems((prev) => prev.map((i) => (i.id === updated.id ? updated : i)));
+      })
+      .catch(console.error);
   };
 
   const deleteTask = (taskId: string) => {
-    setTasks((prev) => prev.filter((task) => task.id !== taskId));
+    deleteItem(taskId)
+      .then(() => {
+        setItems((prev) => prev.filter((i) => i.id !== taskId));
+        setAssignments((prev) => Object.fromEntries(Object.entries(prev).filter(([id]) => id !== taskId)));
+      })
+      .catch(console.error);
   };
 
   const updateUserName = (name: string) => {
@@ -161,7 +204,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       updateUserName,
       projectStats,
     }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- action creators are stable enough for this mock store
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- action creators close over up-to-date state each render
     [loading, user, projects, tasks]
   );
 

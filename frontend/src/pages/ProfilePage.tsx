@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useState, type SubmitEvent } from 'react';
 import { Button, Col, Form, Placeholder, Row } from 'react-bootstrap';
 
 import { useAppData } from '../context/appDataContext';
@@ -11,7 +11,7 @@ export function ProfilePage() {
   const completedTasks = tasks.filter((t) => t.completed).length;
   const completionRate = tasks.length === 0 ? 0 : Math.round((completedTasks / tasks.length) * 100);
 
-  const submit = (e: FormEvent) => {
+  const submit = (e: SubmitEvent) => {
     e.preventDefault();
     updateUserName(name);
   };

@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useState, type SubmitEvent } from 'react';
 import { Button, Form, Modal } from 'react-bootstrap';
 
 import { useAppData } from '../context/appDataContext';
@@ -23,7 +23,7 @@ export function CreateProjectButton({
     setColor(COLOR_SWATCHES[0]);
   };
 
-  const submit = (e: FormEvent) => {
+  const submit = (e: SubmitEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
     createProject({ name, color });
@@ -32,7 +32,7 @@ export function CreateProjectButton({
 
   return (
     <>
-      <Button variant={variant} onClick={() => setShow(true)}>
+      <Button variant={variant} disabled title="Bientôt disponible" onClick={() => setShow(true)}>
         {label}
       </Button>
 
