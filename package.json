@@ -26,7 +26,7 @@
     "start:backend": "npm run start --workspace backend",
     "start:frontend": "npm run preview --workspace frontend",
     "db:studio": "npm run db:studio --workspace backend",
-    "test": "npm run test --workspace backend",
+    "test": "npm run test --workspaces --if-present",
     "test:coverage": "npm run test:coverage --workspaces --if-present",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
