@@ -92,13 +92,7 @@ function ProjectDetail({ projectId, onBack }: { projectId: string; onBack: () =>
         </div>
         <div className="d-flex gap-2">
           <CreateTaskButton projectId={project.id} />
-          <Button
-            variant="outline-danger"
-            size="sm"
-            disabled
-            title="Bientôt disponible"
-            onClick={handleDeleteProject}
-          >
+          <Button variant="outline-danger" size="sm" disabled title="Bientôt disponible" onClick={handleDeleteProject}>
             Supprimer le projet
           </Button>
         </div>
