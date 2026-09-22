@@ -30,3 +30,10 @@ export interface ProjectStats {
   taskCount: number;
   completedTaskCount: number;
 }
+
+export interface Notification {
+  id: string;
+  message: string;
+  httpCode: number;
+  createdAt: string; // ISO date
+}
