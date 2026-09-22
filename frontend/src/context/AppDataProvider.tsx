@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 
-import type { CurrentUser, Project, ProjectStats, Task } from '../types';
+import type { CurrentUser, Project, ProjectStats, Task, Notification } from '../types';
 import { AppDataContext, type AppDataContextValue, type NewProjectInput, type NewTaskInput } from './appDataContext';
 import { createItem, deleteItem, fetchItems, openItemSocket, updateItem, type ItemResponse } from '../services/items';
 
@@ -54,6 +54,17 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
   const [projects, setProjects] = useState<Project[]>(SEED_PROJECTS);
   const [items, setItems] = useState<ItemResponse[]>([]);
   const [assignments, setAssignments] = useState<Record<string, string>>({});
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+
+  const addNotification = (httpCode: number, message: string) => {
+    const notification: Notification = {
+      id: generateId('n'),
+      httpCode,
+      message,
+      createdAt: new Date().toISOString(),
+    };
+    setNotifications((prev: Notification[]) => [...prev, notification]);
+  }
 
   const projectsRef = useRef(projects);
   useEffect(() => {
@@ -80,7 +91,11 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
           return next;
         });
       })
-      .catch(console.error)
+      .catch((error) => {
+        const message = error instanceof Error ? error.message : String(error);
+        const status = Number(message.split(' ')[0] ?? 500);
+        addNotification(status, message);
+      })
       .finally(() => setLoading(false));
 
     return openItemSocket((event) => {
@@ -134,7 +149,11 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
         setItems((prev) => (prev.some((i) => i.id === item.id) ? prev : [...prev, item]));
         setAssignments((prev) => ({ ...prev, [item.id]: input.projectId }));
       })
-      .catch(console.error);
+      .catch((error) => {
+        const message = error instanceof Error ? error.message : String(error);
+        const status = Number(message.split(' ')[0] ?? 500);
+        addNotification(status, message);
+      })
 
     // NewTaskInput/createTask's contract requires a synchronous return, but no current
     // caller reads it — the real task is applied above once the API call resolves.
@@ -164,7 +183,11 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       .then((updated) => {
         setItems((prev) => prev.map((i) => (i.id === updated.id ? updated : i)));
       })
-      .catch(console.error);
+      .catch((error) => {
+        const message = error instanceof Error ? error.message : String(error);
+        const status = Number(message.split(' ')[0] ?? 500);
+        addNotification(status, message);
+      })
   };
 
   const deleteTask = (taskId: string) => {
@@ -173,7 +196,11 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
         setItems((prev) => prev.filter((i) => i.id !== taskId));
         setAssignments((prev) => Object.fromEntries(Object.entries(prev).filter(([id]) => id !== taskId)));
       })
-      .catch(console.error);
+      .catch((error) => {
+        const message = error instanceof Error ? error.message : String(error);
+        const status = Number(message.split(' ')[0] ?? 500);
+        addNotification(status, message);
+      })
   };
 
   const updateUserName = (name: string) => {
@@ -196,6 +223,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       user,
       projects,
       tasks,
+      notifications,
       createProject,
       deleteProject,
       createTask,
@@ -205,7 +233,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       projectStats,
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- action creators close over up-to-date state each render
-    [loading, user, projects, tasks]
+    [loading, user, projects, tasks, notifications]
   );
 
   return <AppDataContext.Provider value={value}>{children}</AppDataContext.Provider>;
