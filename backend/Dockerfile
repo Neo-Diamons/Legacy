@@ -12,7 +12,7 @@ COPY package*.json ./
 COPY backend/package.json backend/tsconfig.json ./backend/
 COPY backend/src ./backend/src
 COPY backend/drizzle ./backend/drizzle
-COPY backend/drizzle.config.*.ts ./backend/
+COPY backend/drizzle.config.ts ./backend/
 
 
 RUN npm ci --workspace=backend && \
