@@ -29,6 +29,8 @@ COPY --from=builder --chown=hono:nodejs /app/node_modules /app/node_modules
 COPY --from=builder --chown=hono:nodejs /app/backend/dist /app/dist
 COPY --from=builder --chown=hono:nodejs /app/backend/drizzle /app/drizzle
 
+RUN mkdir -p /app/data && chown hono:nodejs /app/data
+
 USER hono
 EXPOSE 3000
 

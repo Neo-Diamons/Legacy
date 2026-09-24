@@ -9,5 +9,26 @@ services:
     build:
       context: .
       dockerfile: backend/Dockerfile
+    environment:
+        SQLITE_DB_LOCATION: "data/todo.db"
     ports:
       - "3000:3000"
+  mysql:
+    image: mysql:latest
+    container_name: legacy-db
+    restart: unless-stopped
+
+    environment:
+      MYSQL_HOST:
+      MYSQL_PORT: 3306
+      MYSQL_USER: hono
+      MYSQL_PASSWORD:
+      MYSQL_DB:
+
+    ports:
+      - "3306:3306"
+
+    volumes:
+      [
+         /var/lib/mysql
+      ]
