@@ -147,6 +147,60 @@ describe('App', () => {
     expect(screen.getByText(secondItem.name)).toBeInTheDocument();
   });
 
+  test('shows notification on task toggle error', async () => {
+    const firstItem = item('1', 'First item not found');
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve([firstItem]) })
+      .mockRejectedValueOnce(new Error('404 Not found'));  // ← simulate error
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<App />);
+    await screen.findByText('Bonjour Michel 👋');
+    openProject();
+
+    fireEvent.click(screen.getByRole('checkbox'));
+
+    // vérifie que la notif est là
+    expect(await screen.findByText(/404.*Not found/)).toBeInTheDocument();
+  });
+
+  test('shows notification on task toggle error', async () => {
+    const firstItem = item('1', 'First item error internal');
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve([firstItem]) })
+      .mockRejectedValueOnce(new Error('502 bad access'));  // ← simulate error
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<App />);
+    await screen.findByText('Bonjour Michel 👋');
+    openProject();
+
+    fireEvent.click(screen.getByRole('checkbox'));
+
+    // vérifie que la notif est là
+    expect(await screen.findByText(/502.*bad access/)).toBeInTheDocument();
+  });
+
+  test('shows notification on task toggle error', async () => {
+    const firstItem = item('2', 'second item error format test');
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve([firstItem]) })
+      .mockRejectedValueOnce(new Error('422 unprocessed format'));  // ← simulate error
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<App />);
+    await screen.findByText('Bonjour Michel 👋');
+    openProject();
+
+    fireEvent.click(screen.getByRole('checkbox'));
+
+    // vérifie que la notif est là
+    expect(await screen.findByText(/422.*unprocessed format/)).toBeInTheDocument();
+  });
+
   test('reflects item.created/updated/deleted events pushed over the websocket', async () => {
     const pushedItem = item('1', 'Pushed item');
     const updatedItem = item('1', 'Pushed item', true);

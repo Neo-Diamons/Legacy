@@ -1,6 +1,6 @@
 import { createContext, useContext } from 'react';
 
-import type { CurrentUser, Project, ProjectStats, Task, TaskPriority } from '../types';
+import type { CurrentUser, Project, ProjectStats, Task, TaskPriority, Notification } from '../types';
 
 export interface NewProjectInput {
   name: string;
@@ -19,12 +19,14 @@ export interface AppDataContextValue {
   user: CurrentUser;
   projects: Project[];
   tasks: Task[];
+  notifications: Notification[];
   createProject: (input: NewProjectInput) => Project;
   deleteProject: (projectId: string) => void;
   createTask: (input: NewTaskInput) => Task;
   toggleTask: (taskId: string) => void;
   deleteTask: (taskId: string) => void;
   updateUserName: (name: string) => void;
+  removeNotification: (id: string) => void;
   projectStats: (projectId: string) => ProjectStats;
 }
 

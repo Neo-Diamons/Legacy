@@ -64,6 +64,22 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       createdAt: new Date().toISOString(),
     };
     setNotifications((prev: Notification[]) => [...prev, notification]);
+
+    setTimeout(() => {
+      removeNotification(notification.id);
+    }, 2000);
+
+  }
+
+  const removeNotification = (id: string) => {
+    setNotifications((prev) => prev.filter((n) => n.id !== id));
+  }
+
+  const formatPopUpAndAddNotification = (error: Error) => {
+        const message = error instanceof Error ? error.message : String(error);
+        console.log('Error fetching items:', message.split(' ')[1]);
+        const status = Number(message.split(' ')[0] ?? 500);
+        addNotification(status, message.split(' ')[1]);
   }
 
   const projectsRef = useRef(projects);
@@ -92,9 +108,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
         });
       })
       .catch((error) => {
-        const message = error instanceof Error ? error.message : String(error);
-        const status = Number(message.split(' ')[0] ?? 500);
-        addNotification(status, message);
+        formatPopUpAndAddNotification(error);
       })
       .finally(() => setLoading(false));
 
@@ -118,6 +132,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       }
     });
   }, []);
+  console.log('items:', items);
 
   const tasks = useMemo(() => items.map((item) => toTask(item, projects, assignments)), [items, projects, assignments]);
 
@@ -145,15 +160,14 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       priority: input.priority,
       dueDate: input.dueDate,
     })
-      .then((item) => {
-        setItems((prev) => (prev.some((i) => i.id === item.id) ? prev : [...prev, item]));
-        setAssignments((prev) => ({ ...prev, [item.id]: input.projectId }));
-      })
-      .catch((error) => {
-        const message = error instanceof Error ? error.message : String(error);
-        const status = Number(message.split(' ')[0] ?? 500);
-        addNotification(status, message);
-      })
+    .then(({ status, item }) => {  // ← directement ici
+      setItems((prev) => (prev.some((i) => i.id === item.id) ? prev : [...prev, item]));
+      setAssignments((prev) => ({ ...prev, [item.id]: input.projectId }));
+      addNotification(status, `Task created!`);
+    })
+    .catch((error) => {
+      formatPopUpAndAddNotification(error);
+    })
 
     // NewTaskInput/createTask's contract requires a synchronous return, but no current
     // caller reads it — the real task is applied above once the API call resolves.
@@ -180,26 +194,24 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       priority: item.priority,
       dueDate: item.dueDate,
     })
-      .then((updated) => {
-        setItems((prev) => prev.map((i) => (i.id === updated.id ? updated : i)));
+      .then(({ status, item }) => {
+        setItems((prev) => prev.map((i) => (i.id === item.id ? item : i)));
+        addNotification(status, `Task ${item.completed ? 'completed' : 'uncompleted'}!`);
       })
       .catch((error) => {
-        const message = error instanceof Error ? error.message : String(error);
-        const status = Number(message.split(' ')[0] ?? 500);
-        addNotification(status, message);
+        formatPopUpAndAddNotification(error);
       })
   };
 
   const deleteTask = (taskId: string) => {
     deleteItem(taskId)
-      .then(() => {
+      .then((status) => {
         setItems((prev) => prev.filter((i) => i.id !== taskId));
         setAssignments((prev) => Object.fromEntries(Object.entries(prev).filter(([id]) => id !== taskId)));
+        addNotification(status, `Task deleted!`);
       })
       .catch((error) => {
-        const message = error instanceof Error ? error.message : String(error);
-        const status = Number(message.split(' ')[0] ?? 500);
-        addNotification(status, message);
+        formatPopUpAndAddNotification(error);
       })
   };
 
@@ -224,6 +236,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       projects,
       tasks,
       notifications,
+      removeNotification,
       createProject,
       deleteProject,
       createTask,
@@ -236,5 +249,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     [loading, user, projects, tasks, notifications]
   );
 
-  return <AppDataContext.Provider value={value}>{children}</AppDataContext.Provider>;
+  return <AppDataContext.Provider value={value}>
+      {children}
+    </AppDataContext.Provider>;
 }
