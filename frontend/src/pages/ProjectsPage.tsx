@@ -107,6 +107,7 @@ function ProjectDetail({ projectId, onBack }: { projectId: string; onBack: () =>
                 <i className="fa fa-list me-1" aria-hidden="true" />
                 Liste
               </Button>
+
               <Button
                 variant={showKanban ? 'primary' : 'outline-primary'}
                 aria-pressed={showKanban}
@@ -119,13 +120,13 @@ function ProjectDetail({ projectId, onBack }: { projectId: string; onBack: () =>
           ) : (
             <span />
           )}
+
           <div className="d-flex gap-2">
             <CreateTaskButton projectId={project.id} />
+
             <Button
               variant="outline-danger"
               size="sm"
-              disabled
-              title="Bientôt disponible"
               onClick={handleDeleteProject}
             >
               Supprimer le projet
