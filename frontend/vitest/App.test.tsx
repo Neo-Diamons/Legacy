@@ -196,6 +196,119 @@ describe('App', () => {
     expect(await screen.findByText('Nouveau projet')).toBeInTheDocument();
   });
 
+  test('does not create a project with an empty name', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve([]),
+      }),
+    );
+
+    render(<App />);
+
+    await screen.findByText('Bonjour Michel 👋');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Projets' }));
+
+    expect(screen.getByText('Mon projet')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: '+ Nouveau projet' }));
+
+    const createButton = screen.getByRole('button', {
+      name: 'Créer le projet',
+    });
+
+    expect(createButton).toBeDisabled();
+
+    expect(screen.getByText('Mon projet')).toBeInTheDocument();
+  });
+
+  test('creates multiple projects independently', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve([]),
+      }),
+    );
+
+    render(<App />);
+
+    await screen.findByText('Bonjour Michel 👋');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Projets' }));
+
+    // Create first new project
+    fireEvent.click(screen.getByRole('button', { name: '+ Nouveau projet' }));
+
+    fireEvent.change(screen.getByLabelText('Nom du projet'), {
+      target: { value: 'Projet A' },
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Créer le projet' }));
+
+    expect(await screen.findByText('Projet A')).toBeInTheDocument();
+
+    // Create the second new project
+    fireEvent.click(screen.getByRole('button', { name: '+ Nouveau projet' }));
+
+    fireEvent.change(screen.getByLabelText('Nom du projet'), {
+      target: { value: 'Projet B' },
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Créer le projet' }));
+
+    expect(await screen.findByText('Projet B')).toBeInTheDocument();
+
+    // 3 projects should be visible now: the default "Mon projet" and the two newly created ones
+    expect(screen.getByText('Mon projet')).toBeInTheDocument();
+    expect(screen.getByText('Projet A')).toBeInTheDocument();
+    expect(screen.getByText('Projet B')).toBeInTheDocument();
+  });
+
+  test('creates a project with the selected color', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve([]),
+      }),
+    );
+
+    render(<App />);
+
+    await screen.findByText('Bonjour Michel 👋');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Projets' }));
+
+    fireEvent.click(screen.getByRole('button', { name: '+ Nouveau projet' }));
+
+    fireEvent.change(screen.getByLabelText('Nom du projet'), {
+      target: { value: 'Projet coloré' },
+    });
+
+    const colorButton = screen.getByRole('button', {
+      name: 'Choisir la couleur #f7a24f',
+    });
+
+    fireEvent.click(colorButton);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Créer le projet' }));
+
+    const projectCard = screen
+      .getByText('Projet coloré')
+      .closest('.project-card') as HTMLElement;
+
+    expect(projectCard).toBeInTheDocument();
+
+    const projectDot = projectCard.querySelector('.project-dot');
+
+    expect(projectDot).toHaveStyle({
+      backgroundColor: '#f7a24f',
+    });
+  });
+
   test('deletes a project after confirmation', async () => {
     vi.stubGlobal(
       'fetch',
