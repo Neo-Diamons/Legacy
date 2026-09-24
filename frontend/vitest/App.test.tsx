@@ -167,4 +167,138 @@ describe('App', () => {
     socket.emit('message', { type: 'item.deleted', id: updatedItem.id });
     await waitFor(() => expect(screen.queryByText(updatedItem.name)).not.toBeInTheDocument());
   });
+
+  test('creates a new project', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve([]),
+      }),
+    );
+
+    render(<App />);
+
+    await screen.findByText('Bonjour Michel 👋');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Projets' }));
+
+    expect(screen.getByText('Mon projet')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: '+ Nouveau projet' }));
+
+    fireEvent.change(screen.getByLabelText('Nom du projet'), {
+      target: { value: 'Nouveau projet' },
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Créer le projet' }));
+
+    expect(await screen.findByText('Nouveau projet')).toBeInTheDocument();
+  });
+
+  test('deletes a project after confirmation', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve([]),
+      }),
+    );
+
+    vi.stubGlobal('confirm', vi.fn().mockReturnValue(true));
+
+    render(<App />);
+
+    await screen.findByText('Bonjour Michel 👋');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Projets' }));
+
+    fireEvent.click(screen.getByText('Mon projet').closest('.project-card') as HTMLElement);
+
+    const deleteButton = screen.getByRole('button', {
+      name: 'Supprimer le projet',
+    });
+
+    expect(deleteButton).toBeEnabled();
+
+    fireEvent.click(deleteButton);
+
+    expect(window.confirm).toHaveBeenCalledWith(
+      'Supprimer le projet "Mon projet" et ses 0 tâche(s) ?',
+    );
+
+    expect(screen.queryByText('Mon projet')).not.toBeInTheDocument();
+  });
+
+  test('keeps tasks associated with their project when switching projects', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation((url: string, options?: RequestInit) => {
+        if (url === '/items' && options?.method === 'POST') {
+          return Promise.resolve({
+            ok: true,
+            json: () =>
+              Promise.resolve({
+                id: 'task-project-1',
+                name: 'Tâche du premier projet',
+                description: null,
+                completed: false,
+                priority: 'medium',
+                dueDate: null,
+                overdue: false,
+                createdAt: '2026-01-14T00:00:00.000Z',
+              }),
+          });
+        }
+
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve([]),
+        });
+      }),
+    );
+
+    render(<App />);
+
+    await screen.findByText('Bonjour Michel 👋');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Projets' }));
+
+    // Create a 2nd project
+    fireEvent.click(screen.getByRole('button', { name: '+ Nouveau projet' }));
+
+    fireEvent.change(screen.getByLabelText('Nom du projet'), {
+      target: { value: 'Deuxième projet' },
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Créer le projet' }));
+
+    expect(screen.getByText('Mon projet')).toBeInTheDocument();
+    expect(screen.getByText('Deuxième projet')).toBeInTheDocument();
+
+    // Open "Mon projet"
+    fireEvent.click(screen.getByText('Mon projet').closest('.project-card') as HTMLElement);
+
+    // Add a task to the project
+    fireEvent.click(screen.getByRole('button', { name: '+ Ajouter une tâche' }));
+
+    fireEvent.change(screen.getByLabelText('Nom'), {
+      target: { value: 'Tâche du premier projet' },
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Créer la tâche' }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Tâche du premier projet')).toBeInTheDocument();
+    });
+
+    // Returnal to project list
+    fireEvent.click(screen.getByRole('button', { name: 'Retour aux projets' }));
+
+    // Open the second project
+    fireEvent.click(screen.getByText('Deuxième projet').closest('.project-card') as HTMLElement);
+
+    // first project's task should not be visible on 2nd project
+    expect(screen.queryByText('Tâche du premier projet')).not.toBeInTheDocument();
+  });
 });
