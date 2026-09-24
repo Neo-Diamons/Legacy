@@ -117,6 +117,20 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     return project;
   };
 
+  const updateProjectName = (projectId: string, name: string) => {
+    const trimmed = name.trim();
+
+    if (!trimmed) return;
+
+    setProjects((prev) =>
+      prev.map((project) =>
+        project.id === projectId
+          ? { ...project, name: trimmed }
+          : project,
+      ),
+    );
+  };
+
   const deleteProject = (projectId: string) => {
     setProjects((prev) => prev.filter((project) => project.id !== projectId));
     setAssignments((prev) => Object.fromEntries(Object.entries(prev).filter(([, pid]) => pid !== projectId)));
@@ -197,6 +211,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       projects,
       tasks,
       createProject,
+      updateProjectName,
       deleteProject,
       createTask,
       toggleTask,

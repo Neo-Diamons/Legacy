@@ -1,5 +1,5 @@
-import { Button, Placeholder } from 'react-bootstrap';
-
+import { useState } from 'react';
+import { Button, Form, Modal, Placeholder } from 'react-bootstrap';
 import { CreateProjectButton } from '../components/CreateProjectButton';
 import { CreateTaskButton } from '../components/CreateTaskButton';
 import { ProjectCard } from '../components/ProjectCard';
@@ -65,9 +65,17 @@ export function ProjectsPage({
 }
 
 function ProjectDetail({ projectId, onBack }: { projectId: string; onBack: () => void }) {
-  const { projects, tasks, toggleTask, deleteTask, deleteProject } = useAppData();
-  const project = projects.find((p) => p.id === projectId);
+  const {
+    projects,
+    tasks,
+    toggleTask,
+    deleteTask,
+    deleteProject,
+    updateProjectName,
+  } = useAppData();  const project = projects.find((p) => p.id === projectId);
   const projectTasks = tasks.filter((t) => t.projectId === projectId);
+  const [showEdit, setShowEdit] = useState(false);
+  const [editName, setEditName] = useState('');
 
   if (!project) return null;
 
@@ -92,6 +100,18 @@ function ProjectDetail({ projectId, onBack }: { projectId: string; onBack: () =>
         </div>
         <div className="d-flex gap-2">
           <CreateTaskButton projectId={project.id} />
+
+          <Button
+            variant="outline-primary"
+            size="sm"
+            onClick={() => {
+              setEditName(project.name);
+              setShowEdit(true);
+            }}
+          >
+            Modifier le projet
+          </Button>
+
           <Button variant="outline-danger" size="sm" onClick={handleDeleteProject}>
             Supprimer le projet
           </Button>
@@ -107,6 +127,46 @@ function ProjectDetail({ projectId, onBack }: { projectId: string; onBack: () =>
           ))}
         </div>
       )}
+      <Modal show={showEdit} onHide={() => setShowEdit(false)} centered>
+        <Form
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (!editName.trim()) return;
+            updateProjectName(project.id, editName);
+            setShowEdit(false);
+          }}
+        >
+          <Modal.Header closeButton>
+            <Modal.Title as="h2" className="h5 mb-0">
+              Modifier le projet
+            </Modal.Title>
+          </Modal.Header>
+
+          <Modal.Body>
+            <Form.Group controlId="edit-project-name">
+              <Form.Label>Nom du projet</Form.Label>
+              <Form.Control
+                type="text"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+              />
+            </Form.Group>
+          </Modal.Body>
+
+          <Modal.Footer>
+            <Button
+              variant="outline-secondary"
+              onClick={() => setShowEdit(false)}
+            >
+              Annuler
+            </Button>
+
+            <Button type="submit" variant="success">
+              Enregistrer
+            </Button>
+          </Modal.Footer>
+        </Form>
+      </Modal>
     </div>
   );
 }

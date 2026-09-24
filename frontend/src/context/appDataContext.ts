@@ -20,6 +20,7 @@ export interface AppDataContextValue {
   projects: Project[];
   tasks: Task[];
   createProject: (input: NewProjectInput) => Project;
+  updateProjectName: (projectId: string, name: string) => void;
   deleteProject: (projectId: string) => void;
   createTask: (input: NewTaskInput) => Task;
   toggleTask: (taskId: string) => void;
