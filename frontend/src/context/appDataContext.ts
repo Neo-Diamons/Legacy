@@ -21,6 +21,7 @@ export interface AppDataContextValue {
   tasks: Task[];
   notifications: Notification[];
   createProject: (input: NewProjectInput) => Project;
+  updateProjectName: (projectId: string, name: string) => void;
   deleteProject: (projectId: string) => void;
   createTask: (input: NewTaskInput) => Task;
   toggleTask: (taskId: string) => void;
