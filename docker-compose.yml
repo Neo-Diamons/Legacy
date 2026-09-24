@@ -6,10 +6,17 @@ services:
     ports:
       - "5173:5173"
   backend:
+    depends_on:
+      - mysql
     build:
       context: .
       dockerfile: backend/Dockerfile
     environment:
+        MYSQL_HOST: "mysql"
+        MYSQL_PORT: 3306
+        MYSQL_USER: "legacy_todo"
+        MYSQL_PASSWORD: "pswd"
+        MYSQL_DB: "legacy"
         SQLITE_DB_LOCATION: "data/todo.db"
     ports:
       - "3000:3000"
@@ -19,11 +26,11 @@ services:
     restart: unless-stopped
 
     environment:
-      MYSQL_HOST:
-      MYSQL_PORT: 3306
-      MYSQL_USER: hono
-      MYSQL_PASSWORD:
-      MYSQL_DB:
+      MYSQL_ROOT_PASSWORD: ""
+      MYSQL_ALLOW_EMPTY_PASSWORD: "True"
+      MYSQL_USER: "legacy_todo"
+      MYSQL_PASSWORD: "pswd"
+      MYSQL_DATABASE: "legacy"
 
     ports:
       - "3306:3306"
