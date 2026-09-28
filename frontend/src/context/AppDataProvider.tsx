@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 
 import type { CurrentUser, Project, ProjectStats, Task, Notification } from '../types';
 import { AppDataContext, type AppDataContextValue, type NewProjectInput, type NewTaskInput } from './appDataContext';
@@ -56,30 +56,38 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
   const [assignments, setAssignments] = useState<Record<string, string>>({});
   const [notifications, setNotifications] = useState<Notification[]>([]);
 
-  const addNotification = (httpCode: number, message: string) => {
-    const notification: Notification = {
-      id: generateId('n'),
-      httpCode,
-      message,
-      createdAt: new Date().toISOString(),
-    };
-    setNotifications((prev: Notification[]) => [...prev, notification]);
-
-    setTimeout(() => {
-      removeNotification(notification.id);
-    }, 2000);
-  };
-
-  const removeNotification = (id: string) => {
+  const removeNotification = useCallback((id: string) => {
     setNotifications((prev) => prev.filter((n) => n.id !== id));
-  };
+  }, []);
 
-  const formatPopUpAndAddNotification = (error: Error) => {
-    const message = error instanceof Error ? error.message : String(error);
-    const [statusText, ...messageParts] = message.split(' ');
-    const status = Number(statusText) || 500;
-    addNotification(status, messageParts.join(' '));
-  };
+  const addNotification = useCallback(
+    (httpCode: number, message: string) => {
+      const notification: Notification = {
+        id: generateId('n'),
+        httpCode,
+        message,
+        createdAt: new Date().toISOString(),
+      };
+
+      setNotifications((prev) => [...prev, notification]);
+
+      setTimeout(() => {
+        removeNotification(notification.id);
+      }, 2000);
+    },
+    [removeNotification]
+  );
+
+  const formatPopUpAndAddNotification = useCallback(
+    (error: Error) => {
+      const message = error instanceof Error ? error.message : String(error);
+      const [statusText, ...messageParts] = message.split(' ');
+      const status = Number(statusText) || 500;
+
+      addNotification(status, messageParts.join(' '));
+    },
+    [addNotification]
+  );
 
   const projectsRef = useRef(projects);
   useEffect(() => {
@@ -130,7 +138,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
           break;
       }
     });
-  });
+  }, [formatPopUpAndAddNotification]);
   console.log('items:', items);
 
   const tasks = useMemo(() => items.map((item) => toTask(item, projects, assignments)), [items, projects, assignments]);
