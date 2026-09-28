@@ -76,10 +76,10 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
   }
 
   const formatPopUpAndAddNotification = (error: Error) => {
-        const message = error instanceof Error ? error.message : String(error);
-        console.log('Error fetching items:', message.split(' ')[1]);
-        const status = Number(message.split(' ')[0] ?? 500);
-        addNotification(status, message.split(' ')[1]);
+      const message = error instanceof Error ? error.message : String(error);
+      const [statusText, ...messageParts] = message.split(' ');
+      const status = Number(statusText) || 500;
+      addNotification(status, messageParts.join(' '));
   }
 
   const projectsRef = useRef(projects);
