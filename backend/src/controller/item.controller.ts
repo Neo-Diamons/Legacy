@@ -15,12 +15,15 @@ import {
 } from '@schemas/item.schemas.js';
 import { ErrorResponseSchema } from '@schemas/error.schemas.js';
 import { broadcastItemEvent } from '@ws/broadcast.js';
+import { getAuthenticatedUserId } from '@http/identity.js';
+import { projectService } from '@service/project.service.js';
 
 export const itemController = createRouter();
 
 function serializeItem(item: Item): ItemResponse {
   return {
     ...item,
+    projectId: item.projectId ?? null,
     dueDate: item.dueDate ? item.dueDate.toISOString() : null,
     overdue: !!item.dueDate && !item.completed && item.dueDate.getTime() < Date.now(),
     createdAt: item.createdAt.toISOString(),
@@ -33,6 +36,7 @@ function normalizeCreateInput(body: CreateBodyItem) {
     description: body.description ?? null,
     priority: body.priority ?? ('medium' as const),
     dueDate: body.dueDate ? new Date(body.dueDate) : null,
+    projectId: body.projectId ?? null,
   };
 }
 
@@ -43,6 +47,7 @@ function normalizeUpdateInput(body: UpdateBodyItem) {
     description: body.description ?? null,
     priority: body.priority ?? ('medium' as const),
     dueDate: body.dueDate ? new Date(body.dueDate) : null,
+    projectId: body.projectId ?? null,
   };
 }
 
@@ -67,7 +72,7 @@ const listItem = createRoute({
 });
 itemController.openapi(listItem, async (c) => {
   const query = c.req.valid('query');
-  const items = await itemService.getItems(query);
+  const items = await itemService.getItems(getAuthenticatedUserId(c), query);
   return c.json(items.map(serializeItem), 200);
 });
 
@@ -94,8 +99,13 @@ const createItem = createRoute({
 });
 itemController.openapi(createItem, async (c) => {
   const body = c.req.valid('json');
+  const userId = getAuthenticatedUserId(c);
+  if (body.projectId && !(await projectService.getProject(body.projectId, userId))) {
+    throw new HTTPException(404, { message: 'Project not found' });
+  }
   const item: Item = {
     id: crypto.randomUUID(),
+    userId,
     completed: false,
     createdAt: new Date(),
     ...normalizeCreateInput(body),
@@ -103,7 +113,7 @@ itemController.openapi(createItem, async (c) => {
 
   await itemService.storeItem(item);
   const response = serializeItem(item);
-  broadcastItemEvent({ type: 'item.created', item: response });
+  broadcastItemEvent({ type: 'item.created', item: response }, userId);
   return c.json(response, 201);
 });
 
@@ -138,18 +148,22 @@ itemController.openapi(updateItem, async (c) => {
   const body = c.req.valid('json');
 
   const update = normalizeUpdateInput(body);
-  const changed = await itemService.updateItem(id, update);
+  const userId = getAuthenticatedUserId(c);
+  if (update.projectId && !(await projectService.getProject(update.projectId, userId))) {
+    throw new HTTPException(404, { message: 'Project not found' });
+  }
+  const changed = await itemService.updateItem(id, update, userId);
   if (!changed) {
     throw new HTTPException(404, { message: 'Item not found' });
   }
 
-  const updated = await itemService.getItem(id);
+  const updated = await itemService.getItem(id, getAuthenticatedUserId(c));
   if (!updated) {
     throw new HTTPException(404, { message: 'Item not found' });
   }
 
   const response = serializeItem(updated);
-  broadcastItemEvent({ type: 'item.updated', item: response });
+  broadcastItemEvent({ type: 'item.updated', item: response }, userId);
   return c.json(response, 200);
 });
 
@@ -175,10 +189,11 @@ const deleteItem = createRoute({
 });
 itemController.openapi(deleteItem, async (c) => {
   const { id } = c.req.valid('param');
-  const removed = await itemService.removeItem(id);
+  const userId = getAuthenticatedUserId(c);
+  const removed = await itemService.removeItem(id, userId);
   if (!removed) {
     throw new HTTPException(404, { message: 'Item not found' });
   }
-  broadcastItemEvent({ type: 'item.deleted', id });
+  broadcastItemEvent({ type: 'item.deleted', id }, userId);
   return c.body(null, 204);
 });

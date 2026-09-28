@@ -22,7 +22,13 @@ export const authController = createRouter();
 export const userController = createRouter();
 
 function serializeUser(user: User) {
-  return { id: user.id, email: user.email, name: user.name, createdAt: user.createdAt.toISOString() };
+  return {
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    createdAt: user.createdAt.toISOString(),
+    mustChangePassword: user.mustChangePassword,
+  };
 }
 
 function normalizeEmail(email: string) {
@@ -30,7 +36,15 @@ function normalizeEmail(email: string) {
 }
 
 async function issueToken(user: User) {
-  return sign({ sub: user.id, email: user.email, exp: Math.floor(Date.now() / 1000) + 60 * 60 }, getJwtSecret());
+  return sign(
+    {
+      sub: user.id,
+      email: user.email,
+      mustChangePassword: user.mustChangePassword,
+      exp: Math.floor(Date.now() / 1000) + 60 * 60,
+    },
+    getJwtSecret()
+  );
 }
 
 const register = createRoute({
@@ -53,6 +67,7 @@ authController.openapi(register, async (c) => {
     email,
     name: body.name,
     passwordHash: await hashPassword(body.password),
+    mustChangePassword: false,
     createdAt: new Date(),
   };
   await userService.createUser(user);

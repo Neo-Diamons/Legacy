@@ -6,6 +6,7 @@ export const UserResponseSchema = z
     email: z.email(),
     name: z.string(),
     createdAt: z.iso.datetime(),
+    mustChangePassword: z.boolean(),
   })
   .openapi('User');
 export type UserResponse = z.infer<typeof UserResponseSchema>;

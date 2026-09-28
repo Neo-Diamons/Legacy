@@ -71,6 +71,7 @@ missing, it falls back to the real process environment.
 | `BACKEND_PORT`         | Hono API port. Default `3000`.                                                                                                                                 |
 | `BACKEND_URL`          | Backend the dev/preview proxy forwards `/items*` to. Default `http://localhost:<BACKEND_PORT>`. Not baked into the frontend bundle.                            |
 | `CORS_ALLOWED_ORIGINS` | Comma-separated API origin allowlist (scheme + host + optional port). Default: `localhost` and `127.0.0.1` on `<FRONTEND_PORT>`. Invalid entries fail startup. |
+| `JWT_SECRET`           | Required signing secret for JWTs. Use a random value of at least 32 characters; never commit it.                                                               |
 | `SQLITE_DB_LOCATION`   | SQLite file path. Default `/etc/todos/todo.db`. Used unless MySQL is configured.                                                                               |
 | `MYSQL_HOST`           | MySQL host. Setting it (or `MYSQL_HOST_FILE`) switches persistence to MySQL; otherwise every `MYSQL_*` var is ignored.                                         |
 | `MYSQL_PORT`           | MySQL port. Default `3306`.                                                                                                                                    |
@@ -145,6 +146,27 @@ The backend serves its own reference docs, generated from the zod schemas:
 
 - **Scalar UI** — <http://localhost:3000/scalar>
 - **OpenAPI 3.0 spec** — <http://localhost:3000/doc>
+
+Authentication is provided by `POST /auth/register` and `POST /auth/login`, both of
+which return a JWT and a sanitized user object. Send it as
+`Authorization: Bearer <token>` when calling `/users`, `/items` or `/projects`.
+The OpenAPI document and Scalar UI are also protected by the same JWT middleware.
+Items, projects and realtime item events are scoped to the authenticated user.
+
+The user API supports `GET/PUT/DELETE /users/:id` for the authenticated owner and
+`GET /users/:id/export` for a JSON export of that user's account, projects and
+items. Deleting the account deletes its owned projects and items first. Passwords
+are stored only as scrypt hashes and are excluded from exports and API responses.
+
+Users are stored in the `users` table and projects in `projects`. Existing todo
+items are assigned to the seeded `legacy@local.invalid` account by migration, so
+adding ownership does not discard existing data. The legacy account is disabled
+because it has no usable password.
+
+The application implements technical support for access, rectification, export
+and deletion requests. Retention periods, legal basis/consent, privacy notices,
+and the controller's operational GDPR procedures must still be defined for the
+deployment; code alone cannot establish legal compliance.
 
 ---
 

@@ -8,8 +8,15 @@ import { projects as sqliteProjects } from '@model/project.sqlite.model.js';
 import { projects as mysqlProjects } from '@model/project.mysql.model.js';
 
 export type User = SqliteUser | MysqlUser;
-type UserInput = { id: string; email: string; name: string; passwordHash: string; createdAt: Date };
-type UserUpdate = Partial<Pick<UserInput, 'email' | 'name' | 'passwordHash'>>;
+type UserInput = {
+  id: string;
+  email: string;
+  name: string;
+  passwordHash: string;
+  mustChangePassword: boolean;
+  createdAt: Date;
+};
+type UserUpdate = Partial<Pick<UserInput, 'email' | 'name' | 'passwordHash' | 'mustChangePassword'>>;
 export type UserDataExport = { user: User; projects: unknown[]; items: unknown[] };
 
 interface UserService {
@@ -39,9 +46,11 @@ const sqliteService: UserService = {
     return sqlite.db.update(sqliteUsers).set(update).where(eq(sqliteUsers.id, id)).run().changes;
   },
   async deleteUser(id) {
-    sqlite.db.delete(sqliteItems).where(eq(sqliteItems.userId, id)).run();
-    sqlite.db.delete(sqliteProjects).where(eq(sqliteProjects.userId, id)).run();
-    return sqlite.db.delete(sqliteUsers).where(eq(sqliteUsers.id, id)).run().changes;
+    return sqlite.db.transaction((tx) => {
+      tx.delete(sqliteItems).where(eq(sqliteItems.userId, id)).run();
+      tx.delete(sqliteProjects).where(eq(sqliteProjects.userId, id)).run();
+      return tx.delete(sqliteUsers).where(eq(sqliteUsers.id, id)).run().changes;
+    });
   },
   async exportUserData(id) {
     const user = await this.getUser(id);
@@ -70,10 +79,12 @@ const mysqlService: UserService = {
     return result.affectedRows;
   },
   async deleteUser(id) {
-    await mysql.db.delete(mysqlItems).where(eq(mysqlItems.userId, id));
-    await mysql.db.delete(mysqlProjects).where(eq(mysqlProjects.userId, id));
-    const [result] = await mysql.db.delete(mysqlUsers).where(eq(mysqlUsers.id, id));
-    return result.affectedRows;
+    return mysql.db.transaction(async (tx) => {
+      await tx.delete(mysqlItems).where(eq(mysqlItems.userId, id));
+      await tx.delete(mysqlProjects).where(eq(mysqlProjects.userId, id));
+      const [result] = await tx.delete(mysqlUsers).where(eq(mysqlUsers.id, id));
+      return result.affectedRows;
+    });
   },
   async exportUserData(id) {
     const user = await this.getUser(id);

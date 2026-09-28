@@ -4,6 +4,8 @@ import { PRIORITIES } from './priority.js';
 
 export const todoItems = mysqlTable('todo_items', {
   id: varchar('id', { length: 36 }).primaryKey(),
+  userId: varchar('user_id', { length: 36 }).notNull().default('00000000-0000-4000-8000-000000000000'),
+  projectId: varchar('project_id', { length: 36 }),
   name: text('name').notNull(),
   description: text('description'),
   completed: boolean('completed').notNull().default(false),
@@ -13,3 +15,6 @@ export const todoItems = mysqlTable('todo_items', {
     .notNull()
     .default(sql`CURRENT_TIMESTAMP`),
 });
+
+export type Item = Omit<typeof todoItems.$inferSelect, 'userId' | 'projectId'> &
+  Partial<Pick<typeof todoItems.$inferSelect, 'userId' | 'projectId'>>;

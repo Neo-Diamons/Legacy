@@ -12,6 +12,7 @@ export const ItemResponseSchema = z
     completed: z.boolean().openapi({ example: false }),
     priority: PriorityEnum.openapi({ example: 'medium' }),
     dueDate: z.iso.datetime().nullable().openapi({ example: '2026-09-20T15:00:00.000Z' }),
+    projectId: z.uuid().nullable().optional().openapi({ example: null }),
     overdue: z.boolean().openapi({ example: false }),
     createdAt: z.iso.datetime().openapi({ example: '2026-09-18T10:00:00.000Z' }),
   })
@@ -43,6 +44,7 @@ export const CreateItemBodySchema = z
     description: z.string().nullable().optional().openapi({ example: 'Whole or oat milk, whichever is cheaper' }),
     priority: PriorityEnum.optional().openapi({ example: 'medium' }),
     dueDate: z.iso.datetime().nullable().optional().openapi({ example: '2026-09-20T15:00:00.000Z' }),
+    projectId: z.uuid().nullable().optional(),
   })
   .strict()
   .openapi('CreateItem');
@@ -55,6 +57,7 @@ export const UpdateItemBodySchema = z
     completed: z.boolean().openapi({ example: true }),
     priority: PriorityEnum.optional().openapi({ example: 'urgent' }),
     dueDate: z.iso.datetime().nullable().optional().openapi({ example: null }),
+    projectId: z.uuid().nullable().optional(),
   })
   .strict()
   .openapi('UpdateItem');

@@ -7,6 +7,9 @@ import { driver } from '@db';
 import { itemController } from '@controller/item.controller.js';
 import { createRouter, registerErrorHandler } from '@http/app.js';
 import { registerWebSocket } from '@ws/broadcast.js';
+import { authController, userController } from '@controller/user.controller.js';
+import { jwtAuth } from '@http/auth.js';
+import { projectController } from '@controller/project.controller.js';
 
 const app = createRouter();
 
@@ -44,12 +47,20 @@ app.use(logger());
 
 app.get('/health', (c) => c.json({ status: 'ok' }));
 
+app.use('/items/*', jwtAuth());
+app.use('/items', jwtAuth());
 app.route('/items', itemController);
+app.route('/auth', authController);
+app.route('/users', userController);
+app.use('/projects/*', jwtAuth());
+app.use('/projects', jwtAuth());
+app.route('/projects', projectController);
 
 const injectWebSocket = registerWebSocket(app);
 
 registerErrorHandler(app);
 
+app.use('/doc', jwtAuth());
 app.doc('/doc', {
   openapi: '3.0.0',
   info: {
@@ -57,6 +68,7 @@ app.doc('/doc', {
     title: 'Legacy',
   },
 });
+app.use('/scalar', jwtAuth());
 app.get(
   '/scalar',
   Scalar({

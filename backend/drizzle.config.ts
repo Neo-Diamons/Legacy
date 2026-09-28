@@ -5,7 +5,7 @@ export default defineConfig(
   useMysql
     ? {
         dialect: 'mysql',
-        schema: './src/model/item.mysql.model.ts',
+        schema: './src/model/*.mysql.model.ts',
         out: './drizzle/mysql',
         dbCredentials: {
           host: process.env.MYSQL_HOST ?? 'localhost',
@@ -16,7 +16,7 @@ export default defineConfig(
       }
     : {
         dialect: 'sqlite',
-        schema: './src/model/item.sqlite.model.ts',
+        schema: './src/model/*.sqlite.model.ts',
         out: './drizzle/sqlite',
         dbCredentials: {
           url: sqliteLocation,

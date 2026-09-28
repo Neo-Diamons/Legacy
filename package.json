@@ -16,7 +16,7 @@
   "scripts": {
     "dev": "concurrently -n backend,frontend -c blue,magenta \"npm:dev:backend\" \"npm:dev:frontend\"",
     "dev:backend": "npm run dev --workspace backend",
-    "dev:frontend": "npm run dev --workspace frontend",
+    "dev:frontend": "npm run wait --workspace backend && npm run dev --workspace frontend",
     "build": "npm run build:backend && npm run build:frontend",
     "build:backend": "npm run build --workspace backend",
     "build:frontend": "npm run build --workspace frontend",
@@ -24,7 +24,7 @@
     "prestart": "npm run build",
     "start": "concurrently -n backend,frontend -c blue,magenta \"npm:start:backend\" \"npm:start:frontend\"",
     "start:backend": "npm run start --workspace backend",
-    "start:frontend": "npm run preview --workspace frontend",
+    "start:frontend": "npm run wait --workspace backend && npm run preview --workspace frontend",
     "db:studio": "npm run db:studio --workspace backend",
     "test": "npm run test --workspaces --if-present",
     "test:coverage": "npm run test:coverage --workspaces --if-present",
