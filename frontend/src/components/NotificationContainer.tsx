@@ -5,7 +5,17 @@ export function NotificationContainer() {
   const { notifications, removeNotification } = useAppData();
 
   return (
-    <div>
+    <div
+      style={{
+        position: 'fixed',
+        top: 16,
+        right: 16,
+        zIndex: 1000,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'flex-end',
+      }}
+    >
       {notifications.map((notif) => (
         <NotificationPopUp
           key={notif.id}

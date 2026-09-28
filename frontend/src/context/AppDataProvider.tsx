@@ -128,17 +128,20 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
             if (event.item.id in prev || !defaultProjectId) return prev;
             return { ...prev, [event.item.id]: defaultProjectId };
           });
+          addNotification(201, 'Task created!');
           break;
         case 'item.updated':
           setItems((prev) => prev.map((i) => (i.id === event.item.id ? event.item : i)));
+          addNotification(204, `Task ${event.item.completed ? 'completed' : 'uncompleted'}!`);
           break;
         case 'item.deleted':
           setItems((prev) => prev.filter((i) => i.id !== event.id));
           setAssignments((prev) => Object.fromEntries(Object.entries(prev).filter(([id]) => id !== event.id)));
+          addNotification(204, 'Task deleted!');
           break;
       }
     });
-  }, [formatPopUpAndAddNotification]);
+  }, [formatPopUpAndAddNotification, addNotification]);
   console.log('items:', items);
 
   const tasks = useMemo(() => items.map((item) => toTask(item, projects, assignments)), [items, projects, assignments]);
@@ -167,11 +170,10 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       priority: input.priority,
       dueDate: input.dueDate,
     })
-      .then(({ status, item }) => {
+      .then(({ item }) => {
         // ← directement ici
         setItems((prev) => (prev.some((i) => i.id === item.id) ? prev : [...prev, item]));
         setAssignments((prev) => ({ ...prev, [item.id]: input.projectId }));
-        addNotification(status, `Task created!`);
       })
       .catch((error) => {
         formatPopUpAndAddNotification(error);
@@ -202,9 +204,8 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       priority: item.priority,
       dueDate: item.dueDate,
     })
-      .then(({ status, item }) => {
+      .then(({ item }) => {
         setItems((prev) => prev.map((i) => (i.id === item.id ? item : i)));
-        addNotification(status, `Task ${item.completed ? 'completed' : 'uncompleted'}!`);
       })
       .catch((error) => {
         formatPopUpAndAddNotification(error);
@@ -213,10 +214,9 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
 
   const deleteTask = (taskId: string) => {
     deleteItem(taskId)
-      .then((status) => {
+      .then(() => {
         setItems((prev) => prev.filter((i) => i.id !== taskId));
         setAssignments((prev) => Object.fromEntries(Object.entries(prev).filter(([id]) => id !== taskId)));
-        addNotification(status, `Task deleted!`);
       })
       .catch((error) => {
         formatPopUpAndAddNotification(error);
