@@ -130,7 +130,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
           break;
       }
     });
-  }, []);
+  });
   console.log('items:', items);
 
   const tasks = useMemo(() => items.map((item) => toTask(item, projects, assignments)), [items, projects, assignments]);
