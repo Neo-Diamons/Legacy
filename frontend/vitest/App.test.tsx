@@ -152,7 +152,7 @@ describe('App', () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve([firstItem]) })
-      .mockRejectedValueOnce(new Error('404 Not found'));  // ← simulate error
+      .mockRejectedValueOnce(new Error('404 Not found')); // ← simulate error
     vi.stubGlobal('fetch', fetchMock);
 
     render(<App />);
@@ -170,7 +170,7 @@ describe('App', () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve([firstItem]) })
-      .mockRejectedValueOnce(new Error('502 bad access'));  // ← simulate error
+      .mockRejectedValueOnce(new Error('502 bad access')); // ← simulate error
     vi.stubGlobal('fetch', fetchMock);
 
     render(<App />);
@@ -188,7 +188,7 @@ describe('App', () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve([firstItem]) })
-      .mockRejectedValueOnce(new Error('422 Unprocessable Entity'));  // ← simulate error
+      .mockRejectedValueOnce(new Error('422 Unprocessable Entity')); // ← simulate error
     vi.stubGlobal('fetch', fetchMock);
 
     render(<App />);
@@ -206,7 +206,7 @@ describe('App', () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve([firstItem]) })
-      .mockRejectedValueOnce(new Error('201 Task created!'));  // ← simulate error
+      .mockRejectedValueOnce(new Error('201 Task created!')); // ← simulate error
     vi.stubGlobal('fetch', fetchMock);
 
     render(<App />);
@@ -225,7 +225,7 @@ describe('App', () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve([firstItem]) })
-      .mockRejectedValueOnce(new Error('200 Task completed!'));  // ← simulate error
+      .mockRejectedValueOnce(new Error('200 Task completed!')); // ← simulate error
     vi.stubGlobal('fetch', fetchMock);
 
     render(<App />);

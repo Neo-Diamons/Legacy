@@ -68,19 +68,18 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     setTimeout(() => {
       removeNotification(notification.id);
     }, 2000);
-
-  }
+  };
 
   const removeNotification = (id: string) => {
     setNotifications((prev) => prev.filter((n) => n.id !== id));
-  }
+  };
 
   const formatPopUpAndAddNotification = (error: Error) => {
-      const message = error instanceof Error ? error.message : String(error);
-      const [statusText, ...messageParts] = message.split(' ');
-      const status = Number(statusText) || 500;
-      addNotification(status, messageParts.join(' '));
-  }
+    const message = error instanceof Error ? error.message : String(error);
+    const [statusText, ...messageParts] = message.split(' ');
+    const status = Number(statusText) || 500;
+    addNotification(status, messageParts.join(' '));
+  };
 
   const projectsRef = useRef(projects);
   useEffect(() => {
@@ -160,14 +159,15 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       priority: input.priority,
       dueDate: input.dueDate,
     })
-    .then(({ status, item }) => {  // ← directement ici
-      setItems((prev) => (prev.some((i) => i.id === item.id) ? prev : [...prev, item]));
-      setAssignments((prev) => ({ ...prev, [item.id]: input.projectId }));
-      addNotification(status, `Task created!`);
-    })
-    .catch((error) => {
-      formatPopUpAndAddNotification(error);
-    })
+      .then(({ status, item }) => {
+        // ← directement ici
+        setItems((prev) => (prev.some((i) => i.id === item.id) ? prev : [...prev, item]));
+        setAssignments((prev) => ({ ...prev, [item.id]: input.projectId }));
+        addNotification(status, `Task created!`);
+      })
+      .catch((error) => {
+        formatPopUpAndAddNotification(error);
+      });
 
     // NewTaskInput/createTask's contract requires a synchronous return, but no current
     // caller reads it — the real task is applied above once the API call resolves.
@@ -200,7 +200,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       })
       .catch((error) => {
         formatPopUpAndAddNotification(error);
-      })
+      });
   };
 
   const deleteTask = (taskId: string) => {
@@ -212,7 +212,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       })
       .catch((error) => {
         formatPopUpAndAddNotification(error);
-      })
+      });
   };
 
   const updateUserName = (name: string) => {
@@ -249,7 +249,5 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     [loading, user, projects, tasks, notifications]
   );
 
-  return <AppDataContext.Provider value={value}>
-      {children}
-    </AppDataContext.Provider>;
+  return <AppDataContext.Provider value={value}>{children}</AppDataContext.Provider>;
 }

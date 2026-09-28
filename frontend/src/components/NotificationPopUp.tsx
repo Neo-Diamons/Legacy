@@ -18,23 +18,29 @@ const ICONS: Record<number, React.ReactNode> = {
   502: <i className="fas fa-times-circle" style={{ marginRight: 8 }}></i>,
 };
 
-export function NotificationPopUp({httpCode, message, onClose}: {httpCode: number, message: string, onClose: () => void}) {
-    const color = COLOR_SWATCHES[httpCode] ?? '#c6d3df';
-    return (
-        <div
-        style={{
-            backgroundColor: color,
-            color: '#fff',
-            padding: '12px 16px',
-            borderRadius: 8,
-            marginBottom: 12,
-        }}
-        onClick={onClose}
-        >
-            {ICONS[httpCode] ?? <i className="fas fa-info-circle" style={{ marginRight: 8 }}></i>}
-            <span>
-                {message}
-            </span>
-        </div>
+export function NotificationPopUp({
+  httpCode,
+  message,
+  onClose,
+}: {
+  httpCode: number;
+  message: string;
+  onClose: () => void;
+}) {
+  const color = COLOR_SWATCHES[httpCode] ?? '#c6d3df';
+  return (
+    <div
+      style={{
+        backgroundColor: color,
+        color: '#fff',
+        padding: '12px 16px',
+        borderRadius: 8,
+        marginBottom: 12,
+      }}
+      onClick={onClose}
+    >
+      {ICONS[httpCode] ?? <i className="fas fa-info-circle" style={{ marginRight: 8 }}></i>}
+      <span>{message}</span>
+    </div>
   );
 }
