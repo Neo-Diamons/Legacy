@@ -3,8 +3,8 @@ FROM node:24-slim AS base
 FROM base AS builder
 
 RUN apt-get update && \
-        apt-get install -y --no-install-recommends python3 make g++ && \
-        rm -rf /var/lib/apt/lists/*
+    apt-get install -y --no-install-recommends python3 make g++ && \
+    rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 
 COPY package*.json ./
@@ -13,7 +13,6 @@ COPY backend/package.json backend/tsconfig.json ./backend/
 COPY backend/src ./backend/src
 COPY backend/drizzle ./backend/drizzle
 COPY backend/drizzle.config.ts ./backend/
-
 
 RUN npm ci --workspace=backend && \
     npm run build --workspace=backend && \
@@ -33,5 +32,8 @@ RUN mkdir -p /app/data && chown hono:nodejs /app/data
 
 USER hono
 EXPOSE 3000
+
+HEALTHCHECK --interval=10s --timeout=3s --start-period=5s --retries=3 \
+    CMD ["node", "-e", "require('http').get('http://localhost:3000/health', (res) => process.exit(res.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"]
 
 CMD ["node", "/app/dist/index.mjs"]

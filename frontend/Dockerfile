@@ -1,8 +1,6 @@
-FROM node:24-alpine AS base
+FROM node:24-alpine AS builder
 
-FROM base AS builder
-
-RUN apk add --no-cache gcompat curl
+RUN apk add --no-cache gcompat
 WORKDIR /app
 
 COPY package*.json ./
@@ -15,22 +13,16 @@ COPY frontend/src \
     frontend/src/
 
 RUN npm ci --workspace=frontend && \
-    npm run build --workspace=frontend && \
-    npm prune --production
+    npm run build --workspace=frontend
 
-FROM base AS runner
+FROM nginx:1.27-alpine AS runner
 
-WORKDIR /app
+COPY --from=builder /app/frontend/dist /usr/share/nginx/html
+COPY frontend/nginx.conf /etc/nginx/conf.d/default.conf
 
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 react
+EXPOSE 80
 
-COPY --from=builder --chown=react:nodejs /app/node_modules /app/node_modules
-COPY --from=builder --chown=react:nodejs /app/frontend/dist /app/dist
+HEALTHCHECK --interval=10s --timeout=3s --start-period=5s --retries=3 \
+    CMD wget --no-verbose --tries=1 --spider http://localhost:80/ || exit 1
 
-USER react
-EXPOSE 5173
-
-ENV NODE_ENV=production
-
-CMD ["npx", "vite", "preview", "--host", "0.0.0.0", "--port", "5173"]
+CMD ["nginx", "-g", "daemon off;"]

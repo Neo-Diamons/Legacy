@@ -1,2 +1,14 @@
 node_modules
+**/node_modules
 Dockerfile
+**/Dockerfile
+.git
+.env
+.env.*
+secrets/
+dist
+**/dist
+coverage
+**/coverage
+*.db
+*.db-journal

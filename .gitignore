@@ -18,3 +18,7 @@ dist-ssr/
 .env.test
 .env.local
 *.local
+
+# Local docker secrets
+secrets/*
+!secrets/*.example
