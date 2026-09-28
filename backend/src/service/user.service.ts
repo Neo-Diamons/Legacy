@@ -1,0 +1,90 @@
+import { eq } from 'drizzle-orm';
+import { useMysql, sqlite, mysql } from '@db';
+import { users as sqliteUsers, type User as SqliteUser } from '@model/user.sqlite.model.js';
+import { users as mysqlUsers, type User as MysqlUser } from '@model/user.mysql.model.js';
+import { todoItems as sqliteItems } from '@model/item.sqlite.model.js';
+import { todoItems as mysqlItems } from '@model/item.mysql.model.js';
+import { projects as sqliteProjects } from '@model/project.sqlite.model.js';
+import { projects as mysqlProjects } from '@model/project.mysql.model.js';
+
+export type User = SqliteUser | MysqlUser;
+type UserInput = { id: string; email: string; name: string; passwordHash: string; createdAt: Date };
+type UserUpdate = Partial<Pick<UserInput, 'email' | 'name' | 'passwordHash'>>;
+export type UserDataExport = { user: User; projects: unknown[]; items: unknown[] };
+
+interface UserService {
+  getUsers(): Promise<User[]>;
+  getUser(id: string): Promise<User | undefined>;
+  getUserByEmail(email: string): Promise<User | undefined>;
+  createUser(user: UserInput): Promise<void>;
+  updateUser(id: string, update: UserUpdate): Promise<number>;
+  deleteUser(id: string): Promise<number>;
+  exportUserData(id: string): Promise<UserDataExport | undefined>;
+}
+
+const sqliteService: UserService = {
+  async getUsers() {
+    return sqlite.db.select().from(sqliteUsers).all();
+  },
+  async getUser(id) {
+    return sqlite.db.select().from(sqliteUsers).where(eq(sqliteUsers.id, id)).get();
+  },
+  async getUserByEmail(email) {
+    return sqlite.db.select().from(sqliteUsers).where(eq(sqliteUsers.email, email)).get();
+  },
+  async createUser(user) {
+    sqlite.db.insert(sqliteUsers).values(user).run();
+  },
+  async updateUser(id, update) {
+    return sqlite.db.update(sqliteUsers).set(update).where(eq(sqliteUsers.id, id)).run().changes;
+  },
+  async deleteUser(id) {
+    sqlite.db.delete(sqliteItems).where(eq(sqliteItems.userId, id)).run();
+    sqlite.db.delete(sqliteProjects).where(eq(sqliteProjects.userId, id)).run();
+    return sqlite.db.delete(sqliteUsers).where(eq(sqliteUsers.id, id)).run().changes;
+  },
+  async exportUserData(id) {
+    const user = await this.getUser(id);
+    if (!user) return undefined;
+    return {
+      user,
+      projects: sqlite.db.select().from(sqliteProjects).where(eq(sqliteProjects.userId, id)).all(),
+      items: sqlite.db.select().from(sqliteItems).where(eq(sqliteItems.userId, id)).all(),
+    };
+  },
+};
+
+const mysqlService: UserService = {
+  getUsers: () => mysql.db.select().from(mysqlUsers),
+  async getUser(id) {
+    return (await mysql.db.select().from(mysqlUsers).where(eq(mysqlUsers.id, id)).limit(1))[0];
+  },
+  async getUserByEmail(email) {
+    return (await mysql.db.select().from(mysqlUsers).where(eq(mysqlUsers.email, email)).limit(1))[0];
+  },
+  async createUser(user) {
+    await mysql.db.insert(mysqlUsers).values(user);
+  },
+  async updateUser(id, update) {
+    const [result] = await mysql.db.update(mysqlUsers).set(update).where(eq(mysqlUsers.id, id));
+    return result.affectedRows;
+  },
+  async deleteUser(id) {
+    await mysql.db.delete(mysqlItems).where(eq(mysqlItems.userId, id));
+    await mysql.db.delete(mysqlProjects).where(eq(mysqlProjects.userId, id));
+    const [result] = await mysql.db.delete(mysqlUsers).where(eq(mysqlUsers.id, id));
+    return result.affectedRows;
+  },
+  async exportUserData(id) {
+    const user = await this.getUser(id);
+    if (!user) return undefined;
+    return {
+      user,
+      projects: await mysql.db.select().from(mysqlProjects).where(eq(mysqlProjects.userId, id)),
+      items: await mysql.db.select().from(mysqlItems).where(eq(mysqlItems.userId, id)),
+    };
+  },
+
+};
+
+export const userService: UserService = useMysql ? mysqlService : sqliteService;
