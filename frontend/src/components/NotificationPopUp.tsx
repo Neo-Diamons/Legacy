@@ -33,7 +33,7 @@ export function NotificationPopUp({httpCode, message, onClose}: {httpCode: numbe
         >
             {ICONS[httpCode] ?? <i className="fas fa-info-circle" style={{ marginRight: 8 }}></i>}
             <span>
-                <strong>{httpCode}</strong> - {message}
+                {message}
             </span>
         </div>
   );
