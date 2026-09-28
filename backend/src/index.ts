@@ -42,6 +42,8 @@ const allowedOrigins = parseAllowedOrigins(process.env.CORS_ALLOWED_ORIGINS);
 app.use(cors({ origin: allowedOrigins }));
 app.use(logger());
 
+app.get('/health', (c) => c.json({ status: 'ok' }));
+
 app.route('/items', itemController);
 
 const injectWebSocket = registerWebSocket(app);
