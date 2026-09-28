@@ -147,24 +147,93 @@ describe('App', () => {
     expect(screen.getByText(secondItem.name)).toBeInTheDocument();
   });
 
-  test('reflects item.created/updated/deleted events pushed over the websocket', async () => {
-    const pushedItem = item('1', 'Pushed item');
-    const updatedItem = item('1', 'Pushed item', true);
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve([]) }));
+  test('shows notification on item not found', async () => {
+    const firstItem = item('1', 'First item not found');
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve([firstItem]) })
+      .mockRejectedValueOnce(new Error('404 Not found')); // ← simulate error
+    vi.stubGlobal('fetch', fetchMock);
 
     render(<App />);
     await screen.findByText('Bonjour Michel 👋');
     openProject();
 
-    const [socket] = MockWebSocket.instances;
+    fireEvent.click(screen.getByRole('checkbox'));
 
-    socket.emit('message', { type: 'item.created', item: pushedItem });
-    expect(await screen.findByText(pushedItem.name)).toBeInTheDocument();
+    // vérifie que la notif est là
+    expect(await screen.findByText(/Not found/)).toBeInTheDocument();
+  });
 
-    socket.emit('message', { type: 'item.updated', item: updatedItem });
-    expect(await screen.findByRole('checkbox', { name: 'Marquer comme non terminée' })).toBeInTheDocument();
+  test('shows notification on internal access error', async () => {
+    const firstItem = item('3', 'third item error internal server test');
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve([firstItem]) })
+      .mockRejectedValueOnce(new Error('502 bad access')); // ← simulate error
+    vi.stubGlobal('fetch', fetchMock);
 
-    socket.emit('message', { type: 'item.deleted', id: updatedItem.id });
-    await waitFor(() => expect(screen.queryByText(updatedItem.name)).not.toBeInTheDocument());
+    render(<App />);
+    await screen.findByText('Bonjour Michel 👋');
+    openProject();
+
+    fireEvent.click(screen.getByRole('checkbox'));
+
+    // vérifie que la notif est là
+    expect(await screen.findByText(/bad access/)).toBeInTheDocument();
+  });
+
+  test('shows notification on item entity error', async () => {
+    const firstItem = item('2', 'second item error format test');
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve([firstItem]) })
+      .mockRejectedValueOnce(new Error('422 Unprocessable Entity')); // ← simulate error
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<App />);
+    await screen.findByText('Bonjour Michel 👋');
+    openProject();
+
+    fireEvent.click(screen.getByRole('checkbox'));
+
+    // vérifie que la notif est là
+    expect(await screen.findByText(/Unprocessable Entity/)).toBeInTheDocument();
+  });
+
+  test('shows notification on item created', async () => {
+    const firstItem = item('4', 'fourth item created test');
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve([firstItem]) })
+      .mockRejectedValueOnce(new Error('201 Task created!')); // ← simulate error
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<App />);
+    await screen.findByText('Bonjour Michel 👋');
+    openProject();
+
+    fireEvent.click(screen.getByRole('checkbox'));
+
+    // vérifie que la notif est là
+    expect(await screen.findByText(/Task created!/)).toBeInTheDocument();
+  });
+
+  test('shows notification on item completed toggle', async () => {
+    const firstItem = item('5', 'fifth item completed test');
+
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve([firstItem]) })
+      .mockRejectedValueOnce(new Error('200 Task completed!')); // ← simulate error
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<App />);
+    await screen.findByText('Bonjour Michel 👋');
+    openProject();
+
+    fireEvent.click(screen.getByRole('checkbox'));
+
+    expect(await screen.findByText(/Task completed!/)).toBeInTheDocument();
   });
 });

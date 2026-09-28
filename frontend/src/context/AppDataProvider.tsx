@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 
-import type { CurrentUser, Project, ProjectStats, Task } from '../types';
+import type { CurrentUser, Project, ProjectStats, Task, Notification } from '../types';
 import { AppDataContext, type AppDataContextValue, type NewProjectInput, type NewTaskInput } from './appDataContext';
 import { createItem, deleteItem, fetchItems, openItemSocket, updateItem, type ItemResponse } from '../services/items';
 
@@ -54,6 +54,40 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
   const [projects, setProjects] = useState<Project[]>(SEED_PROJECTS);
   const [items, setItems] = useState<ItemResponse[]>([]);
   const [assignments, setAssignments] = useState<Record<string, string>>({});
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+
+  const removeNotification = useCallback((id: string) => {
+    setNotifications((prev) => prev.filter((n) => n.id !== id));
+  }, []);
+
+  const addNotification = useCallback(
+    (httpCode: number, message: string) => {
+      const notification: Notification = {
+        id: generateId('n'),
+        httpCode,
+        message,
+        createdAt: new Date().toISOString(),
+      };
+
+      setNotifications((prev) => [...prev, notification]);
+
+      setTimeout(() => {
+        removeNotification(notification.id);
+      }, 2000);
+    },
+    [removeNotification]
+  );
+
+  const formatPopUpAndAddNotification = useCallback(
+    (error: Error) => {
+      const message = error instanceof Error ? error.message : String(error);
+      const [statusText, ...messageParts] = message.split(' ');
+      const status = Number(statusText) || 500;
+
+      addNotification(status, messageParts.join(' '));
+    },
+    [addNotification]
+  );
 
   const projectsRef = useRef(projects);
   useEffect(() => {
@@ -80,7 +114,9 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
           return next;
         });
       })
-      .catch(console.error)
+      .catch((error) => {
+        formatPopUpAndAddNotification(error);
+      })
       .finally(() => setLoading(false));
 
     return openItemSocket((event) => {
@@ -92,17 +128,21 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
             if (event.item.id in prev || !defaultProjectId) return prev;
             return { ...prev, [event.item.id]: defaultProjectId };
           });
+          addNotification(201, 'Task created!');
           break;
         case 'item.updated':
           setItems((prev) => prev.map((i) => (i.id === event.item.id ? event.item : i)));
+          addNotification(204, `Task ${event.item.completed ? 'completed' : 'uncompleted'}!`);
           break;
         case 'item.deleted':
           setItems((prev) => prev.filter((i) => i.id !== event.id));
           setAssignments((prev) => Object.fromEntries(Object.entries(prev).filter(([id]) => id !== event.id)));
+          addNotification(204, 'Task deleted!');
           break;
       }
     });
-  }, []);
+  }, [formatPopUpAndAddNotification, addNotification]);
+  console.log('items:', items);
 
   const tasks = useMemo(() => items.map((item) => toTask(item, projects, assignments)), [items, projects, assignments]);
 
@@ -130,11 +170,14 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       priority: input.priority,
       dueDate: input.dueDate,
     })
-      .then((item) => {
+      .then(({ item }) => {
+        // ← directement ici
         setItems((prev) => (prev.some((i) => i.id === item.id) ? prev : [...prev, item]));
         setAssignments((prev) => ({ ...prev, [item.id]: input.projectId }));
       })
-      .catch(console.error);
+      .catch((error) => {
+        formatPopUpAndAddNotification(error);
+      });
 
     // NewTaskInput/createTask's contract requires a synchronous return, but no current
     // caller reads it — the real task is applied above once the API call resolves.
@@ -161,10 +204,12 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       priority: item.priority,
       dueDate: item.dueDate,
     })
-      .then((updated) => {
-        setItems((prev) => prev.map((i) => (i.id === updated.id ? updated : i)));
+      .then(({ item }) => {
+        setItems((prev) => prev.map((i) => (i.id === item.id ? item : i)));
       })
-      .catch(console.error);
+      .catch((error) => {
+        formatPopUpAndAddNotification(error);
+      });
   };
 
   const deleteTask = (taskId: string) => {
@@ -173,7 +218,9 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
         setItems((prev) => prev.filter((i) => i.id !== taskId));
         setAssignments((prev) => Object.fromEntries(Object.entries(prev).filter(([id]) => id !== taskId)));
       })
-      .catch(console.error);
+      .catch((error) => {
+        formatPopUpAndAddNotification(error);
+      });
   };
 
   const updateUserName = (name: string) => {
@@ -196,6 +243,8 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       user,
       projects,
       tasks,
+      notifications,
+      removeNotification,
       createProject,
       deleteProject,
       createTask,
@@ -205,7 +254,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       projectStats,
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- action creators close over up-to-date state each render
-    [loading, user, projects, tasks]
+    [loading, user, projects, tasks, notifications]
   );
 
   return <AppDataContext.Provider value={value}>{children}</AppDataContext.Provider>;

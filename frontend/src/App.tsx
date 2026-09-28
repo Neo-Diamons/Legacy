@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Container, Nav } from 'react-bootstrap';
 
 import { UserMenu } from './components/UserMenu';
+import { NotificationContainer } from './components/NotificationContainer';
 import { AppDataProvider } from './context/AppDataProvider';
 import { HomePage } from './pages/HomePage';
 import { ProfilePage } from './pages/ProfilePage';
@@ -21,6 +22,7 @@ export default function App() {
   return (
     <AppDataProvider>
       <Container>
+        <NotificationContainer />
         <div className="app-topbar">
           <Nav variant="pills" activeKey={tab} onSelect={(key) => setTab((key as Tab) ?? 'home')}>
             <Nav.Item>
