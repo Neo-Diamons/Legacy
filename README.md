@@ -24,10 +24,10 @@ The team works in Scrum with a MoSCoW-prioritised backlog across three sprints:
 
 This is an npm **workspaces** monorepo:
 
-| Path        | Description                                                                                                   |
-| ----------- | ----------------------------------------------------------------------------------------------------------------- |
+| Path        | Description                                                                                                                                                                                                                                       |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `backend/`  | Hono REST API in TypeScript (`@legacy/backend`). `tsx` in dev, bundled with `tsdown` for production. Drizzle ORM over SQLite by default, MySQL optional. Requests validated with `@hono/zod-openapi`; OpenAPI spec + Scalar UI served at runtime. |
-| `frontend/` | Vite + React 19 + TypeScript single-page app (`@legacy/frontend`), styled with Bootstrap / react-bootstrap.       |
+| `frontend/` | Vite + React 19 + TypeScript single-page app (`@legacy/frontend`), styled with Bootstrap / react-bootstrap.                                                                                                                                       |
 
 All commands below are run from the repository root unless stated otherwise.
 Lint, formatting and CI are configured once at the root and cover both workspaces.
@@ -65,18 +65,18 @@ The backend loads this root `.env` automatically on startup
 (`node --env-file-if-exists=../.env`). If the file is
 missing, it falls back to the real process environment.
 
-| Variable               | Description                                                                                                                        |
-| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| `FRONTEND_PORT`        | Vite dev (`5173`) / preview (`4173`) port. Seeds the default CORS allowlist.                                                         |
-| `BACKEND_PORT`         | Hono API port. Default `3000`.                                                                                                      |
-| `BACKEND_URL`          | Backend the dev/preview proxy forwards `/items*` to. Default `http://localhost:<BACKEND_PORT>`. Not baked into the frontend bundle.  |
+| Variable               | Description                                                                                                                                                    |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `FRONTEND_PORT`        | Vite dev (`5173`) / preview (`4173`) port. Seeds the default CORS allowlist.                                                                                   |
+| `BACKEND_PORT`         | Hono API port. Default `3000`.                                                                                                                                 |
+| `BACKEND_URL`          | Backend the dev/preview proxy forwards `/items*` to. Default `http://localhost:<BACKEND_PORT>`. Not baked into the frontend bundle.                            |
 | `CORS_ALLOWED_ORIGINS` | Comma-separated API origin allowlist (scheme + host + optional port). Default: `localhost` and `127.0.0.1` on `<FRONTEND_PORT>`. Invalid entries fail startup. |
-| `SQLITE_DB_LOCATION`   | SQLite file path. Default `/etc/todos/todo.db`. Used unless MySQL is configured.                                                     |
-| `MYSQL_HOST`           | MySQL host. Setting it (or `MYSQL_HOST_FILE`) switches persistence to MySQL; otherwise every `MYSQL_*` var is ignored.               |
-| `MYSQL_PORT`           | MySQL port. Default `3306`.                                                                                                         |
-| `MYSQL_USER`           | MySQL username.                                                                                                                     |
-| `MYSQL_PASSWORD`       | MySQL password.                                                                                                                     |
-| `MYSQL_DB`             | MySQL database name.                                                                                                                |
+| `SQLITE_DB_LOCATION`   | SQLite file path. Default `/etc/todos/todo.db`. Used unless MySQL is configured.                                                                               |
+| `MYSQL_HOST`           | MySQL host. Setting it (or `MYSQL_HOST_FILE`) switches persistence to MySQL; otherwise every `MYSQL_*` var is ignored.                                         |
+| `MYSQL_PORT`           | MySQL port. Default `3306`.                                                                                                                                    |
+| `MYSQL_USER`           | MySQL username.                                                                                                                                                |
+| `MYSQL_PASSWORD`       | MySQL password.                                                                                                                                                |
+| `MYSQL_DB`             | MySQL database name.                                                                                                                                           |
 
 > Each `MYSQL_*` variable also has a `_FILE` variant (e.g. `MYSQL_PASSWORD_FILE`)
 > that points to a file containing the value.
@@ -176,6 +176,50 @@ npm run typecheck     # tsc --noEmit / tsc -b per workspace
 CI (`.github/workflows/code-quality.yml`) runs on every pull request with the
 Node version from `.nvmrc`: format check, lint, typecheck, `test:coverage` (with
 a PR coverage report), production build, and `npm audit --audit-level=high`.
+
+---
+
+## Accessibility audit (RGAA)
+
+The frontend is audited against the
+[RGAA 4](https://accessibilite.numerique.gouv.fr/) (French accessibility
+referential, based on WCAG 2.1) with [Asqatasun](https://asqatasun.org/),
+an open-source automated checker. The stack is defined in
+`compose.asqatasun.yaml` (server, webapp, MariaDB, headless Firefox via
+Selenium, MailHog) and driven by `scripts/rgaa-audit.sh`.
+
+### Run the audit
+
+Requirements: Docker (with Compose), `curl`, `jq`. The script calls
+`sudo docker`, so it may ask for your password.
+
+```bash
+scripts/rgaa-audit.sh                       # 3 default routes, RGAA_4_0, level AA
+scripts/rgaa-audit.sh URLS [REFERENTIAL] [LEVEL]
+```
+
+| Argument      | Default                                       | Notes                                                             |
+| ------------- | --------------------------------------------- | ----------------------------------------------------------------- |
+| `URLS`        | `/`, `/projects`, `/profile` of the local app | Comma-separated. Local app is reached via `host.docker.internal`. |
+| `REFERENTIAL` | `RGAA_4_0`                                    | `RGAA_4_0`, `RGAA_3_0`, `ACCESSIWEB_2_2` or `SEO`                 |
+| `LEVEL`       | `AA`                                          | `A`, `AA` or `AAA`                                                |
+
+The script, in order: rebuilds/starts the app (`compose.yml`) when targeting
+the local app, starts the Asqatasun stack, provisions a `Legacy` contract if
+missing, checks each URL is reachable from the audit browser, launches the page
+audit, polls until completion, then prints pages audited, grade, mark
+(/100), failed criteria and criteria needing manual review.
+
+The detailed report is in the Asqatasun webapp at <http://localhost:8080>
+(login `admin@asqatasun.org` / `myAsqaPassword`, the image's seed account —
+local use only) under **My audits**.
+
+### Limits
+
+Automated checks cover only a part of the RGAA criteria. Criteria reported as
+_needs manual review_ (keyboard navigation, focus order, contrast on dynamic
+states, screen-reader behaviour, notification announcements, ...) must be
+verified by hand. A passing grade is not a compliance claim.
 
 ---
 

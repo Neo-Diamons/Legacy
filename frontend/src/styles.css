@@ -46,12 +46,16 @@ button:focus {
   margin-bottom: 25px;
 }
 
+.app-topbar .nav-link {
+  color: #0a58ca;
+}
+
 .user-avatar-toggle {
   width: 40px;
   height: 40px;
   border-radius: 50%;
   border: none;
-  background-color: #4f8ef7;
+  background-color: #2f6fd1;
   color: white;
   font-weight: 600;
   font-size: 0.9rem;
@@ -253,7 +257,7 @@ button:focus {
   width: 56px;
   height: 56px;
   border-radius: 50%;
-  background-color: #4f8ef7;
+  background-color: #2f6fd1;
   color: white;
   display: flex;
   align-items: center;

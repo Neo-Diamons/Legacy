@@ -1,5 +1,5 @@
-import { useState } from 'react';
 import { Container, Nav } from 'react-bootstrap';
+import { Link, Navigate, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom';
 
 import { UserMenu } from './components/UserMenu';
 import { NotificationContainer } from './components/NotificationContainer';
@@ -8,39 +8,60 @@ import { HomePage } from './pages/HomePage';
 import { ProfilePage } from './pages/ProfilePage';
 import { ProjectsPage } from './pages/ProjectsPage';
 
-type Tab = 'home' | 'projects' | 'profile';
+function ProjectsRoute() {
+  const { projectId } = useParams();
+  const navigate = useNavigate();
+  return (
+    <ProjectsPage
+      selectedProjectId={projectId ?? null}
+      onSelectProject={(id) => navigate(id ? `/projects/${id}` : '/projects')}
+    />
+  );
+}
 
 export default function App() {
-  const [tab, setTab] = useState<Tab>('home');
-  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
-
-  const openProject = (projectId: string) => {
-    setSelectedProjectId(projectId);
-    setTab('projects');
-  };
+  const location = useLocation();
+  const navigate = useNavigate();
+  const activeTab = location.pathname.startsWith('/projects')
+    ? 'projects'
+    : location.pathname.startsWith('/profile')
+      ? 'profile'
+      : 'home';
 
   return (
     <AppDataProvider>
       <Container>
         <NotificationContainer />
-        <div className="app-topbar">
-          <Nav variant="pills" activeKey={tab} onSelect={(key) => setTab((key as Tab) ?? 'home')}>
+        <header className="app-topbar">
+          <Nav as="nav" variant="pills" activeKey={activeTab}>
             <Nav.Item>
-              <Nav.Link eventKey="home">Accueil</Nav.Link>
+              <Nav.Link as={Link} to="/" eventKey="home">
+                Accueil
+              </Nav.Link>
             </Nav.Item>
             <Nav.Item>
-              <Nav.Link eventKey="projects">Projets</Nav.Link>
+              <Nav.Link as={Link} to="/projects" eventKey="projects">
+                Projets
+              </Nav.Link>
             </Nav.Item>
           </Nav>
 
-          <UserMenu onProfileClick={() => setTab('profile')} />
-        </div>
+          <UserMenu onProfileClick={() => navigate('/profile')} />
+        </header>
 
-        {tab === 'home' && <HomePage onSelectProject={openProject} />}
-        {tab === 'projects' && (
-          <ProjectsPage selectedProjectId={selectedProjectId} onSelectProject={setSelectedProjectId} />
-        )}
-        {tab === 'profile' && <ProfilePage />}
+        <main>
+          <Routes>
+            <Route path="/" element={<HomePage onSelectProject={(id) => navigate(`/projects/${id}`)} />} />
+            <Route path="/projects" element={<ProjectsRoute />} />
+            <Route path="/projects/:projectId" element={<ProjectsRoute />} />
+            <Route path="/profile" element={<ProfilePage />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </main>
+
+        <footer className="app-footer">
+          <small>Legacy Todo App</small>
+        </footer>
       </Container>
     </AppDataProvider>
   );
