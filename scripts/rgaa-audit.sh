@@ -3,6 +3,9 @@
 #   URLS         comma-separated list. default: the app's 3 routes (/, /projects, /profile)
 #   REFERENTIAL  default: RGAA_4_0  (this server's Referential enum: RGAA_4_0 | RGAA_3_0 | ACCESSIWEB_2_2 | SEO)
 #   LEVEL        default: AA        (this server's Level enum: A | AA | AAA)
+# Env:
+#   RGAA_MIN_MARK  if set, exit 1 when the audit mark (/100) is below it
+#   RGAA_MAX_FAILED  if set, exit 1 when failed criteria exceed it
 
 set -euo pipefail
 
@@ -185,4 +188,11 @@ if [[ "${TARGET_URLS[0]}" == *host.docker.internal* ]]; then
   for url in "${TARGET_URLS[@]}"; do
     echo "      ${url/host.docker.internal/localhost}"
   done
+fi
+
+if [ -n "${RGAA_MIN_MARK:-}" ] && awk -v m="$MARK" -v t="$RGAA_MIN_MARK" 'BEGIN { exit !(m < t) }'; then
+  die "mark ${MARK} is below RGAA_MIN_MARK ${RGAA_MIN_MARK}"
+fi
+if [ -n "${RGAA_MAX_FAILED:-}" ] && [ "$FAILED" -gt "$RGAA_MAX_FAILED" ]; then
+  die "${FAILED} failed criteria exceed RGAA_MAX_FAILED ${RGAA_MAX_FAILED}"
 fi
