@@ -1,4 +1,5 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 import App from '../src/App';
@@ -37,7 +38,7 @@ class MockWebSocket {
 }
 
 const openProject = () => {
-  fireEvent.click(screen.getByRole('button', { name: 'Projets' }));
+  fireEvent.click(screen.getByRole('link', { name: 'Projets' }));
   fireEvent.click(screen.getByText('Mon projet').closest('.project-card') as HTMLElement);
 };
 
@@ -64,7 +65,11 @@ describe('App', () => {
       )
     );
 
-    const { container } = render(<App />);
+    const { container } = render(
+      <MemoryRouter>
+        <App />
+      </MemoryRouter>
+    );
 
     expect(container.querySelector('[aria-busy="true"]')).toBeInTheDocument();
     resolveItems([]);
@@ -81,7 +86,11 @@ describe('App', () => {
       .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(createdItem) });
     vi.stubGlobal('fetch', fetchMock);
 
-    render(<App />);
+    render(
+      <MemoryRouter>
+        <App />
+      </MemoryRouter>
+    );
     await screen.findByText('Bonjour Michel 👋');
     openProject();
 
@@ -112,7 +121,11 @@ describe('App', () => {
       .mockResolvedValueOnce({ ok: true });
     vi.stubGlobal('fetch', fetchMock);
 
-    render(<App />);
+    render(
+      <MemoryRouter>
+        <App />
+      </MemoryRouter>
+    );
     await screen.findByText('Bonjour Michel 👋');
     openProject();
 
@@ -155,7 +168,11 @@ describe('App', () => {
       .mockRejectedValueOnce(new Error('404 Not found')); // ← simulate error
     vi.stubGlobal('fetch', fetchMock);
 
-    render(<App />);
+    render(
+      <MemoryRouter>
+        <App />
+      </MemoryRouter>
+    );
     await screen.findByText('Bonjour Michel 👋');
     openProject();
 
@@ -173,7 +190,11 @@ describe('App', () => {
       .mockRejectedValueOnce(new Error('502 bad access')); // ← simulate error
     vi.stubGlobal('fetch', fetchMock);
 
-    render(<App />);
+    render(
+      <MemoryRouter>
+        <App />
+      </MemoryRouter>
+    );
     await screen.findByText('Bonjour Michel 👋');
     openProject();
 
@@ -191,7 +212,11 @@ describe('App', () => {
       .mockRejectedValueOnce(new Error('422 Unprocessable Entity')); // ← simulate error
     vi.stubGlobal('fetch', fetchMock);
 
-    render(<App />);
+    render(
+      <MemoryRouter>
+        <App />
+      </MemoryRouter>
+    );
     await screen.findByText('Bonjour Michel 👋');
     openProject();
 
@@ -209,7 +234,11 @@ describe('App', () => {
       .mockRejectedValueOnce(new Error('201 Task created!')); // ← simulate error
     vi.stubGlobal('fetch', fetchMock);
 
-    render(<App />);
+    render(
+      <MemoryRouter>
+        <App />
+      </MemoryRouter>
+    );
     await screen.findByText('Bonjour Michel 👋');
     openProject();
 
@@ -228,7 +257,11 @@ describe('App', () => {
       .mockRejectedValueOnce(new Error('200 Task completed!')); // ← simulate error
     vi.stubGlobal('fetch', fetchMock);
 
-    render(<App />);
+    render(
+      <MemoryRouter>
+        <App />
+      </MemoryRouter>
+    );
     await screen.findByText('Bonjour Michel 👋');
     openProject();
 
