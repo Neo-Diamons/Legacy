@@ -17,7 +17,7 @@ APP_COMPOSE=(sudo docker compose -f "$APP_COMPOSE_FILE")
 ASQA_URL="http://localhost:8081"
 WEBAPP_URL="http://localhost:8080"
 STARTUP_TIMEOUT=180
-AUDIT_TIMEOUT=1800
+AUDIT_TIMEOUT=300
 ASQA_USER="admin@asqatasun.org"
 ASQA_PASS="myAsqaPassword"
 

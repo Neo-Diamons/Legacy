@@ -35,7 +35,7 @@ concurrency:
 jobs:
   rgaa:
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    timeout-minutes: 15
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -61,13 +61,18 @@ jobs:
       - name: Summary
         if: '!cancelled()'
         run: |
+          summary="${GITHUB_STEPS_SUMMARY:-/dev/stdout}"
           {
             echo '### RGAA audit'
             echo '```'
-            sed -n '/==> Result/,$p' rgaa-report.txt
+            if [ -f rgaa-report.txt ]; then
+              sed -n '/==> Result/,$p' rgaa-report.txt
+            else
+              echo 'No report produced (the audit step failed before writing one).'
+            fi
             echo '```'
             echo 'Automated checks only. Manual review criteria still needed.'
-          } >> "$GITHUB_STEPS_SUMMARY"
+          } >> "$summary"
 
       - name: Dump logs on failure
         if: failure()
