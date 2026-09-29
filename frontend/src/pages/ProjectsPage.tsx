@@ -8,6 +8,7 @@ import { KanbanContainer } from '../components/KanbanContainer';
 import { ProjectCard } from '../components/ProjectCard';
 import { TaskRow } from '../components/TaskRow';
 import { useAppData } from '../context/appDataContext';
+import type { TaskPriority } from '../types';
 
 export function ProjectsPage({
   selectedProjectId,
@@ -77,14 +78,16 @@ function ProjectDetail({ projectId, onBack }: { projectId: string; onBack: () =>
     deleteTask,
     deleteProject,
     updateProjectName,
-  } = useAppData();
-
-  const project = projects.find((p) => p.id === projectId);
+    updateTaskName,
+  } = useAppData();  const project = projects.find((p) => p.id === projectId);
   const projectTasks = tasks.filter((t) => t.projectId === projectId);
 
   const [showKanban, setShowKanban] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
   const [editName, setEditName] = useState('');
+  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
+  const [editPriority, setEditPriority] = useState<TaskPriority>('medium');
+  const [editDueDate, setEditDueDate] = useState('');
 
   if (!project) return null;
 
@@ -93,6 +96,16 @@ function ProjectDetail({ projectId, onBack }: { projectId: string; onBack: () =>
       deleteProject(project.id);
       onBack();
     }
+  };
+
+  const handleEditTask = (taskId: string) => {
+    const task = projectTasks.find((task) => task.id === taskId);
+    if (!task) return;
+
+    setEditingTaskId(taskId);
+    setEditName(task.name);
+    setEditPriority(task.priority);
+    setEditDueDate(task.dueDate ?? '');
   };
 
   return (
@@ -162,19 +175,20 @@ function ProjectDetail({ projectId, onBack }: { projectId: string; onBack: () =>
       {projectTasks.length === 0 ? (
         <p className="empty-state">Ce projet n'a pas encore de tâche.</p>
       ) : !showKanban ? (
-        <div className="widget-card">
-          <ul className="task-list">
-            {projectTasks.map((task) => (
-              <TaskRow
-                key={task.id}
-                task={task}
-                onToggle={toggleTask}
-                onMove={updateTaskPriority}
-                onDelete={deleteTask}
-              />
-            ))}
-          </ul>
-        </div>
+      <div className="widget-card">
+        <ul className="task-list">
+          {projectTasks.map((task) => (
+            <TaskRow
+              key={task.id}
+              task={task}
+              onToggle={toggleTask}
+              onMove={updateTaskPriority}
+              onDelete={deleteTask}
+              onEdit={handleEditTask}
+            />
+          ))}
+        </ul>
+      </div>
       ) : (
         <KanbanContainer
           tasks={projectTasks}
@@ -214,6 +228,73 @@ function ProjectDetail({ projectId, onBack }: { projectId: string; onBack: () =>
             <Button
               variant="outline-secondary"
               onClick={() => setShowEdit(false)}
+                  >
+                    Annuler
+                  </Button>
+
+                  <Button type="submit" variant="success">
+                    Enregistrer
+                  </Button>
+                </Modal.Footer>
+              </Form>
+            </Modal>
+            <Modal
+        show={editingTaskId !== null}
+        onHide={() => setEditingTaskId(null)}
+        centered
+      >
+        <Form
+          onSubmit={(e) => {
+            e.preventDefault();
+
+            if (!editingTaskId || !editName.trim()) return;
+
+            updateTaskName(editingTaskId, editName, editPriority, editDueDate || null);
+            setEditingTaskId(null);
+          }}
+        >
+          <Modal.Header closeButton>
+            <Modal.Title as="h2" className="h5 mb-0">
+              Modifier la tâche
+            </Modal.Title>
+          </Modal.Header>
+
+          <Modal.Body>
+            <Form.Group controlId="edit-task-name">
+              <Form.Label>Nom</Form.Label>
+              <Form.Control
+                autoFocus
+                type="text"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+              />
+            </Form.Group>
+            <Form.Group controlId="edit-task-priority" className="mt-3">
+              <Form.Label>Priorité</Form.Label>
+              <Form.Select
+                value={editPriority}
+                onChange={(e) => setEditPriority(e.target.value as TaskPriority)}
+              >
+                <option value="low">Basse</option>
+                <option value="medium">Moyenne</option>
+                <option value="high">Haute</option>
+                <option value="urgent">Urgente</option>
+              </Form.Select>
+            </Form.Group>
+            <Form.Group controlId="edit-task-due-date" className="mt-3">
+              <Form.Label>Échéance</Form.Label>
+              <Form.Control
+                type="date"
+                value={editDueDate}
+                onChange={(e) => setEditDueDate(e.target.value)}
+              />
+            </Form.Group>
+          </Modal.Body>
+
+          <Modal.Footer>
+            <Button
+              variant="outline-secondary"
+              onClick={() => setEditingTaskId(null)}
             >
               Annuler
             </Button>

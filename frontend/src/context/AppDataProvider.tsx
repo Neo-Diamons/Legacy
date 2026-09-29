@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-
-import type { CurrentUser, Project, ProjectStats, Task, Notification } from '../types';
+import type { CurrentUser, Project, ProjectStats, Task, Notification, TaskPriority } from '../types';
 import { AppDataContext, type AppDataContextValue, type NewProjectInput, type NewTaskInput } from './appDataContext';
 import { createItem, deleteItem, fetchItems, openItemSocket, updateItem, type ItemResponse } from '../services/items';
 
@@ -174,6 +173,32 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     );
   };
 
+  const updateTaskName = (
+    taskId: string,
+    name: string,
+    priority?: TaskPriority,
+    dueDate?: string | null,
+  ) => {
+    const task = itemsRef.current.find((item) => item.id === taskId);
+    const trimmed = name.trim();
+
+    if (!task || !trimmed) return;
+
+    updateItem(taskId, {
+      name: trimmed,
+      completed: task.completed,
+      description: task.description,
+      priority: priority ?? task.priority,
+      dueDate: dueDate === undefined ? task.dueDate : dueDate,
+    })
+      .then((updated) => {
+        setItems((prev) =>
+          prev.map((item) => (item.id === updated.id ? updated : item)),
+        );
+      })
+      .catch(console.error);
+  };
+
   const deleteProject = (projectId: string) => {
     setProjects((prev) => prev.filter((project) => project.id !== projectId));
     setAssignments((prev) => Object.fromEntries(Object.entries(prev).filter(([, pid]) => pid !== projectId)));
@@ -283,6 +308,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       removeNotification,
       createProject,
       updateProjectName,
+      updateTaskName,
       deleteProject,
       createTask,
       toggleTask,

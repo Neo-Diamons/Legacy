@@ -11,6 +11,7 @@ export function TaskRow({
   onDragStart,
   onDelete,
   onMove,
+  onEdit,
 }: {
   task: Task;
   project?: Project;
@@ -18,6 +19,7 @@ export function TaskRow({
   onDragStart?: (event: DragEvent<HTMLLIElement>) => void;
   onDelete?: (taskId: string) => void;
   onMove: (taskId: string, priority: TaskPriority) => void;
+  onEdit?: (taskId: string) => void;
 }) {
   return (
     <li className="task-row" draggable={Boolean(onDragStart)} onDragStart={onDragStart}>
@@ -70,6 +72,17 @@ export function TaskRow({
           </span>
         </div>
       </div>
+      {onEdit && (
+        <Button
+          size="sm"
+          variant="link"
+          className="task-row-edit"
+          onClick={() => onEdit(task.id)}
+          aria-label="Modifier la tâche"
+        >
+          <i className="fa fa-pencil text-primary" aria-hidden="true" />
+        </Button>
+      )}
       {onDelete && (
         <Button
           size="sm"
