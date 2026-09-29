@@ -1,5 +1,5 @@
 import type { TaskPriority } from '../types';
-import { authHeaders, getAuthToken } from './authClient';
+import { authFetch, expireAuthSession, getAuthToken } from './authClient';
 
 export interface ItemResponse {
   id: string;
@@ -32,7 +32,7 @@ async function parseOrThrow<T>(res: Response): Promise<{ status: number; data: T
 }
 
 export function fetchItems(): Promise<ItemResponse[]> {
-  return fetch('/items', { headers: authHeaders() })
+  return authFetch('/items')
     .then((res) => parseOrThrow<ItemResponse[]>(res))
     .then(({ data }) => data);
 }
@@ -52,9 +52,9 @@ export function toDateInputValue(dueDate: string | null): string {
 }
 
 export function createItem(input: ItemInput): Promise<{ status: number; item: ItemResponse }> {
-  return fetch('/items', {
+  return authFetch('/items', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       ...input,
       dueDate: toApiDueDate(input.dueDate),
@@ -69,9 +69,9 @@ export function updateItem(
   id: string,
   input: ItemInput & { completed: boolean }
 ): Promise<{ status: number; item: ItemResponse }> {
-  return fetch(`/items/${id}`, {
+  return authFetch(`/items/${id}`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       ...input,
       dueDate: toApiDueDate(input.dueDate),
@@ -83,7 +83,7 @@ export function updateItem(
 }
 
 export function deleteItem(id: string): Promise<number> {
-  return fetch(`/items/${id}`, { method: 'DELETE', headers: authHeaders() }).then((res) => {
+  return authFetch(`/items/${id}`, { method: 'DELETE' }).then((res) => {
     if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
     return res.status;
   });
@@ -93,6 +93,10 @@ export function openItemSocket(onEvent: (event: ItemEvent) => void): () => void 
   const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
   const token = getAuthToken();
   const socket = new WebSocket(`${protocol}//${location.host}/ws?token=${encodeURIComponent(token ?? '')}`);
+  socket.addEventListener('close', (event) => {
+    // The backend closes with 1008 when the token is missing, invalid or expired.
+    if ((event as CloseEvent).code === 1008) expireAuthSession();
+  });
   socket.addEventListener('message', (message) => {
     onEvent(JSON.parse(message.data) as ItemEvent);
   });

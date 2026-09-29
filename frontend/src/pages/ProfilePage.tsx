@@ -1,5 +1,5 @@
 import { useState, type SubmitEvent } from 'react';
-import { Button, Col, Form, Placeholder, Row } from 'react-bootstrap';
+import { Alert, Button, Col, Form, Placeholder, Row } from 'react-bootstrap';
 
 import { useAppData } from '../context/appDataContext';
 import { formatDate, initialsOf } from '../utils/format';
@@ -7,13 +7,24 @@ import { formatDate, initialsOf } from '../utils/format';
 export function ProfilePage() {
   const { loading, user, projects, tasks, updateUserName } = useAppData();
   const [name, setName] = useState(user.name);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const completedTasks = tasks.filter((t) => t.completed).length;
   const completionRate = tasks.length === 0 ? 0 : Math.round((completedTasks / tasks.length) * 100);
 
-  const submit = (e: SubmitEvent) => {
+  const submit = async (e: SubmitEvent) => {
     e.preventDefault();
-    updateUserName(name);
+    setSaving(true);
+    setError(null);
+    try {
+      await updateUserName(name);
+      setName(name.trim());
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Impossible d’enregistrer le nom.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   if (loading) {
@@ -47,7 +58,17 @@ export function ProfilePage() {
             <Form.Label>Nom affiché</Form.Label>
             <Form.Control value={name} onChange={(e) => setName(e.target.value)} />
           </Form.Group>
-          <Button type="submit" variant="success" size="sm" disabled={!name.trim() || name.trim() === user.name}>
+          {error && (
+            <Alert variant="danger" className="py-2 small">
+              {error}
+            </Alert>
+          )}
+          <Button
+            type="submit"
+            variant="success"
+            size="sm"
+            disabled={saving || !name.trim() || name.trim() === user.name}
+          >
             Enregistrer
           </Button>
         </Form>

@@ -10,16 +10,9 @@ import {
 } from '../services/projects';
 
 /**
- * TODO(backend): `user` and `projects` are still a mock.
- *
- * The real backend exposes a single global, user-less `/items` list (and a
- * `/ws` socket broadcasting item.created/updated/deleted) — no
- * authentication and no notion of "project" yet. Tasks below are backed by
- * that real API; project assignment is tracked client-side only until a
- * real projects endpoint exists.
- *
- * - `GET /me`                    -> would seed `user`
- * - `GET/POST/DELETE /projects`  -> would seed/mutate `projects`
+ * `user` comes from the authenticated session (see services/auth.tsx); items and
+ * projects are backed by the real `/items` and `/projects` APIs, and `/ws`
+ * broadcasts item.created/updated/deleted events.
  */
 
 const SEED_USER: CurrentUser = {
@@ -28,6 +21,12 @@ const SEED_USER: CurrentUser = {
   email: 'michel.dupont@example.com',
   joinedAt: '2026-01-14',
 };
+
+let idCounter = 0;
+function generateId(prefix: string): string {
+  idCounter += 1;
+  return `${prefix}-${Date.now()}-${idCounter}`;
+}
 
 function toTask(item: ItemResponse, projects: Project[], assignments: Record<string, string>): Task {
   const projectId = item.projectId ?? assignments[item.id] ?? '';
@@ -46,7 +45,7 @@ function toTask(item: ItemResponse, projects: Project[], assignments: Record<str
 }
 
 export function AppDataProvider({ children }: { children: ReactNode }) {
-  const { user: authenticatedUser } = useAuth();
+  const { user: authenticatedUser, updateName } = useAuth();
   const [loading, setLoading] = useState(true);
   const user: CurrentUser = authenticatedUser
     ? {
@@ -279,9 +278,10 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       });
   };
 
-  const updateUserName = (name: string) => {
+  const updateUserName = async (name: string): Promise<void> => {
     const trimmed = name.trim();
     if (!trimmed) return;
+    await updateName(trimmed);
   };
 
   const projectStats = (projectId: string): ProjectStats => {

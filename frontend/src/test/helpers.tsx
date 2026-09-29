@@ -19,6 +19,27 @@ export const item = (id: string, name: string, overrides: Partial<ItemResponse> 
   ...overrides,
 });
 
+export const TOKEN_KEY = 'legacy.auth.token';
+export const USER_KEY = 'legacy.auth.user';
+
+export const USER = {
+  id: 'u-1',
+  name: 'Michel Dupont',
+  email: 'michel.dupont@example.com',
+  createdAt: '2026-01-14T00:00:00.000Z',
+};
+
+export const PROJECT = { id: 'p-1', name: 'Mon projet', color: '#4f8ef7', createdAt: '2026-01-14T00:00:00.000Z' };
+
+// A JWT-shaped token: the client only reads the `exp` claim to drop expired sessions.
+export const validToken = () =>
+  `header.${btoa(JSON.stringify({ sub: USER.id, exp: Math.floor(Date.now() / 1000) + 3600 }))}.signature`;
+
+export const signIn = () => {
+  localStorage.setItem(TOKEN_KEY, validToken());
+  localStorage.setItem(USER_KEY, JSON.stringify(USER));
+};
+
 export class MockWebSocket {
   static readonly CONNECTING = 0;
   static readonly OPEN = 1;
@@ -82,12 +103,13 @@ export function stubFetch(handler: Handler) {
   return fn;
 }
 
-/** Serves `GET /items` with `items`; `override` may answer any request first (return undefined to fall through). */
+/** Serves `GET /items` with `items` and `GET /projects` with the seed project; `override` may answer any request first (return undefined to fall through). */
 export function stubApi(items: ItemResponse[], override: Handler = () => undefined) {
   return stubFetch((url, init) => {
     const answer = override(url, init);
     if (answer !== undefined) return answer;
     if (url === '/items' && !init?.method) return jsonResponse(items);
+    if (url === '/projects' && !init?.method) return jsonResponse([PROJECT]);
     throw new Error(`unexpected request: ${init?.method ?? 'GET'} ${url}`);
   });
 }
@@ -101,7 +123,9 @@ function LocationProbe() {
   return <output data-testid="location">{useLocation().pathname}</output>;
 }
 
-export function renderApp(route = '/') {
+/** Renders the app signed in, unless `signedIn` is false. */
+export function renderApp(route = '/', { signedIn = true } = {}) {
+  if (signedIn) signIn();
   return render(
     <MemoryRouter initialEntries={[route]}>
       <App />
