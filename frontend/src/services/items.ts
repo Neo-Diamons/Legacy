@@ -1,4 +1,5 @@
 import type { TaskPriority } from '../types';
+import { authHeaders, getAuthToken } from './authClient';
 
 export interface ItemResponse {
   id: string;
@@ -9,6 +10,7 @@ export interface ItemResponse {
   dueDate: string | null;
   overdue: boolean;
   createdAt: string;
+  projectId?: string | null;
 }
 
 export type ItemEvent =
@@ -21,6 +23,7 @@ export interface ItemInput {
   description?: string | null;
   priority?: TaskPriority;
   dueDate?: string | null;
+  projectId?: string | null;
 }
 
 async function parseOrThrow<T>(res: Response): Promise<{ status: number; data: T }> {
@@ -29,7 +32,7 @@ async function parseOrThrow<T>(res: Response): Promise<{ status: number; data: T
 }
 
 export function fetchItems(): Promise<ItemResponse[]> {
-  return fetch('/items')
+  return fetch('/items', { headers: authHeaders() })
     .then((res) => parseOrThrow<ItemResponse[]>(res))
     .then(({ data }) => data);
 }
@@ -51,7 +54,7 @@ export function toDateInputValue(dueDate: string | null): string {
 export function createItem(input: ItemInput): Promise<{ status: number; item: ItemResponse }> {
   return fetch('/items', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify({
       ...input,
       dueDate: toApiDueDate(input.dueDate),
@@ -68,7 +71,7 @@ export function updateItem(
 ): Promise<{ status: number; item: ItemResponse }> {
   return fetch(`/items/${id}`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify({
       ...input,
       dueDate: toApiDueDate(input.dueDate),
@@ -80,7 +83,7 @@ export function updateItem(
 }
 
 export function deleteItem(id: string): Promise<number> {
-  return fetch(`/items/${id}`, { method: 'DELETE' }).then((res) => {
+  return fetch(`/items/${id}`, { method: 'DELETE', headers: authHeaders() }).then((res) => {
     if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
     return res.status;
   });
@@ -88,7 +91,8 @@ export function deleteItem(id: string): Promise<number> {
 
 export function openItemSocket(onEvent: (event: ItemEvent) => void): () => void {
   const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-  const socket = new WebSocket(`${protocol}//${location.host}/ws`);
+  const token = getAuthToken();
+  const socket = new WebSocket(`${protocol}//${location.host}/ws?token=${encodeURIComponent(token ?? '')}`);
   socket.addEventListener('message', (message) => {
     onEvent(JSON.parse(message.data) as ItemEvent);
   });

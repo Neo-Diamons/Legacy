@@ -16,18 +16,24 @@ export function CreateProjectButton({
   const [show, setShow] = useState(false);
   const [name, setName] = useState('');
   const [color, setColor] = useState(COLOR_SWATCHES[0]);
+  const [error, setError] = useState<string | null>(null);
 
   const close = () => {
     setShow(false);
     setName('');
     setColor(COLOR_SWATCHES[0]);
+    setError(null);
   };
 
-  const submit = (e: SubmitEvent) => {
+  const submit = async (e: SubmitEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
-    createProject({ name, color });
-    close();
+    try {
+      await createProject({ name, color });
+      close();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Impossible de créer le projet');
+    }
   };
 
   return (
@@ -44,6 +50,7 @@ export function CreateProjectButton({
             </Modal.Title>
           </Modal.Header>
           <Modal.Body>
+            {error && <div className="alert alert-danger">{error}</div>}
             <Form.Group className="mb-3" controlId="project-name">
               <Form.Label>Nom du projet</Form.Label>
               <Form.Control

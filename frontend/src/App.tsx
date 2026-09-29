@@ -8,6 +8,9 @@ import { AppDataProvider } from './context/AppDataProvider';
 import { HomePage } from './pages/HomePage';
 import { ProfilePage } from './pages/ProfilePage';
 import { ProjectsPage } from './pages/ProjectsPage';
+import { LoginPage } from './pages/LoginPage';
+import { AuthProvider } from './services/auth';
+import { useAuth } from './services/authContext';
 
 function ProjectsRoute() {
   const { projectId } = useParams();
@@ -21,6 +24,22 @@ function ProjectsRoute() {
 }
 
 export default function App() {
+  return (
+    <AuthProvider>
+      <AuthenticatedApp />
+    </AuthProvider>
+  );
+}
+
+function AuthenticatedApp() {
+  const { loading, user } = useAuth();
+  if (loading) return null;
+  if (!user) return <LoginPage />;
+
+  return <AuthenticatedShell />;
+}
+
+function AuthenticatedShell() {
   const location = useLocation();
   const navigate = useNavigate();
   const activeTab = location.pathname.startsWith('/projects')

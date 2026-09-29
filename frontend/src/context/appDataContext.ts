@@ -21,10 +21,10 @@ export interface AppDataContextValue {
   projects: Project[];
   tasks: Task[];
   notifications: Notification[];
-  createProject: (input: NewProjectInput) => Project;
+  createProject: (input: NewProjectInput) => Promise<Project>;
   deleteProject: (projectId: string) => void;
   updateProjectName: (projectId: string, name: string) => void;
-  createTask: (input: NewTaskInput) => Task;
+  createTask: (input: NewTaskInput) => Promise<Task>;
   updateTaskName: (
     taskId: string,
     name: string,
