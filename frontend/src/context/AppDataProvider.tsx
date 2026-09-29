@@ -142,7 +142,6 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       }
     });
   }, [formatPopUpAndAddNotification, addNotification]);
-  console.log('items:', items);
 
   const tasks = useMemo(() => items.map((item) => toTask(item, projects, assignments)), [items, projects, assignments]);
 
