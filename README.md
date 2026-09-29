@@ -179,6 +179,50 @@ a PR coverage report), production build, and `npm audit --audit-level=high`.
 
 ---
 
+## Accessibility audit (RGAA)
+
+The frontend is audited against the
+[RGAA 4](https://accessibilite.numerique.gouv.fr/) (French accessibility
+referential, based on WCAG 2.1) with [Asqatasun](https://asqatasun.org/),
+an open-source automated checker. The stack is defined in
+`compose.asqatasun.yaml` (server, webapp, MariaDB, headless Firefox via
+Selenium, MailHog) and driven by `scripts/rgaa-audit.sh`.
+
+### Run the audit
+
+Requirements: Docker (with Compose), `curl`, `jq`. The script calls
+`sudo docker`, so it may ask for your password.
+
+```bash
+scripts/rgaa-audit.sh                       # 3 default routes, RGAA_4_0, level AA
+scripts/rgaa-audit.sh URLS [REFERENTIAL] [LEVEL]
+```
+
+| Argument      | Default                                       | Notes                                                    |
+| ------------- | --------------------------------------------- | -------------------------------------------------------- |
+| `URLS`        | `/`, `/projects`, `/profile` of the local app | Comma-separated. Local app is reached via `host.docker.internal`. |
+| `REFERENTIAL` | `RGAA_4_0`                                    | `RGAA_4_0`, `RGAA_3_0`, `ACCESSIWEB_2_2` or `SEO`        |
+| `LEVEL`       | `AA`                                          | `A`, `AA` or `AAA`                                       |
+
+The script, in order: rebuilds/starts the app (`compose.yml`) when targeting
+the local app, starts the Asqatasun stack, provisions a `Legacy` contract if
+missing, checks each URL is reachable from the audit browser, launches the page
+audit, polls until completion, then prints pages audited, grade, mark
+(/100), failed criteria and criteria needing manual review.
+
+The detailed report is in the Asqatasun webapp at <http://localhost:8080>
+(login `admin@asqatasun.org` / `myAsqaPassword`, the image's seed account —
+local use only) under **My audits**.
+
+### Limits
+
+Automated checks cover only a part of the RGAA criteria. Criteria reported as
+*needs manual review* (keyboard navigation, focus order, contrast on dynamic
+states, screen-reader behaviour, notification announcements, ...) must be
+verified by hand. A passing grade is not a compliance claim.
+
+---
+
 ## Contributing
 
 - Work through short-lived branches and small pull requests (see the Wiki
