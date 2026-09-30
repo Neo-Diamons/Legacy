@@ -22,12 +22,19 @@ describe('creating a task', () => {
     openModal();
     fireEvent.change(screen.getByLabelText('Nom'), { target: { value: '  Write tests  ' } });
     fireEvent.change(screen.getByLabelText('Priorité'), { target: { value: 'urgent' } });
-    fireEvent.change(screen.getByLabelText('Échéance (optionnelle)'), { target: { value: '2026-05-01' } });
+    fireEvent.change(screen.getByLabelText('Échéance (optionnelle)'), {
+      target: { value: '2026-05-01T15:30' },
+    });
     fireEvent.click(submitButton());
 
     const [post] = callsWith(api, 'POST');
     expect(post![0]).toBe('/items');
-    expect(bodyOf(post!)).toEqual({ name: 'Write tests', priority: 'urgent', dueDate: '2026-05-01' });
+    expect(bodyOf(post!)).toEqual({
+      name: 'Write tests',
+      description: null,
+      priority: 'urgent',
+      dueDate: new Date('2026-05-01T15:30').toISOString(),
+    });
 
     expect(await screen.findByText('Write tests')).toBeInTheDocument();
     expect(screen.queryByText("Ce projet n'a pas encore de tâche.")).not.toBeInTheDocument();
@@ -44,7 +51,12 @@ describe('creating a task', () => {
     fireEvent.change(screen.getByLabelText('Nom'), { target: { value: 'Quick one' } });
     fireEvent.click(submitButton());
 
-    expect(bodyOf(callsWith(api, 'POST')[0]!)).toEqual({ name: 'Quick one', priority: 'medium', dueDate: null });
+    expect(bodyOf(callsWith(api, 'POST')[0]!)).toEqual({
+      name: 'Quick one',
+      description: null,
+      priority: 'medium',
+      dueDate: null,
+    });
   });
 
   test.each([[''], ['   ']])('cannot submit a blank name (%j)', async (name) => {

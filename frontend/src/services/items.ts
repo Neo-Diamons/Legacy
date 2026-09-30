@@ -34,11 +34,28 @@ export function fetchItems(): Promise<ItemResponse[]> {
     .then(({ data }) => data);
 }
 
+function toApiDueDate(dueDate: string | null | undefined): string | null | undefined {
+  if (!dueDate) return dueDate;
+
+  if (dueDate.includes('T')) {
+    return new Date(dueDate).toISOString();
+  }
+
+  return `${dueDate}T00:00:00.000Z`;
+}
+
+export function toDateInputValue(dueDate: string | null): string {
+  return dueDate ? dueDate.slice(0, 10) : '';
+}
+
 export function createItem(input: ItemInput): Promise<{ status: number; item: ItemResponse }> {
   return fetch('/items', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(input),
+    body: JSON.stringify({
+      ...input,
+      dueDate: toApiDueDate(input.dueDate),
+    }),
   }).then((res) => {
     if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
     return res.json().then((item) => ({ status: res.status, item }));
@@ -52,7 +69,10 @@ export function updateItem(
   return fetch(`/items/${id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(input),
+    body: JSON.stringify({
+      ...input,
+      dueDate: toApiDueDate(input.dueDate),
+    }),
   }).then((res) => {
     if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
     return res.json().then((item) => ({ status: res.status, item }));

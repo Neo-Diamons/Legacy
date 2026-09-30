@@ -10,18 +10,26 @@ export function CreateTaskButton({ projectId }: { projectId: string }) {
   const [name, setName] = useState('');
   const [priority, setPriority] = useState<TaskPriority>('medium');
   const [dueDate, setDueDate] = useState('');
+  const [description, setDescription] = useState('');
 
   const close = () => {
     setShow(false);
     setName('');
     setPriority('medium');
     setDueDate('');
+    setDescription('');
   };
 
   const submit = (e: SubmitEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
-    createTask({ name, projectId, priority, dueDate: dueDate || null });
+    createTask({
+      name,
+      projectId,
+      description: description || null,
+      priority,
+      dueDate: dueDate || null,
+    });
     close();
   };
 
@@ -49,6 +57,15 @@ export function CreateTaskButton({ projectId }: { projectId: string }) {
                 placeholder="Ex : Relire la maquette"
               />
             </Form.Group>
+            <Form.Group className="mb-3" controlId="task-description">
+              <Form.Label>Note</Form.Label>
+              <Form.Control
+                as="textarea"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Ajouter une note (optionnelle)"
+              />
+            </Form.Group>
             <Form.Group className="mb-3" controlId="task-priority">
               <Form.Label>Priorité</Form.Label>
               <Form.Select value={priority} onChange={(e) => setPriority(e.target.value as TaskPriority)}>
@@ -60,7 +77,7 @@ export function CreateTaskButton({ projectId }: { projectId: string }) {
             </Form.Group>
             <Form.Group controlId="task-due-date">
               <Form.Label>Échéance (optionnelle)</Form.Label>
-              <Form.Control type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
+              <Form.Control type="datetime-local" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
             </Form.Group>
           </Modal.Body>
           <Modal.Footer>

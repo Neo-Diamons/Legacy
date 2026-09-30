@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-
-import type { CurrentUser, Project, ProjectStats, Task, Notification } from '../types';
+import type { CurrentUser, Project, ProjectStats, Task, Notification, TaskPriority } from '../types';
 import { AppDataContext, type AppDataContextValue, type NewProjectInput, type NewTaskInput } from './appDataContext';
 import { createItem, deleteItem, fetchItems, openItemSocket, updateItem, type ItemResponse } from '../services/items';
 
@@ -160,6 +159,39 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     return project;
   };
 
+  const updateProjectName = (projectId: string, name: string) => {
+    const trimmed = name.trim();
+
+    if (!trimmed) return;
+
+    setProjects((prev) => prev.map((project) => (project.id === projectId ? { ...project, name: trimmed } : project)));
+  };
+
+  const updateTaskName = (
+    taskId: string,
+    name: string,
+    priority?: TaskPriority,
+    dueDate?: string | null,
+    description?: string | null
+  ) => {
+    const task = itemsRef.current.find((item) => item.id === taskId);
+    const trimmed = name.trim();
+
+    if (!task || !trimmed) return;
+
+    updateItem(taskId, {
+      name: trimmed,
+      completed: task.completed,
+      description: description === undefined ? task.description : description,
+      priority: priority ?? task.priority,
+      dueDate: dueDate === undefined ? task.dueDate : dueDate,
+    })
+      .then(({ item: updatedItem }) => {
+        setItems((prev) => prev.map((item) => (item.id === updatedItem.id ? updatedItem : item)));
+      })
+      .catch(console.error);
+  };
+
   const deleteProject = (projectId: string) => {
     setProjects((prev) => prev.filter((project) => project.id !== projectId));
     setAssignments((prev) => Object.fromEntries(Object.entries(prev).filter(([, pid]) => pid !== projectId)));
@@ -170,6 +202,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
 
     createItem({
       name: input.name.trim(),
+      description: input.description,
       priority: input.priority,
       dueDate: input.dueDate,
     })
@@ -189,7 +222,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       name: input.name.trim(),
       projectId: input.projectId,
       projectName: project?.name ?? '',
-      description: null,
+      description: input.description ?? null,
       priority: input.priority,
       dueDate: input.dueDate,
       completed: false,
@@ -268,6 +301,8 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       notifications,
       removeNotification,
       createProject,
+      updateProjectName,
+      updateTaskName,
       deleteProject,
       createTask,
       toggleTask,

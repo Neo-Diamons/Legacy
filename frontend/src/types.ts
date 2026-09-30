@@ -37,3 +37,10 @@ export interface Notification {
   httpCode: number;
   createdAt: string; // ISO date
 }
+
+export interface FilterParams {
+  projectId?: string | null;
+  priority?: TaskPriority | null;
+  dueDate?: string | null; // ISO date
+  startDate?: string | null; //ISO date
+}

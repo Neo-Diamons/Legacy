@@ -2,6 +2,8 @@ import { fileURLToPath } from 'node:url';
 import { loadEnv } from 'vite';
 import { defineConfig } from 'vitest/config';
 
+process.env.TZ = 'UTC';
+
 const root = fileURLToPath(new URL('.', import.meta.url));
 const repoRoot = fileURLToPath(new URL('../', import.meta.url));
 const src = (path: string) => fileURLToPath(new URL(`./src/${path}`, import.meta.url));
@@ -31,7 +33,6 @@ export default defineConfig(({ mode }) => ({
     },
     coverage: {
       provider: 'v8',
-      all: true,
       reporter: ['text', 'html', 'lcov', 'json', 'json-summary'],
       reportsDirectory: './coverage',
       include: ['src/**/*.ts'],

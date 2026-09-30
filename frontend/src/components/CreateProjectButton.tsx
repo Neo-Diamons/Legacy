@@ -32,7 +32,7 @@ export function CreateProjectButton({
 
   return (
     <>
-      <Button variant={variant} disabled title="Bientôt disponible" onClick={() => setShow(true)}>
+      <Button variant={variant} onClick={() => setShow(true)}>
         {label}
       </Button>
 

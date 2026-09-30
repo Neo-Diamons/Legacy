@@ -12,6 +12,7 @@ export interface NewTaskInput {
   projectId: string;
   priority: TaskPriority;
   dueDate: string | null;
+  description?: string | null;
 }
 
 export interface AppDataContextValue {
@@ -22,7 +23,15 @@ export interface AppDataContextValue {
   notifications: Notification[];
   createProject: (input: NewProjectInput) => Project;
   deleteProject: (projectId: string) => void;
+  updateProjectName: (projectId: string, name: string) => void;
   createTask: (input: NewTaskInput) => Task;
+  updateTaskName: (
+    taskId: string,
+    name: string,
+    priority?: TaskPriority,
+    dueDate?: string | null,
+    description?: string | null
+  ) => void;
   toggleTask: (taskId: string) => void;
   updateTaskPriority: (taskId: string, priority: TaskPriority) => void;
   deleteTask: (taskId: string) => void;

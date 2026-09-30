@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { describe, expect, test } from 'vitest';
+import { describe, expect, test, vi } from 'vitest';
 
 import { AppDataProvider } from '../context/AppDataProvider';
 import { ProjectsPage } from './ProjectsPage';
@@ -35,12 +35,23 @@ describe('projects list', () => {
     expect(container.querySelector('[aria-busy="true"]')).not.toBeInTheDocument();
   });
 
-  test('project creation is disabled until the backend supports it', async () => {
+  test('creates a project with the entered name and selected color', async () => {
     stubApi([]);
+
     renderApp('/projects');
-    const button = await screen.findByRole('button', { name: '+ Nouveau projet' });
-    expect(button).toBeDisabled();
-    expect(button).toHaveAttribute('title', 'Bientôt disponible');
+
+    fireEvent.click(await screen.findByRole('button', { name: '+ Nouveau projet' }));
+
+    fireEvent.change(screen.getByLabelText('Nom du projet'), {
+      target: { value: 'Mon nouveau projet' },
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Choisir la couleur #f7a24f' }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Créer le projet' }));
+
+    expect(await screen.findByText('Mon nouveau projet')).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
   });
 });
 
@@ -65,10 +76,20 @@ describe('project detail', () => {
     );
   });
 
-  test('deleting the project is disabled until the backend supports it', async () => {
+  test('deletes the project after confirmation', async () => {
     stubApi([]);
+
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+
     renderApp('/projects/p-1');
-    expect(await screen.findByRole('button', { name: 'Supprimer le projet' })).toBeDisabled();
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Supprimer le projet' }));
+
+    await waitFor(() => {
+      expect(screen.queryByText('Mon projet')).not.toBeInTheDocument();
+    });
+
+    expect(window.confirm).toHaveBeenCalledWith('Supprimer le projet "Mon projet" et ses 0 tâche(s) ?');
   });
 });
 
@@ -90,7 +111,7 @@ describe('toggling a task', () => {
       completed: true,
       description: 'details',
       priority: 'high',
-      dueDate: '2026-05-01',
+      dueDate: '2026-05-01T00:00:00.000Z',
     });
     expect(await screen.findByRole('checkbox', { name: /^Marquer comme non terminée/ })).toBeChecked();
     expect(screen.getByText('Flip me')).toHaveClass('completed');

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Button, Dropdown, Form } from 'react-bootstrap';
 import type { DragEvent } from 'react';
 
@@ -11,6 +12,7 @@ export function TaskRow({
   onDragStart,
   onDelete,
   onMove,
+  onEdit,
 }: {
   task: Task;
   project?: Project;
@@ -18,9 +20,18 @@ export function TaskRow({
   onDragStart?: (event: DragEvent<HTMLLIElement>) => void;
   onDelete?: (taskId: string) => void;
   onMove: (taskId: string, priority: TaskPriority) => void;
+  onEdit?: (taskId: string) => void;
 }) {
+  const [now] = useState(() => Date.now());
+
+  const isOverdue = !task.completed && task.dueDate !== null && new Date(task.dueDate).getTime() < now;
+
   return (
-    <li className="task-row" draggable={Boolean(onDragStart)} onDragStart={onDragStart}>
+    <li
+      className={`task-row ${isOverdue ? 'task-row-overdue' : ''}`}
+      draggable={Boolean(onDragStart)}
+      onDragStart={onDragStart}
+    >
       <Form.Check
         type="checkbox"
         checked={task.completed}
@@ -70,6 +81,17 @@ export function TaskRow({
           </span>
         </div>
       </div>
+      {onEdit && (
+        <Button
+          size="sm"
+          variant="link"
+          className="task-row-edit"
+          onClick={() => onEdit(task.id)}
+          aria-label="Modifier la tâche"
+        >
+          <i className="fa fa-pencil text-primary" aria-hidden="true" />
+        </Button>
+      )}
       {onDelete && (
         <Button
           size="sm"
