@@ -3,7 +3,8 @@ import type { OpenAPIHono } from '@hono/zod-openapi';
 import type { WSContext } from 'hono/ws';
 import type { ItemResponse } from '@schemas/item.schemas.js';
 import { HTTPException } from 'hono/http-exception';
-import { verifyToken } from '@http/auth.js';
+import { jwtAuth } from '@http/auth.js';
+import { issueWsTicket, redeemWsTicket } from '@ws/ticket.js';
 
 declare module 'hono' {
   interface ContextVariableMap {
@@ -22,16 +23,21 @@ export const clientOwners = new Map<WSContext, string>();
 export function registerWebSocket(app: OpenAPIHono) {
   const { injectWebSocket, upgradeWebSocket } = createNodeWebSocket({ app });
 
+  app.post('/ws/ticket', jwtAuth(), (c) => {
+    const { sub, tv } = c.get('jwtPayload') as { sub: string; tv: number };
+    return c.json({ ticket: issueWsTicket(sub, tv) }, 200);
+  });
+
   app.get(
     '/ws',
     async (c, next) => {
-      const token = c.req.query('token');
-      if (!token) throw new HTTPException(401, { message: 'Authentication required' });
-      try {
-        c.set('wsOwnerId', await verifyToken(token));
-      } catch {
-        throw new HTTPException(401, { message: 'Invalid token' });
-      }
+      const ticket = c.req.query('ticket');
+      if (!ticket) throw new HTTPException(401, { message: 'Authentication required' });
+
+      const ownerId = await redeemWsTicket(ticket);
+      if (!ownerId) throw new HTTPException(401, { message: 'Invalid ticket' });
+
+      c.set('wsOwnerId', ownerId);
       await next();
     },
     upgradeWebSocket((c) => {
@@ -61,7 +67,6 @@ export function broadcastItemEvent(event: ItemEvent, ownerId: string) {
   }
 }
 
-/** Closes every socket of a user, e.g. once their session was revoked. */
 export function disconnectUser(ownerId: string) {
   for (const [client, owner] of clientOwners) {
     if (owner !== ownerId) continue;

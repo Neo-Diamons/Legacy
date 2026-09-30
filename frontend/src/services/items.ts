@@ -1,5 +1,5 @@
 import type { TaskPriority } from '../types';
-import { authFetch, expireAuthSession, getAuthToken } from './authClient';
+import { authFetch, expireAuthSession } from './authClient';
 
 export interface ItemResponse {
   id: string;
@@ -90,20 +90,35 @@ export function deleteItem(id: string): Promise<number> {
 }
 
 export function openItemSocket(onEvent: (event: ItemEvent) => void): () => void {
-  const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-  const token = getAuthToken();
-  const socket = new WebSocket(`${protocol}//${location.host}/ws?token=${encodeURIComponent(token ?? '')}`);
-  socket.addEventListener('close', (event) => {
-    // The backend closes with 1008 when the token is missing, invalid or expired.
-    if ((event as CloseEvent).code === 1008) expireAuthSession();
-  });
-  socket.addEventListener('message', (message) => {
-    onEvent(JSON.parse(message.data) as ItemEvent);
-  });
+  let socket: WebSocket | undefined;
+  let cancelled = false;
+
+  // Browsers cannot set headers on a WebSocket handshake, so trade the JWT for a single-use ticket
+  // instead of putting the JWT itself in the URL (where it would end up in access logs).
+  void (async () => {
+    const response = await authFetch('/ws/ticket', { method: 'POST' });
+    if (!response.ok || cancelled) return;
+    const { ticket } = (await response.json()) as { ticket: string };
+    if (cancelled) return;
+
+    const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    socket = new WebSocket(`${protocol}//${location.host}/ws?ticket=${encodeURIComponent(ticket)}`);
+    socket.addEventListener('close', (event) => {
+      // The backend closes with 1008 when the session was revoked.
+      if ((event as CloseEvent).code === 1008) expireAuthSession();
+    });
+    socket.addEventListener('message', (message) => {
+      onEvent(JSON.parse(message.data) as ItemEvent);
+    });
+  })().catch(() => {});
+
   return () => {
+    cancelled = true;
+    if (!socket) return;
     // Closing while CONNECTING (e.g. StrictMode double mount) logs a browser warning; wait for open.
     if (socket.readyState === WebSocket.CONNECTING) {
-      socket.addEventListener('open', () => socket.close());
+      const pending = socket;
+      pending.addEventListener('open', () => pending.close());
     } else {
       socket.close();
     }

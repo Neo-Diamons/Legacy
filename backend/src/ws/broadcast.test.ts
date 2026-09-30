@@ -40,9 +40,15 @@ afterEach(async () => {
   await vi.waitFor(() => expect(clients.size).toBe(0));
 });
 
-/** Opens a socket and records every message it receives. */
+/** Trades a JWT for a single-use WebSocket ticket. */
+async function mintTicket(token: string) {
+  const res = await app.request('/ws/ticket', { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
+  return { status: res.status, ticket: res.status === 200 ? (await json<{ ticket: string }>(res)).ticket : '' };
+}
+
+/** Opens a socket with a fresh ticket and records every message it receives. */
 async function connect(token: string) {
-  const ws = new WebSocket(`ws://localhost:${port}/ws?token=${token}`);
+  const ws = new WebSocket(`ws://localhost:${port}/ws?ticket=${(await mintTicket(token)).ticket}`);
   sockets.push(ws);
   const messages: Message[] = [];
   ws.on('message', (data) => messages.push(JSON.parse(data.toString())));
@@ -68,24 +74,29 @@ const closeCode = (ws: WebSocket) => new Promise<number>((resolve) => ws.once('c
 const settle = () => new Promise((resolve) => setTimeout(resolve, 50));
 
 describe('handshake', () => {
-  it('accepts a valid token and registers the socket for its owner', async () => {
+  it('accepts a valid ticket and registers the socket for its owner', async () => {
     await connect(alice.token);
 
     expect(clients.size).toBe(1);
     expect([...clientOwners.values()]).toEqual([alice.id]);
   });
 
-  it('refuses a connection without a token', async () => {
+  it('refuses a connection without a ticket', async () => {
     expect(await rejection(`ws://localhost:${port}/ws`)).toBe(401);
     expect(clients.size).toBe(0);
   });
 
-  it('refuses an empty or malformed token', async () => {
-    expect(await rejection(`ws://localhost:${port}/ws?token=`)).toBe(401);
-    expect(await rejection(`ws://localhost:${port}/ws?token=garbage`)).toBe(401);
+  it('refuses an empty or unknown ticket', async () => {
+    expect(await rejection(`ws://localhost:${port}/ws?ticket=`)).toBe(401);
+    expect(await rejection(`ws://localhost:${port}/ws?ticket=garbage`)).toBe(401);
   });
 
-  it('does not read the token from the Authorization header', async () => {
+  it('no longer accepts a JWT in the query string', async () => {
+    expect(await rejection(`ws://localhost:${port}/ws?token=${alice.token}`)).toBe(401);
+    expect(await rejection(`ws://localhost:${port}/ws?ticket=${alice.token}`)).toBe(401);
+  });
+
+  it('does not read credentials from the Authorization header', async () => {
     const status = await new Promise<number>((resolve) => {
       const ws = new WebSocket(`ws://localhost:${port}/ws`, { headers: alice.headers });
       sockets.push(ws);
@@ -95,27 +106,55 @@ describe('handshake', () => {
     expect(status).toBe(401);
   });
 
-  it('refuses an expired token', async () => {
-    expect(await rejection(`ws://localhost:${port}/ws?token=${await issueToken(alice.id, 0, -10)}`)).toBe(401);
-  });
-
-  it('refuses a token signed with another secret', async () => {
+  it('only issues tickets to authenticated users', async () => {
+    expect((await mintTicket('garbage')).status).toBe(401);
+    expect((await mintTicket(await issueToken(alice.id, 0, -10))).status).toBe(401);
     const forged = await issueToken(alice.id, 0, 3600, 'a-different-secret-of-32-characters!!');
-    expect(await rejection(`ws://localhost:${port}/ws?token=${forged}`)).toBe(401);
+    expect((await mintTicket(forged)).status).toBe(401);
+    expect((await call(null, 'POST', '/ws/ticket')).status).toBe(401);
   });
 
-  it('refuses a token that has been revoked by a password change', async () => {
+  it('refuses to issue a ticket for a revoked token', async () => {
     await call(alice, 'PUT', `/users/${alice.id}`, { password: 'a-brand-new-password' });
-    expect(await rejection(`ws://localhost:${port}/ws?token=${alice.token}`)).toBe(401);
+    expect((await mintTicket(alice.token)).status).toBe(401);
   });
 
-  it('refuses the token of a deleted user', async () => {
+  it('refuses a ticket that was already used', async () => {
+    const { ticket } = await mintTicket(alice.token);
+    const ws = new WebSocket(`ws://localhost:${port}/ws?ticket=${ticket}`);
+    sockets.push(ws);
+    await new Promise<void>((resolve, reject) => {
+      ws.once('open', () => resolve());
+      ws.once('error', reject);
+    });
+    expect(await rejection(`ws://localhost:${port}/ws?ticket=${ticket}`)).toBe(401);
+  });
+
+  it('refuses an expired ticket', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    try {
+      const { ticket } = await mintTicket(alice.token);
+      vi.setSystemTime(Date.now() + 31_000);
+      expect(await rejection(`ws://localhost:${port}/ws?ticket=${ticket}`)).toBe(401);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('refuses a ticket whose session was revoked after issue', async () => {
+    const { ticket } = await mintTicket(alice.token);
+    await call(alice, 'PUT', `/users/${alice.id}`, { password: 'a-brand-new-password' });
+    expect(await rejection(`ws://localhost:${port}/ws?ticket=${ticket}`)).toBe(401);
+  });
+
+  it('refuses a ticket of a deleted user', async () => {
+    const { ticket } = await mintTicket(alice.token);
     await userService.deleteUser(alice.id);
-    expect(await rejection(`ws://localhost:${port}/ws?token=${alice.token}`)).toBe(401);
+    expect(await rejection(`ws://localhost:${port}/ws?ticket=${ticket}`)).toBe(401);
   });
 
   it('never registers a refused socket', async () => {
-    await rejection(`ws://localhost:${port}/ws?token=garbage`);
+    await rejection(`ws://localhost:${port}/ws?ticket=garbage`);
     expect(clients.size).toBe(0);
     expect(clientOwners.size).toBe(0);
   });
