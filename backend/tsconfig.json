@@ -18,7 +18,8 @@
       "@service/*": ["./src/service/*"],
       "@controller/*": ["./src/controller/*"],
       "@utils/*": ["./src/utils/*"],
-      "@ws/*": ["./src/ws/*"]
+      "@ws/*": ["./src/ws/*"],
+      "@observability/*": ["./src/observability/*"]
     }
   },
   "include": ["**/*.ts"],

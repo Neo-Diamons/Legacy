@@ -220,6 +220,51 @@ a PR coverage report), production build, and `npm audit --audit-level=high`.
 
 ---
 
+## Monitoring
+
+Metrics stack: backend (`prom-client`) → Prometheus → Grafana, plus cAdvisor
+for container metrics. All services are defined in `compose.yml`.
+
+```bash
+docker compose up -d
+```
+
+| Service    | URL                     | Role                                                                            |
+| ---------- | ----------------------- | ------------------------------------------------------------------------------- |
+| Prometheus | <http://localhost:9090> | Scrapes every 15 s: itself, `cadvisor:8080` and `backend:3000/metrics`.         |
+| Grafana    | <http://localhost:3001> | Dashboards. Default login `admin` / `admin` (change it). Prometheus datasource. |
+| cAdvisor   | internal only           | Per-container CPU, memory and network. Port 8080 is not published on the host.  |
+
+### Backend metrics
+
+`GET /metrics` serves the Prometheus text format, prefixed `legacy_`:
+
+| Metric                                                         | Description                                      |
+| -------------------------------------------------------------- | ------------------------------------------------ |
+| `legacy_http_requests_total`, `legacy_http_request_duration_seconds` | HTTP request count and latency (route, status). |
+| `legacy_ws_connections_total`, `legacy_ws_disconnections_total` | WebSocket connections opened / closed.           |
+| `legacy_ws_tickets_total`                                      | WebSocket tickets issued, by result.             |
+| `legacy_events_produced_total`, `legacy_events_delivered_total` | Item events produced vs delivered to clients.    |
+| `legacy_process_*`, `legacy_nodejs_*`                          | Node.js defaults (CPU, memory, event loop, GC).  |
+
+Set `METRICS_TOKEN` (see `.env.example`) to require
+`Authorization: Bearer <token>` on `/metrics`. Prometheus must then send it:
+mount the token as a secret and uncomment the `authorization` block of the
+`legacy-backend` job in `monitoring/prometheus/prometheus.yml`.
+
+### Dashboards
+
+Provisioned automatically from `monitoring/grafana/dashboards/`
+(`monitoring/grafana/provisioning/` holds the datasource and dashboard provider):
+
+- **Legacy backend** — HTTP (requests/s, 5xx ratio, p95 latency, by route and
+  status), WebSocket & events, Node.js runtime (CPU, memory, event loop lag),
+  containers.
+- **cAdvisor** — detailed per-container resource usage.
+
+To add a dashboard, drop its JSON export in `monitoring/grafana/dashboards/`;
+Grafana picks it up without a restart.
+
 ## Accessibility audit (RGAA)
 
 The frontend is audited against the
