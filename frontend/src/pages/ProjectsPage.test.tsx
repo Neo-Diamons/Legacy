@@ -51,7 +51,7 @@ describe('projects list', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Créer le projet' }));
 
     expect(await screen.findByText('Mon nouveau projet')).toBeInTheDocument();
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
   });
 });
 
