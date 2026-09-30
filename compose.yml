@@ -9,6 +9,13 @@ services:
       - /sys:/sys:ro
       - /var/lib/docker:/var/lib/docker:ro
     restart: unless-stopped
+    healthcheck:
+      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/metrics" ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
 
   prometheus:
     image: prom/prometheus:latest
@@ -20,6 +27,13 @@ services:
     restart: unless-stopped
     depends_on:
       - cadvisor
+    healthcheck:
+      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:9090/-/ready" ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
 
   grafana:
     image: grafana/grafana:latest
@@ -27,7 +41,15 @@ services:
       - "3001:3000"
     volumes:
       - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
     restart: unless-stopped
+    healthcheck:
+      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/metrics" ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     depends_on:
       - prometheus
 
