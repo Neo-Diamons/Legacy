@@ -7,6 +7,7 @@ import { authController, userController } from '@controller/user.controller.js';
 import { createRouter, registerErrorHandler } from '@http/app.js';
 import { jwtAuth } from '@http/auth.js';
 import { resolveAllowedOrigins } from '@utils/cors.js';
+import { httpMetrics, metricsHandler } from '@observability/metrics.js';
 import { registerWebSocket } from '@ws/broadcast.js';
 
 export function createApp({ log = true }: { log?: boolean } = {}) {
@@ -14,6 +15,8 @@ export function createApp({ log = true }: { log?: boolean } = {}) {
 
   app.use(cors({ origin: resolveAllowedOrigins() }));
   if (log) app.use(logger());
+  app.use(httpMetrics);
+  app.get('/metrics', metricsHandler);
 
   app.get('/health', (c) => c.json({ status: 'ok' }));
 
