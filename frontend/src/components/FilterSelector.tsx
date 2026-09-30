@@ -1,5 +1,5 @@
 import {useState} from 'react';
-import {Form} from 'react-bootstrap';
+import {Button, Form} from 'react-bootstrap';
 import type {FilterParams, TaskPriority} from '../types';
 import {PRIORITY_LABELS} from '../utils/format';
 
@@ -23,7 +23,8 @@ export function FilterSelector({
 
     return (
         <Form>
-            <Form.Group controlId="filterProject">
+            <Form.Group controlId="filterProject"
+                className="mb-3">
                 <Form.Label> Priority</Form.Label>
                 <Form.Select
                     value={filterParams.priority || ''}
@@ -40,11 +41,12 @@ export function FilterSelector({
                     ))}
                 </Form.Select>
             </Form.Group>
-            <Form.Group controlId="filterDueDate">
+            <Form.Group controlId="filterDueDate"
+                className="mb-3">
                 <Form.Label>Due Date</Form.Label>
                 <Form.Control
                 type="date"
-                value={date.toString().split('T')[0]} //2026-05-01T15:30
+                value={date.toString().split('T')[0]}
                 onChange={(e) => {
                     const newDate = e.target.value;
                     setDate(newDate);
@@ -52,7 +54,8 @@ export function FilterSelector({
                 }}
                 />
             </Form.Group>
-            <Form.Group controlId="filterStartDate">
+            <Form.Group controlId="filterStartDate"
+                className="mb-3">
                 <Form.Label>Start Date</Form.Label>
                 <Form.Control
                     type="date"
@@ -64,6 +67,45 @@ export function FilterSelector({
                     }}
                 />
             </Form.Group>
+            <Button
+                variant='secondary'
+                className='me-2 mb-2'
+                onClick={() =>{
+                    const today = new Date().toISOString().split('T')[0];
+                    updateFilter({ dueDate: today, startDate: today});
+                    setDate(today);
+                    setStartDate(today);
+                }}
+                >
+                aujourd'hui
+            </Button>
+
+            <Button
+                variant='secondary'
+                className='me-2 mb-2'
+                onClick={() =>{
+                    const today = new Date().toISOString().split('T')[0];
+                    const nextWeek = new Date();
+                    nextWeek.setDate(nextWeek.getDate() + 7);
+                    const nextWeekStr = nextWeek.toISOString().split('T')[0];
+                    updateFilter({ dueDate: nextWeekStr, startDate: today });
+                    setDate(nextWeekStr);
+                    setStartDate(today);
+                }}
+            >
+                cette semaine
+            </Button>
+            <Button
+                variant="primary"
+                className='me-2 mb-2'
+                onClick={() => {
+                    updateFilter({ dueDate: null, startDate: null });
+                    setDate('');
+                    setStartDate('');
+                }}
+            >
+                Effacer
+            </Button>
         </Form>
     );
-}
+};

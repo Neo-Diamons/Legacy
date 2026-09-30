@@ -10,6 +10,7 @@ import { TaskRow } from '../components/TaskRow';
 import { useAppData } from '../context/appDataContext';
 import type { Task, TaskPriority, FilterParams } from '../types';
 import { toDateInputValue } from '../services/items';
+import { FilterSelector } from '../components/FilterSelector';
 
 export function ProjectsPage({
   selectedProjectId,
@@ -97,7 +98,13 @@ function ProjectDetail({ projectId, onBack }: { projectId: string; onBack: () =>
   const [editPriority, setEditPriority] = useState<TaskPriority>('medium');
   const [editDueDate, setEditDueDate] = useState('');
   const [editDescription, setEditDescription] = useState('');
-  const [TaskFilter, setTaskFilter] = useState<Task[] | null>(projectTasks);
+  const [filterParams, setFilterParams] = useState<FilterParams>({
+    projectId: projectId,
+    priority: null,
+    dueDate: null,
+    startDate: null
+  });
+  const [showFilter, setShowFilter] = useState(false);
 
   const [sortBy, setSortBy] = useState<'priority' | 'dueDate'>('priority');
 
@@ -111,6 +118,16 @@ function ProjectDetail({ projectId, onBack }: { projectId: string; onBack: () =>
     if (b.dueDate === null) return -1;
 
     return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+  });
+
+  const filteredTasks = projectTasks.filter((task) => {
+    if (filterParams.priority && task.priority !== filterParams.priority) return false;
+
+    const taskDate = task.dueDate?.slice(0, 10);
+    if (filterParams.startDate && (!taskDate || taskDate < filterParams.startDate)) return false;
+    if (filterParams.dueDate && (!taskDate || taskDate > filterParams.dueDate)) return false;
+
+    return true;
   });
 
   if (!project) return null;
@@ -187,6 +204,14 @@ function ProjectDetail({ projectId, onBack }: { projectId: string; onBack: () =>
             </Button>
 
             <Button
+              variant="outline-secondary"
+              size="sm"
+              onClick={() => setShowFilter(!showFilter)}
+            >
+              Filtrer
+            </Button>
+
+            <Button
               variant="outline-danger"
               size="sm"
               onClick={handleDeleteProject}
@@ -197,8 +222,17 @@ function ProjectDetail({ projectId, onBack }: { projectId: string; onBack: () =>
         </div>
       </header>
 
+      {showFilter && (
+        <FilterSelector
+          FilterParams={filterParams}
+          onFilterChange={setFilterParams}
+        />
+      )}
+
       {projectTasks.length === 0 ? (
         <p className="empty-state">Ce projet n'a pas encore de tâche.</p>
+      ) : filteredTasks.length === 0 ? (
+        <p className="empty-state">Aucune tâche ne correspond aux filtres sélectionnés.</p>
       ) : !showKanban ? (
       <div className="widget-card">
         <div className="d-flex justify-content-end mb-3">
@@ -215,7 +249,7 @@ function ProjectDetail({ projectId, onBack }: { projectId: string; onBack: () =>
         </div>
 
         <ul className="task-list">
-          {sortedTasks.map((task) => (
+          {projectTasks.map((task) => (
             <TaskRow
               key={task.id}
               task={task}
@@ -229,7 +263,7 @@ function ProjectDetail({ projectId, onBack }: { projectId: string; onBack: () =>
       </div>
       ) : (
         <KanbanContainer
-          tasks={projectTasks}
+          tasks={filteredTasks}
           project={project}
           toggleTask={toggleTask}
           updateTaskPriority={updateTaskPriority}
