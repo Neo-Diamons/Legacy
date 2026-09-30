@@ -43,7 +43,7 @@ describe('projects list', () => {
     fireEvent.click(await screen.findByRole('button', { name: '+ Nouveau projet' }));
 
     fireEvent.change(screen.getByLabelText('Nom du projet'), {
-    target: { value: 'Mon nouveau projet' },
+      target: { value: 'Mon nouveau projet' },
     });
 
     fireEvent.click(screen.getByRole('button', { name: 'Choisir la couleur #f7a24f' }));
@@ -83,17 +83,13 @@ describe('project detail', () => {
 
     renderApp('/projects/p-1');
 
-    fireEvent.click(
-      await screen.findByRole('button', { name: 'Supprimer le projet' }),
-    );
+    fireEvent.click(await screen.findByRole('button', { name: 'Supprimer le projet' }));
 
     await waitFor(() => {
       expect(screen.queryByText('Mon projet')).not.toBeInTheDocument();
     });
 
-    expect(window.confirm).toHaveBeenCalledWith(
-      'Supprimer le projet "Mon projet" et ses 0 tâche(s) ?',
-    );
+    expect(window.confirm).toHaveBeenCalledWith('Supprimer le projet "Mon projet" et ses 0 tâche(s) ?');
   });
 });
 

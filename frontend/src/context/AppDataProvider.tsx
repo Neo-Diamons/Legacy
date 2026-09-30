@@ -164,13 +164,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
 
     if (!trimmed) return;
 
-    setProjects((prev) =>
-      prev.map((project) =>
-        project.id === projectId
-          ? { ...project, name: trimmed }
-          : project,
-      ),
-    );
+    setProjects((prev) => prev.map((project) => (project.id === projectId ? { ...project, name: trimmed } : project)));
   };
 
   const updateTaskName = (
@@ -178,7 +172,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     name: string,
     priority?: TaskPriority,
     dueDate?: string | null,
-    description?: string | null,
+    description?: string | null
   ) => {
     const task = itemsRef.current.find((item) => item.id === taskId);
     const trimmed = name.trim();
@@ -192,10 +186,8 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       priority: priority ?? task.priority,
       dueDate: dueDate === undefined ? task.dueDate : dueDate,
     })
-      .then((updated) => {
-        setItems((prev) =>
-          prev.map((item) => (item.id === updated.id ? updated : item)),
-        );
+      .then(({ item: updated }) => {
+        setItems((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
       })
       .catch(console.error);
   };

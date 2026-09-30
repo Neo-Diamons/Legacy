@@ -81,7 +81,8 @@ function ProjectDetail({ projectId, onBack }: { projectId: string; onBack: () =>
     deleteProject,
     updateProjectName,
     updateTaskName,
-  } = useAppData();  const project = projects.find((p) => p.id === projectId);
+  } = useAppData();
+  const project = projects.find((p) => p.id === projectId);
   const projectTasks = tasks.filter((t) => t.projectId === projectId);
 
   const PRIORITY_ORDER: Record<TaskPriority, number> = {
@@ -102,7 +103,7 @@ function ProjectDetail({ projectId, onBack }: { projectId: string; onBack: () =>
     projectId: projectId,
     priority: null,
     dueDate: null,
-    startDate: null
+    startDate: null,
   });
   const [showFilter, setShowFilter] = useState(false);
 
@@ -119,15 +120,15 @@ function ProjectDetail({ projectId, onBack }: { projectId: string; onBack: () =>
   });
 
   const sortedTasks = [...filteredTasks].sort((a, b) => {
-  if (sortBy === 'priority') {
-    return PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority];
-  }
+    if (sortBy === 'priority') {
+      return PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority];
+    }
 
-  if (a.dueDate === null && b.dueDate === null) return 0;
-  if (a.dueDate === null) return 1;
-  if (b.dueDate === null) return -1;
+    if (a.dueDate === null && b.dueDate === null) return 0;
+    if (a.dueDate === null) return 1;
+    if (b.dueDate === null) return -1;
 
-  return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+    return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
   });
 
   if (!project) return null;
@@ -203,64 +204,51 @@ function ProjectDetail({ projectId, onBack }: { projectId: string; onBack: () =>
               Modifier le projet
             </Button>
 
-            <Button
-              variant="outline-secondary"
-              size="sm"
-              onClick={() => setShowFilter(!showFilter)}
-            >
+            <Button variant="outline-secondary" size="sm" onClick={() => setShowFilter(!showFilter)}>
               Filtrer
             </Button>
 
-            <Button
-              variant="outline-danger"
-              size="sm"
-              onClick={handleDeleteProject}
-            >
+            <Button variant="outline-danger" size="sm" onClick={handleDeleteProject}>
               Supprimer le projet
             </Button>
           </div>
         </div>
       </header>
 
-      {showFilter && (
-        <FilterSelector
-          FilterParams={filterParams}
-          onFilterChange={setFilterParams}
-        />
-      )}
+      {showFilter && <FilterSelector FilterParams={filterParams} onFilterChange={setFilterParams} />}
 
       {projectTasks.length === 0 ? (
         <p className="empty-state">Ce projet n'a pas encore de tâche.</p>
       ) : filteredTasks.length === 0 ? (
         <p className="empty-state">Aucune tâche ne correspond aux filtres sélectionnés.</p>
       ) : !showKanban ? (
-      <div className="widget-card">
-        <div className="d-flex justify-content-end mb-3">
-          <Form.Select
-            size="sm"
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as 'priority' | 'dueDate')}
-            style={{ width: '200px' }}
-            aria-label="Trier les tâches"
-          >
-            <option value="priority">Trier par priorité</option>
-            <option value="dueDate">Trier par échéance</option>
-          </Form.Select>
-        </div>
+        <div className="widget-card">
+          <div className="d-flex justify-content-end mb-3">
+            <Form.Select
+              size="sm"
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as 'priority' | 'dueDate')}
+              style={{ width: '200px' }}
+              aria-label="Trier les tâches"
+            >
+              <option value="priority">Trier par priorité</option>
+              <option value="dueDate">Trier par échéance</option>
+            </Form.Select>
+          </div>
 
-        <ul className="task-list">
-          {sortedTasks.map((task) => (
-            <TaskRow
-              key={task.id}
-              task={task}
-              onToggle={toggleTask}
-              onMove={updateTaskPriority}
-              onDelete={deleteTask}
-              onEdit={handleEditTask}
-            />
-          ))}
-        </ul>
-      </div>
+          <ul className="task-list">
+            {sortedTasks.map((task) => (
+              <TaskRow
+                key={task.id}
+                task={task}
+                onToggle={toggleTask}
+                onMove={updateTaskPriority}
+                onDelete={deleteTask}
+                onEdit={handleEditTask}
+              />
+            ))}
+          </ul>
+        </div>
       ) : (
         <KanbanContainer
           tasks={filteredTasks}
@@ -288,46 +276,29 @@ function ProjectDetail({ projectId, onBack }: { projectId: string; onBack: () =>
           <Modal.Body>
             <Form.Group controlId="edit-project-name">
               <Form.Label>Nom du projet</Form.Label>
-              <Form.Control
-                type="text"
-                value={editName}
-                onChange={(e) => setEditName(e.target.value)}
-              />
+              <Form.Control type="text" value={editName} onChange={(e) => setEditName(e.target.value)} />
             </Form.Group>
           </Modal.Body>
 
           <Modal.Footer>
-            <Button
-              variant="outline-secondary"
-              onClick={() => setShowEdit(false)}
-                  >
-                    Annuler
-                  </Button>
+            <Button variant="outline-secondary" onClick={() => setShowEdit(false)}>
+              Annuler
+            </Button>
 
-                  <Button type="submit" variant="success">
-                    Enregistrer
-                  </Button>
-                </Modal.Footer>
-              </Form>
-            </Modal>
-            <Modal
-        show={editingTaskId !== null}
-        onHide={() => setEditingTaskId(null)}
-        centered
-      >
+            <Button type="submit" variant="success">
+              Enregistrer
+            </Button>
+          </Modal.Footer>
+        </Form>
+      </Modal>
+      <Modal show={editingTaskId !== null} onHide={() => setEditingTaskId(null)} centered>
         <Form
           onSubmit={(e) => {
             e.preventDefault();
 
             if (!editingTaskId || !editName.trim()) return;
 
-            updateTaskName(
-              editingTaskId,
-              editName,
-              editPriority,
-              editDueDate || null,
-              editDescription || null,
-            );
+            updateTaskName(editingTaskId, editName, editPriority, editDueDate || null, editDescription || null);
             setEditingTaskId(null);
           }}
         >
@@ -340,12 +311,7 @@ function ProjectDetail({ projectId, onBack }: { projectId: string; onBack: () =>
           <Modal.Body>
             <Form.Group controlId="edit-task-name">
               <Form.Label>Nom</Form.Label>
-              <Form.Control
-                autoFocus
-                type="text"
-                value={editName}
-                onChange={(e) => setEditName(e.target.value)}
-              />
+              <Form.Control autoFocus type="text" value={editName} onChange={(e) => setEditName(e.target.value)} />
             </Form.Group>
             <Form.Group controlId="edit-task-description" className="mt-3">
               <Form.Label>Note</Form.Label>
@@ -358,10 +324,7 @@ function ProjectDetail({ projectId, onBack }: { projectId: string; onBack: () =>
             </Form.Group>
             <Form.Group controlId="edit-task-priority" className="mt-3">
               <Form.Label>Priorité</Form.Label>
-              <Form.Select
-                value={editPriority}
-                onChange={(e) => setEditPriority(e.target.value as TaskPriority)}
-              >
+              <Form.Select value={editPriority} onChange={(e) => setEditPriority(e.target.value as TaskPriority)}>
                 <option value="low">Basse</option>
                 <option value="medium">Moyenne</option>
                 <option value="high">Haute</option>
@@ -379,10 +342,7 @@ function ProjectDetail({ projectId, onBack }: { projectId: string; onBack: () =>
           </Modal.Body>
 
           <Modal.Footer>
-            <Button
-              variant="outline-secondary"
-              onClick={() => setEditingTaskId(null)}
-            >
+            <Button variant="outline-secondary" onClick={() => setEditingTaskId(null)}>
               Annuler
             </Button>
 

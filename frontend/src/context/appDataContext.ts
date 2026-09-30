@@ -9,6 +9,7 @@ export interface NewProjectInput {
 
 export interface NewTaskInput {
   name: string;
+  description: string;
   projectId: string;
   priority: TaskPriority;
   dueDate: string | null;
@@ -29,7 +30,7 @@ export interface AppDataContextValue {
     name: string,
     priority?: TaskPriority,
     dueDate?: string | null,
-    description?: string | null,
+    description?: string | null
   ) => void;
   toggleTask: (taskId: string) => void;
   updateTaskPriority: (taskId: string, priority: TaskPriority) => void;

@@ -29,7 +29,12 @@ describe('creating a task', () => {
 
     const [post] = callsWith(api, 'POST');
     expect(post![0]).toBe('/items');
-    expect(bodyOf(post!)).toEqual({ name: 'Write tests', description: null, priority: 'urgent', dueDate: '2026-05-01T13:30:00.000Z', });
+    expect(bodyOf(post!)).toEqual({
+      name: 'Write tests',
+      description: null,
+      priority: 'urgent',
+      dueDate: '2026-05-01T13:30:00.000Z',
+    });
 
     expect(await screen.findByText('Write tests')).toBeInTheDocument();
     expect(screen.queryByText("Ce projet n'a pas encore de tâche.")).not.toBeInTheDocument();
@@ -46,7 +51,12 @@ describe('creating a task', () => {
     fireEvent.change(screen.getByLabelText('Nom'), { target: { value: 'Quick one' } });
     fireEvent.click(submitButton());
 
-    expect(bodyOf(callsWith(api, 'POST')[0]!)).toEqual({ name: 'Quick one', description: null, priority: 'medium', dueDate: null, });
+    expect(bodyOf(callsWith(api, 'POST')[0]!)).toEqual({
+      name: 'Quick one',
+      description: null,
+      priority: 'medium',
+      dueDate: null,
+    });
   });
 
   test.each([[''], ['   ']])('cannot submit a blank name (%j)', async (name) => {

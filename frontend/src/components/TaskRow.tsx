@@ -24,10 +24,7 @@ export function TaskRow({
 }) {
   const [now] = useState(() => Date.now());
 
-  const isOverdue =
-    !task.completed &&
-    task.dueDate !== null &&
-    new Date(task.dueDate).getTime() < now;
+  const isOverdue = !task.completed && task.dueDate !== null && new Date(task.dueDate).getTime() < now;
 
   return (
     <li
