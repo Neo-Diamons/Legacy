@@ -96,7 +96,7 @@ const sqliteItemService: ItemService = {
     const item = sqlite.db
       .select()
       .from(sqliteItems)
-      .where(eq(sqliteItems.id, id))
+      .where(and(eq(sqliteItems.id, id), eq(sqliteItems.userId, userId)))
       .get();
     return item;
   },
