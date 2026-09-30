@@ -1,4 +1,5 @@
 import { Badge, Button, Form } from 'react-bootstrap';
+import type { DragEvent } from 'react';
 
 import type { Project, Task } from '../types';
 import { formatShortDate, PRIORITY_LABELS } from '../utils/format';
@@ -7,15 +8,17 @@ export function TaskRow({
   task,
   project,
   onToggle,
+  onDragStart,
   onDelete,
 }: {
   task: Task;
   project?: Project;
   onToggle: (taskId: string) => void;
+  onDragStart?: (event: DragEvent<HTMLDivElement>) => void;
   onDelete?: (taskId: string) => void;
 }) {
   return (
-    <div className="task-row">
+    <div className="task-row" draggable={Boolean(onDragStart)} onDragStart={onDragStart}>
       <Form.Check
         type="checkbox"
         checked={task.completed}
