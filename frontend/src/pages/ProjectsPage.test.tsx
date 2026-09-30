@@ -175,6 +175,36 @@ describe('deleting a task', () => {
   });
 });
 
+describe('kanban view', () => {
+  test('dragging a task to another column updates its priority', async () => {
+    const api = stubApi([item('1', 'Move me')], (url, init) =>
+      init?.method === 'PUT' ? jsonResponse(item('1', 'Move me', { priority: 'high' })) : undefined
+    );
+    renderApp('/projects/p-1');
+    await screen.findByText('Move me');
+    fireEvent.click(screen.getByRole('button', { name: /kanban/i }));
+
+    const dataTransfer = {
+      data: '',
+      setData(_format: string, value: string) {
+        this.data = value;
+      },
+      getData() {
+        return this.data;
+      },
+    };
+    const highColumn = screen.getByText('High').closest('.kanban-column-body') as HTMLElement;
+
+    fireEvent.dragStart(rowOf('Move me'), { dataTransfer });
+    fireEvent.drop(highColumn, { dataTransfer });
+
+    expect(await within(highColumn).findByText('Move me')).toBeInTheDocument();
+    const [call] = callsWith(api, 'PUT');
+    expect(call![0]).toBe('/items/1');
+    expect(bodyOf(call!)).toMatchObject({ name: 'Move me', priority: 'high' });
+  });
+});
+
 describe('projects list without any project', () => {
   test('explains there is nothing yet and offers to create one', async () => {
     stubApi([]);
