@@ -8,7 +8,7 @@ import { KanbanContainer } from '../components/KanbanContainer';
 import { ProjectCard } from '../components/ProjectCard';
 import { TaskRow } from '../components/TaskRow';
 import { useAppData } from '../context/appDataContext';
-import type { TaskPriority } from '../types';
+import type { Task, TaskPriority, FilterParams } from '../types';
 import { toDateInputValue } from '../services/items';
 
 export function ProjectsPage({
@@ -90,6 +90,7 @@ function ProjectDetail({ projectId, onBack }: { projectId: string; onBack: () =>
   const [editPriority, setEditPriority] = useState<TaskPriority>('medium');
   const [editDueDate, setEditDueDate] = useState('');
   const [editDescription, setEditDescription] = useState('');
+  const [TaskFilter, setTaskFilter] = useState<Task[] | null>(projectTasks);
 
   if (!project) return null;
 
