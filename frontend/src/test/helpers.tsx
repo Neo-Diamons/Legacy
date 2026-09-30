@@ -20,9 +20,12 @@ export const item = (id: string, name: string, overrides: Partial<ItemResponse> 
 });
 
 export class MockWebSocket {
+  static readonly CONNECTING = 0;
+  static readonly OPEN = 1;
   static instances: MockWebSocket[] = [];
   listeners: Record<string, ((event: { data: string }) => void)[]> = {};
   closed = false;
+  readyState = MockWebSocket.OPEN;
   url: string;
 
   constructor(url: string) {

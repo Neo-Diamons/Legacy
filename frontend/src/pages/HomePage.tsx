@@ -84,17 +84,18 @@ export function HomePage({ onSelectProject }: { onSelectProject: (projectId: str
               </p>
             )}
 
-            <div className="project-grid">
+            <ul className="project-grid list-unstyled mb-0">
               {!loading &&
                 projects.map((project) => (
-                  <ProjectCard
-                    key={project.id}
-                    project={project}
-                    stats={projectStats(project.id)}
-                    onClick={() => onSelectProject(project.id)}
-                  />
+                  <li key={project.id}>
+                    <ProjectCard
+                      project={project}
+                      stats={projectStats(project.id)}
+                      onClick={() => onSelectProject(project.id)}
+                    />
+                  </li>
                 ))}
-            </div>
+            </ul>
           </section>
         </Col>
       </Row>

@@ -16,10 +16,30 @@ describe('ProjectCard', () => {
     expect(screen.getByRole('button')).toHaveClass('project-card-clickable');
   });
 
+  test.each(['Enter', ' '])('activates on the "%s" key', (key) => {
+    const onClick = vi.fn();
+    render(<ProjectCard project={project} stats={{ taskCount: 0, completedTaskCount: 0 }} onClick={onClick} />);
+
+    const card = screen.getByRole('button', { name: /Website/ });
+    expect(card).toHaveAttribute('tabindex', '0');
+    fireEvent.keyDown(card, { key });
+    expect(onClick).toHaveBeenCalledOnce();
+  });
+
+  test('ignores other keys and keys pressed on inner elements', () => {
+    const onClick = vi.fn();
+    render(<ProjectCard project={project} stats={{ taskCount: 0, completedTaskCount: 0 }} onClick={onClick} />);
+
+    fireEvent.keyDown(screen.getByRole('button', { name: /Website/ }), { key: 'a' });
+    fireEvent.keyDown(screen.getByText('Website'), { key: 'Enter' });
+    expect(onClick).not.toHaveBeenCalled();
+  });
+
   test('is inert, not a fake button, without a handler', () => {
     render(<ProjectCard project={project} stats={{ taskCount: 0, completedTaskCount: 0 }} />);
 
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
+    expect(document.querySelector('.project-card')).not.toHaveAttribute('tabindex');
     expect(screen.getByText('Website').closest('.project-card')).not.toHaveClass('project-card-clickable');
   });
 

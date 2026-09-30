@@ -1,7 +1,7 @@
 import { describe, expect, test, vi } from 'vitest';
 
 import { createItem, deleteItem, fetchItems, openItemSocket, updateItem } from './items';
-import { errorResponse, item, jsonResponse, latestSocket, stubFetch } from '../test/helpers';
+import { errorResponse, item, jsonResponse, latestSocket, MockWebSocket, stubFetch } from '../test/helpers';
 
 describe('items service', () => {
   describe('fetchItems', () => {
@@ -114,6 +114,16 @@ describe('items service', () => {
       const dispose = openItemSocket(() => undefined);
       expect(latestSocket().closed).toBe(false);
       dispose();
+      expect(latestSocket().closed).toBe(true);
+    });
+
+    test('the disposer waits for the socket to open when it is still connecting', () => {
+      const dispose = openItemSocket(() => undefined);
+      latestSocket().readyState = MockWebSocket.CONNECTING;
+      dispose();
+      expect(latestSocket().closed).toBe(false);
+
+      latestSocket().emit('open', undefined);
       expect(latestSocket().closed).toBe(true);
     });
   });
