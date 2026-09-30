@@ -1,0 +1,24 @@
+# Node dependencies
+node_modules/
+
+# Database
+data/
+*.db
+*.db-journal
+
+# Test coverage
+coverage/
+
+# Build output
+dist/
+dist-ssr/
+*.tsbuildinfo
+
+.env
+.env.test
+.env.local
+*.local
+
+# Local docker secrets
+secrets/*
+!secrets/*.example

@@ -1,0 +1,50 @@
+services:
+  asqatasun-db:
+    image: mariadb:10.6
+    environment:
+      MYSQL_RANDOM_ROOT_PASSWORD: "yes"
+      MYSQL_USER: asqatasunDatabaseUserLogin
+      MYSQL_PASSWORD: asqatasunDatabaseUserP4ssword
+      MYSQL_DATABASE: asqatasun
+      MYSQL_TCP_PORT: 3306
+    ports:
+      - "0.0.0.0:3307:3306"
+
+  asqatasun-server:
+    image: asqatasun/asqatasun-server:6.0.0-beta.1
+    depends_on:
+      - asqatasun-db
+    environment:
+      JDBC_USER: asqatasunDatabaseUserLogin
+      JDBC_PASSWORD: asqatasunDatabaseUserP4ssword
+      SELENIUM_HUB_URL: "http://asqatasun-selenium:4444"
+      JDBC_URL: "jdbc:mariadb://asqatasun-db:3306/asqatasun"
+      ASQA_SERVER_PORT: 8081
+    ports:
+      - "0.0.0.0:8081:8081"
+
+  asqatasun-webapp:
+    image: asqatasun/asqatasun-webapp:6.0.0-beta.1
+    depends_on:
+      - asqatasun-db
+    environment:
+      JDBC_USER: asqatasunDatabaseUserLogin
+      JDBC_PASSWORD: asqatasunDatabaseUserP4ssword
+      SELENIUM_HUB_URL: "http://asqatasun-selenium:4444"
+      JDBC_URL: "jdbc:mariadb://asqatasun-db:3306/asqatasun"
+      ASQA_WEBAPP_PORT: 8080
+    ports:
+      - "0.0.0.0:8080:8080"
+
+  asqatasun-selenium:
+    image: selenium/standalone-firefox:4.18.1
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "7900:7900"
+
+  asqatasun-mailhog:
+    image: mailhog/mailhog
+    ports:
+      - "127.0.0.1:1025:1025"
+      - "0.0.0.0:8025:8025"

@@ -1,0 +1,27 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "NodeNext",
+    "strict": true,
+    "verbatimModuleSyntax": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "types": ["node", "vitest/globals"],
+    "paths": {
+      "@db": ["./src/db/index.ts"],
+      "@db/*": ["./src/db/*"],
+      "@http/*": ["./src/http/*"],
+      "@model/*": ["./src/model/*"],
+      "@schemas/*": ["./src/schemas/*"],
+      "@service/*": ["./src/service/*"],
+      "@controller/*": ["./src/controller/*"],
+      "@utils/*": ["./src/utils/*"],
+      "@ws/*": ["./src/ws/*"],
+      "@observability/*": ["./src/observability/*"]
+    }
+  },
+  "include": ["**/*.ts"],
+  "exclude": ["node_modules"]
+}

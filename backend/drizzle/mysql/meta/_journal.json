@@ -1,0 +1,104 @@
+{
+  "version": "7",
+  "dialect": "mysql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "5",
+      "when": 1788965340114,
+      "tag": "0000_smiling_human_cannonball",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "5",
+      "when": 1789731904130,
+      "tag": "0001_jazzy_chimera",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1789735939863,
+      "tag": "0002_nifty_firebrand",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "5",
+      "when": 1789736293109,
+      "tag": "0003_greedy_callisto",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "5",
+      "when": 1790591829037,
+      "tag": "0004_strange_edwin_jarvis",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "5",
+      "when": 1790593305816,
+      "tag": "0005_solid_vin_gonzales",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "5",
+      "when": 1790595000000,
+      "tag": "0006_assign_initial_data",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "5",
+      "when": 1790596000000,
+      "tag": "0007_assign_unowned_tasks",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "5",
+      "when": 1790597000000,
+      "tag": "0008_reassign_legacy_data",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "5",
+      "when": 1790598000000,
+      "tag": "0009_restore_legacy_data",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "5",
+      "when": 1790630120273,
+      "tag": "0010_blue_ink",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "5",
+      "when": 1790761755820,
+      "tag": "0011_require_item_owner_and_project",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "5",
+      "when": 1790773054299,
+      "tag": "0012_striped_leader",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "5",
+      "when": 1790789694885,
+      "tag": "0013_privacy_consent",
+      "breakpoints": true
+    }
+  ]
+}

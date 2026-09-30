@@ -1,0 +1,92 @@
+name: RGAA Audit
+
+permissions:
+  contents: read
+
+on:
+  pull_request:
+    paths:
+      - 'frontend/**'
+      - 'backend/**'
+      - 'compose.yml'
+      - 'scripts/rgaa-audit.sh'
+      - 'compose.asqatasun.yaml'
+      - '.github/workflows/rgaa-audit.yml'
+  workflow_dispatch:
+    inputs:
+      urls:
+        description: 'Comma-separated public URLs (default: signed-in scenario on the local app)'
+        required: false
+      level:
+        description: 'A | AA | AAA'
+        required: false
+        default: 'AA'
+      min_mark:
+        description: 'Minimum mark /100'
+        required: false
+        default: '0'
+      max_failed:
+        description: 'Maximum failed criteria'
+        required: false
+        default: '0'
+
+concurrency:
+  group: rgaa-audit-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  rgaa:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Create compose secrets
+        run: |
+          mkdir -p secrets
+          echo legacy > secrets/mysql_user.txt
+          openssl rand -hex 16 > secrets/mysql_password.txt
+          openssl rand -hex 32 > secrets/jwt_secret.txt
+
+      - name: Run RGAA audit
+        env:
+          RGAA_MIN_MARK: ${{ inputs.min_mark || '0' }}
+          RGAA_MAX_FAILED: ${{ inputs.max_failed || '0' }}
+          AUDIT_URLS: ${{ inputs.urls }}
+          AUDIT_LEVEL: ${{ inputs.level || 'AA' }}
+        run: |
+          set -o pipefail
+          scripts/rgaa-audit.sh "$AUDIT_URLS" RGAA_4_0 "$AUDIT_LEVEL" | tee rgaa-report.txt
+
+      - name: Summary
+        if: '!cancelled()'
+        run: |
+          summary="${GITHUB_STEPS_SUMMARY:-/dev/stdout}"
+          {
+            echo '### RGAA audit'
+            echo '```'
+            if [ -f rgaa-report.txt ]; then
+              sed -n '/==> Result/,$p' rgaa-report.txt
+            else
+              echo 'No report produced (the audit step failed before writing one).'
+            fi
+            echo '```'
+            echo 'Automated checks only. Manual review criteria still needed.'
+          } >> "$summary"
+
+      - name: Dump logs on failure
+        if: failure()
+        run: |
+          docker compose -p asqatasun -f compose.asqatasun.yaml logs --tail=100 || true
+          docker compose logs --tail=100 || true
+
+      - name: Upload report
+        if: '!cancelled()'
+        uses: actions/upload-artifact@v7
+        with:
+          name: rgaa-report
+          path: rgaa-report.txt
+          if-no-files-found: ignore

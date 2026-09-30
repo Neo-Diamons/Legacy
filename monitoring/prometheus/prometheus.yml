@@ -1,0 +1,23 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  # Prometheus monitors itself
+  - job_name: "prometheus"
+    static_configs:
+      - targets: ["localhost:9090"]
+
+  # Container metrics from cAdvisor
+  - job_name: "cadvisor"
+    static_configs:
+      - targets: ["cadvisor:8080"]
+
+  # Backend metrics (GET /metrics)
+  - job_name: "legacy-backend"
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["backend:3000"]
+    # If METRICS_TOKEN is set on the backend, add:
+    # authorization:
+    #   credentials_file: /run/secrets/metrics_token

@@ -1,0 +1,1 @@
+ALTER TABLE `todo_items` ADD `created_at` integer DEFAULT 0 NOT NULL;
