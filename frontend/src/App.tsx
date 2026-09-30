@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { Container, Nav } from 'react-bootstrap';
 import { Link, Navigate, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom';
 
+import { PublicLayout } from './components/PublicLayout';
 import { UserMenu } from './components/UserMenu';
 import { NotificationContainer } from './components/NotificationContainer';
 import { AppDataProvider } from './context/AppDataProvider';
@@ -41,9 +42,11 @@ function AuthenticatedApp() {
         <Route
           path="/privacy"
           element={
-            <Container>
-              <PrivacyPage />
-            </Container>
+            <PublicLayout>
+              <Container>
+                <PrivacyPage />
+              </Container>
+            </PublicLayout>
           }
         />
         <Route path="*" element={<LoginPage />} />
