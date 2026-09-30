@@ -41,6 +41,7 @@ async function issueToken(user: User) {
       sub: user.id,
       email: user.email,
       mustChangePassword: user.mustChangePassword,
+      tv: user.tokenVersion,
       exp: Math.floor(Date.now() / 1000) + 60 * 60,
     },
     getJwtSecret()
@@ -68,6 +69,7 @@ authController.openapi(register, async (c) => {
     name: body.name,
     passwordHash: await hashPassword(body.password),
     mustChangePassword: false,
+    tokenVersion: 0,
     createdAt: new Date(),
   };
   await userService.createUser(user);

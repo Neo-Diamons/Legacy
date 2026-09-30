@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm';
-import { boolean, datetime, mysqlTable, varchar, text } from 'drizzle-orm/mysql-core';
+import { boolean, datetime, int, mysqlTable, varchar, text } from 'drizzle-orm/mysql-core';
 
 export const users = mysqlTable('users', {
   id: varchar('id', { length: 36 }).primaryKey(),
@@ -7,6 +7,7 @@ export const users = mysqlTable('users', {
   name: varchar('name', { length: 255 }).notNull(),
   passwordHash: text('password_hash').notNull(),
   mustChangePassword: boolean('must_change_password').notNull().default(false),
+  tokenVersion: int('token_version').notNull().default(0),
   createdAt: datetime('created_at', { mode: 'date' })
     .notNull()
     .default(sql`CURRENT_TIMESTAMP`),

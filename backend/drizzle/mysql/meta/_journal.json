@@ -85,6 +85,13 @@
       "when": 1790761755820,
       "tag": "0011_require_item_owner_and_project",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "5",
+      "when": 1790773054299,
+      "tag": "0012_striped_leader",
+      "breakpoints": true
     }
   ]
 }

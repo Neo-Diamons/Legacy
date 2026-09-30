@@ -5,7 +5,6 @@ type JwtPayload = { sub?: string };
 
 export function getAuthenticatedUserId(c: Context): string {
   const subject = (c.get('jwtPayload') as JwtPayload | undefined)?.sub;
-  if (!subject && process.env.NODE_ENV === 'test') return '00000000-0000-4000-8000-000000000000';
   if (!subject) throw new HTTPException(401, { message: 'Authentication required' });
   return subject;
 }

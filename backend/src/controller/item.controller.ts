@@ -22,7 +22,12 @@ export const itemController = createRouter();
 
 function serializeItem(item: Item): ItemResponse {
   return {
-    ...item,
+    id: item.id,
+    name: item.name,
+    description: item.description,
+    completed: item.completed,
+    priority: item.priority,
+    projectId: item.projectId,
     dueDate: item.dueDate ? item.dueDate.toISOString() : null,
     overdue: !!item.dueDate && !item.completed && item.dueDate.getTime() < Date.now(),
     createdAt: item.createdAt.toISOString(),

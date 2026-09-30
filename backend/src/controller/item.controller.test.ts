@@ -13,15 +13,25 @@ const { persistence, uuid } = vi.hoisted(() => ({
 }));
 
 vi.mock('@service/item.service.js', () => ({ itemService: persistence }));
+vi.mock('@service/user.service.js', () => ({ userService: {} }));
+vi.mock('@service/project.service.js', () => ({
+  projectService: { getProject: vi.fn(async (id: string) => ({ id })) },
+}));
 
 const { itemController } = await import('@controller/item.controller.js');
 const { createRouter, registerErrorHandler } = await import('@http/app.js');
 const db = persistence;
 
 const app = createRouter();
+app.use('*', async (c, next) => {
+  c.set('jwtPayload', { sub: '00000000-0000-4000-8000-000000000000' });
+  await next();
+});
 app.route('/items', itemController);
 registerErrorHandler(app);
 
+const USER = '00000000-0000-4000-8000-000000000000';
+const PROJECT = '55555555-5555-4555-8555-555555555555';
 const ID = '3fa85f64-5717-4562-b3fc-2c963f66afa6';
 const ID2 = '11111111-1111-4111-8111-111111111111';
 const ID3 = '22222222-2222-4222-8222-222222222222';
@@ -62,6 +72,7 @@ describe('GET /items', () => {
       priority: 'medium',
       description: null,
       dueDate: null,
+      projectId: PROJECT,
       createdAt: FIXED_CREATED_AT_DATE,
     },
   ];
@@ -93,6 +104,7 @@ describe('GET /items', () => {
         priority: 'low',
         description: null,
         dueDate: null,
+        projectId: PROJECT,
         createdAt: FIXED_CREATED_AT_DATE,
       },
       {
@@ -102,6 +114,7 @@ describe('GET /items', () => {
         priority: 'high',
         description: null,
         dueDate: null,
+        projectId: PROJECT,
         createdAt: FIXED_CREATED_AT_DATE,
       },
       {
@@ -111,6 +124,7 @@ describe('GET /items', () => {
         priority: 'urgent',
         description: null,
         dueDate: null,
+        projectId: PROJECT,
         createdAt: FIXED_CREATED_AT_DATE,
       },
     ];
@@ -134,6 +148,7 @@ describe('GET /items', () => {
         priority: 'medium',
         description: null,
         dueDate: null,
+        projectId: PROJECT,
         createdAt: FIXED_CREATED_AT_DATE,
       },
     ];
@@ -156,6 +171,7 @@ describe('GET /items', () => {
         priority: 'medium',
         description: null,
         dueDate: null,
+        projectId: PROJECT,
         createdAt: FIXED_CREATED_AT_DATE,
       },
       {
@@ -165,6 +181,7 @@ describe('GET /items', () => {
         priority: 'medium',
         description: null,
         dueDate: null,
+        projectId: PROJECT,
         createdAt: FIXED_CREATED_AT_DATE,
       },
     ];
@@ -187,6 +204,7 @@ describe('GET /items', () => {
         priority: 'medium',
         description: null,
         dueDate: new Date('2020-01-01T00:00:00.000Z'),
+        projectId: PROJECT,
         createdAt: FIXED_CREATED_AT_DATE,
       },
     ];
@@ -203,6 +221,7 @@ describe('GET /items', () => {
         priority: 'medium',
         description: null,
         dueDate: '2020-01-01T00:00:00.000Z',
+        projectId: PROJECT,
         createdAt: FIXED_CREATED_AT,
         overdue: true,
       },
@@ -218,6 +237,7 @@ describe('GET /items', () => {
         priority: 'medium',
         description: null,
         dueDate: new Date('2020-01-01T00:00:00.000Z'),
+        projectId: PROJECT,
         createdAt: FIXED_CREATED_AT_DATE,
       },
     ];
@@ -234,6 +254,7 @@ describe('GET /items', () => {
         priority: 'medium',
         description: null,
         dueDate: '2020-01-01T00:00:00.000Z',
+        projectId: PROJECT,
         createdAt: FIXED_CREATED_AT,
         overdue: false,
       },
@@ -245,7 +266,7 @@ describe('GET /items', () => {
 
     await get('?sortBy=dueDate&sortOrder=asc&priority=high&filter=today');
 
-    expect(db.getItems).toHaveBeenCalledWith({
+    expect(db.getItems).toHaveBeenCalledWith(USER, {
       sortBy: 'dueDate',
       sortOrder: 'asc',
       priority: 'high',
@@ -269,6 +290,7 @@ describe('GET /items', () => {
         priority: 'medium',
         description: null,
         dueDate: null,
+        projectId: PROJECT,
         createdAt: FIXED_CREATED_AT_DATE,
       },
       {
@@ -278,6 +300,7 @@ describe('GET /items', () => {
         priority: 'low',
         description: null,
         dueDate: null,
+        projectId: PROJECT,
         createdAt: FIXED_CREATED_AT_DATE,
       },
     ]);
@@ -305,7 +328,7 @@ describe('POST /items', () => {
 
     uuid.mockReturnValue(id);
 
-    const res = await post({ name });
+    const res = await post({ projectId: PROJECT, name });
 
     const expectedItem = {
       id,
@@ -314,11 +337,12 @@ describe('POST /items', () => {
       priority: 'medium',
       description: null,
       dueDate: null,
+      projectId: PROJECT,
       createdAt: FIXED_CREATED_AT_DATE,
     };
 
     expect(db.storeItem).toHaveBeenCalledTimes(1);
-    expect(db.storeItem).toHaveBeenCalledWith(expectedItem);
+    expect(db.storeItem).toHaveBeenCalledWith({ ...expectedItem, userId: USER });
     expect(res.status).toBe(201);
     expect(await res.json()).toEqual({ ...expectedItem, createdAt: FIXED_CREATED_AT, overdue: false });
   });
@@ -328,15 +352,17 @@ describe('POST /items', () => {
 
     uuid.mockReturnValue(id);
 
-    const res = await post({ name: '' });
+    const res = await post({ projectId: PROJECT, name: '' });
 
     expect(db.storeItem).toHaveBeenCalledWith({
+      userId: USER,
       id,
       name: '',
       completed: false,
       priority: 'medium',
       description: null,
       dueDate: null,
+      projectId: PROJECT,
       createdAt: FIXED_CREATED_AT_DATE,
     });
 
@@ -347,6 +373,7 @@ describe('POST /items', () => {
       priority: 'medium',
       description: null,
       dueDate: null,
+      projectId: PROJECT,
       createdAt: FIXED_CREATED_AT,
       overdue: false,
     });
@@ -358,15 +385,17 @@ describe('POST /items', () => {
 
     uuid.mockReturnValue(id);
 
-    await post({ name });
+    await post({ projectId: PROJECT, name });
 
     expect(db.storeItem).toHaveBeenCalledWith({
+      userId: USER,
       id,
       name,
       completed: false,
       priority: 'medium',
       description: null,
       dueDate: null,
+      projectId: PROJECT,
       createdAt: FIXED_CREATED_AT_DATE,
     });
   });
@@ -377,15 +406,17 @@ describe('POST /items', () => {
 
     uuid.mockReturnValue(id);
 
-    await post({ name });
+    await post({ projectId: PROJECT, name });
 
     expect(db.storeItem).toHaveBeenCalledWith({
+      userId: USER,
       id,
       name,
       completed: false,
       priority: 'medium',
       description: null,
       dueDate: null,
+      projectId: PROJECT,
       createdAt: FIXED_CREATED_AT_DATE,
     });
   });
@@ -396,15 +427,17 @@ describe('POST /items', () => {
 
     uuid.mockReturnValue(id);
 
-    await post({ name });
+    await post({ projectId: PROJECT, name });
 
     expect(db.storeItem).toHaveBeenCalledWith({
+      userId: USER,
       id,
       name,
       completed: false,
       priority: 'medium',
       description: null,
       dueDate: null,
+      projectId: PROJECT,
       createdAt: FIXED_CREATED_AT_DATE,
     });
   });
@@ -414,15 +447,22 @@ describe('POST /items', () => {
 
     uuid.mockReturnValue(id);
 
-    const res = await post({ name: 'Ship release', priority: 'urgent', dueDate: '2026-09-20T15:00:00.000Z' });
+    const res = await post({
+      projectId: PROJECT,
+      name: 'Ship release',
+      priority: 'urgent',
+      dueDate: '2026-09-20T15:00:00.000Z',
+    });
 
     expect(db.storeItem).toHaveBeenCalledWith({
+      userId: USER,
       id,
       name: 'Ship release',
       completed: false,
       priority: 'urgent',
       description: null,
       dueDate: new Date('2026-09-20T15:00:00.000Z'),
+      projectId: PROJECT,
       createdAt: FIXED_CREATED_AT_DATE,
     });
 
@@ -433,6 +473,7 @@ describe('POST /items', () => {
       priority: 'urgent',
       description: null,
       dueDate: '2026-09-20T15:00:00.000Z',
+      projectId: PROJECT,
       createdAt: FIXED_CREATED_AT,
       overdue: false,
     });
@@ -443,15 +484,17 @@ describe('POST /items', () => {
 
     uuid.mockReturnValue(id);
 
-    const res = await post({ name: 'Buy milk', description: 'Whole or oat, whichever is cheaper' });
+    const res = await post({ projectId: PROJECT, name: 'Buy milk', description: 'Whole or oat, whichever is cheaper' });
 
     expect(db.storeItem).toHaveBeenCalledWith({
+      userId: USER,
       id,
       name: 'Buy milk',
       completed: false,
       priority: 'medium',
       description: 'Whole or oat, whichever is cheaper',
       dueDate: null,
+      projectId: PROJECT,
       createdAt: FIXED_CREATED_AT_DATE,
     });
 
@@ -462,13 +505,14 @@ describe('POST /items', () => {
       priority: 'medium',
       description: 'Whole or oat, whichever is cheaper',
       dueDate: null,
+      projectId: PROJECT,
       createdAt: FIXED_CREATED_AT,
       overdue: false,
     });
   });
 
   test('it rejects an invalid priority with 422', async () => {
-    const res = await post({ name: 'x', priority: 'critical' });
+    const res = await post({ projectId: PROJECT, name: 'x', priority: 'critical' });
 
     expect(res.status).toBe(422);
     expect(db.storeItem).not.toHaveBeenCalled();
@@ -477,7 +521,7 @@ describe('POST /items', () => {
   test('the response body conforms to ItemResponseSchema', async () => {
     uuid.mockReturnValue(ID);
 
-    const res = await post({ name: 'A sample item' });
+    const res = await post({ projectId: PROJECT, name: 'A sample item' });
     const body = await res.json();
 
     expect(() => ItemResponseSchema.parse(body)).not.toThrow();
@@ -496,6 +540,7 @@ describe('PUT /items/:id', () => {
         priority: update?.priority ?? 'medium',
         description: update?.description ?? null,
         dueDate: update?.dueDate ?? null,
+        projectId: PROJECT,
         createdAt: new Date(FIXED_CREATED_AT),
       };
     });
@@ -505,13 +550,17 @@ describe('PUT /items/:id', () => {
     const res = await put(ID, { name: 'New title', completed: false });
 
     expect(db.updateItem).toHaveBeenCalledTimes(1);
-    expect(db.updateItem).toHaveBeenCalledWith(ID, {
-      name: 'New title',
-      completed: false,
-      priority: 'medium',
-      description: null,
-      dueDate: null,
-    });
+    expect(db.updateItem).toHaveBeenCalledWith(
+      ID,
+      {
+        name: 'New title',
+        completed: false,
+        priority: 'medium',
+        description: null,
+        dueDate: null,
+      },
+      USER
+    );
 
     expect(await res.json()).toEqual({
       id: ID,
@@ -520,6 +569,7 @@ describe('PUT /items/:id', () => {
       priority: 'medium',
       description: null,
       dueDate: null,
+      projectId: PROJECT,
       createdAt: FIXED_CREATED_AT,
       overdue: false,
     });
@@ -535,13 +585,17 @@ describe('PUT /items/:id', () => {
   test('it updates an item with an empty name', async () => {
     const res = await put(ID, { name: '', completed: false });
 
-    expect(db.updateItem).toHaveBeenCalledWith(ID, {
-      name: '',
-      completed: false,
-      priority: 'medium',
-      description: null,
-      dueDate: null,
-    });
+    expect(db.updateItem).toHaveBeenCalledWith(
+      ID,
+      {
+        name: '',
+        completed: false,
+        priority: 'medium',
+        description: null,
+        dueDate: null,
+      },
+      USER
+    );
 
     expect(await res.json()).toEqual({
       id: ID,
@@ -550,6 +604,7 @@ describe('PUT /items/:id', () => {
       priority: 'medium',
       description: null,
       dueDate: null,
+      projectId: PROJECT,
       createdAt: FIXED_CREATED_AT,
       overdue: false,
     });
@@ -558,13 +613,17 @@ describe('PUT /items/:id', () => {
   test('it can mark an item as completed', async () => {
     await put(ID, { name: 'Finished task', completed: true });
 
-    expect(db.updateItem).toHaveBeenCalledWith(ID, {
-      name: 'Finished task',
-      completed: true,
-      priority: 'medium',
-      description: null,
-      dueDate: null,
-    });
+    expect(db.updateItem).toHaveBeenCalledWith(
+      ID,
+      {
+        name: 'Finished task',
+        completed: true,
+        priority: 'medium',
+        description: null,
+        dueDate: null,
+      },
+      USER
+    );
   });
 
   test('it updates an item with a very long name', async () => {
@@ -572,85 +631,107 @@ describe('PUT /items/:id', () => {
 
     await put(ID, { name: longName, completed: false });
 
-    expect(db.updateItem).toHaveBeenCalledWith(ID, {
-      name: longName,
-      completed: false,
-      priority: 'medium',
-      description: null,
-      dueDate: null,
-    });
+    expect(db.updateItem).toHaveBeenCalledWith(
+      ID,
+      {
+        name: longName,
+        completed: false,
+        priority: 'medium',
+        description: null,
+        dueDate: null,
+      },
+      USER
+    );
   });
 
   test('it updates an item with special characters', async () => {
     await put(ID, { name: 'Tâche @#$% éà !?', completed: false });
 
-    expect(db.updateItem).toHaveBeenCalledWith(ID, {
-      name: 'Tâche @#$% éà !?',
-      completed: false,
-      priority: 'medium',
-      description: null,
-      dueDate: null,
-    });
+    expect(db.updateItem).toHaveBeenCalledWith(
+      ID,
+      {
+        name: 'Tâche @#$% éà !?',
+        completed: false,
+        priority: 'medium',
+        description: null,
+        dueDate: null,
+      },
+      USER
+    );
   });
 
   test('it accepts any valid uuid id', async () => {
     await put(ID2, { name: 'Updated item', completed: true });
 
-    expect(db.updateItem).toHaveBeenCalledWith(ID2, {
-      name: 'Updated item',
-      completed: true,
-      priority: 'medium',
-      description: null,
-      dueDate: null,
-    });
+    expect(db.updateItem).toHaveBeenCalledWith(
+      ID2,
+      { name: 'Updated item', completed: true, priority: 'medium', description: null, dueDate: null },
+      USER
+    );
   });
 
   test('it updates an item with an explicit priority and due date', async () => {
     await put(ID, { name: 'Ship release', completed: false, priority: 'urgent', dueDate: '2026-09-20T15:00:00.000Z' });
 
-    expect(db.updateItem).toHaveBeenCalledWith(ID, {
-      name: 'Ship release',
-      completed: false,
-      priority: 'urgent',
-      description: null,
-      dueDate: new Date('2026-09-20T15:00:00.000Z'),
-    });
+    expect(db.updateItem).toHaveBeenCalledWith(
+      ID,
+      {
+        name: 'Ship release',
+        completed: false,
+        priority: 'urgent',
+        description: null,
+        dueDate: new Date('2026-09-20T15:00:00.000Z'),
+      },
+      USER
+    );
   });
 
   test('it can clear a due date by passing null', async () => {
     await put(ID, { name: 'No date', completed: false, priority: 'low', dueDate: null });
 
-    expect(db.updateItem).toHaveBeenCalledWith(ID, {
-      name: 'No date',
-      completed: false,
-      priority: 'low',
-      description: null,
-      dueDate: null,
-    });
+    expect(db.updateItem).toHaveBeenCalledWith(
+      ID,
+      {
+        name: 'No date',
+        completed: false,
+        priority: 'low',
+        description: null,
+        dueDate: null,
+      },
+      USER
+    );
   });
 
   test('it can set a description', async () => {
     await put(ID, { name: 'Buy milk', completed: false, description: 'Oat milk this time' });
 
-    expect(db.updateItem).toHaveBeenCalledWith(ID, {
-      name: 'Buy milk',
-      completed: false,
-      priority: 'medium',
-      description: 'Oat milk this time',
-      dueDate: null,
-    });
+    expect(db.updateItem).toHaveBeenCalledWith(
+      ID,
+      {
+        name: 'Buy milk',
+        completed: false,
+        priority: 'medium',
+        description: 'Oat milk this time',
+        dueDate: null,
+      },
+      USER
+    );
   });
 
   test('it can clear a description by passing null', async () => {
     await put(ID, { name: 'Buy milk', completed: false, description: null });
 
-    expect(db.updateItem).toHaveBeenCalledWith(ID, {
-      name: 'Buy milk',
-      completed: false,
-      priority: 'medium',
-      description: null,
-      dueDate: null,
-    });
+    expect(db.updateItem).toHaveBeenCalledWith(
+      ID,
+      {
+        name: 'Buy milk',
+        completed: false,
+        priority: 'medium',
+        description: null,
+        dueDate: null,
+      },
+      USER
+    );
   });
 
   test('it rejects a non-uuid id with 422', async () => {
@@ -671,13 +752,17 @@ describe('PUT /items/:id', () => {
 
     expect(res.status).toBe(404);
     expect(await res.json()).toEqual({ message: 'Item not found' });
-    expect(db.updateItem).toHaveBeenCalledWith(ID, {
-      name: 'x',
-      completed: false,
-      priority: 'medium',
-      description: null,
-      dueDate: null,
-    });
+    expect(db.updateItem).toHaveBeenCalledWith(
+      ID,
+      {
+        name: 'x',
+        completed: false,
+        priority: 'medium',
+        description: null,
+        dueDate: null,
+      },
+      USER
+    );
   });
 
   test('it rejects a missing completed field with 422', async () => {
@@ -701,14 +786,14 @@ describe('DELETE /items/:id', () => {
     const res = await del(ID);
 
     expect(db.removeItem).toHaveBeenCalledTimes(1);
-    expect(db.removeItem).toHaveBeenCalledWith(ID);
+    expect(db.removeItem).toHaveBeenCalledWith(ID, USER);
     expect(res.status).toBe(204);
   });
 
   test('it removes an item for any valid uuid id', async () => {
     const res = await del(ID2);
 
-    expect(db.removeItem).toHaveBeenCalledWith(ID2);
+    expect(db.removeItem).toHaveBeenCalledWith(ID2, USER);
     expect(res.status).toBe(204);
   });
 
@@ -725,7 +810,7 @@ describe('DELETE /items/:id', () => {
     const res = await del(ID);
 
     expect(res.status).toBe(404);
-    expect(db.removeItem).toHaveBeenCalledWith(ID);
+    expect(db.removeItem).toHaveBeenCalledWith(ID, USER);
   });
 
   test('it only calls removeItem once', async () => {
