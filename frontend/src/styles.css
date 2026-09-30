@@ -276,6 +276,10 @@ button:focus {
   min-width: 240px;
 }
 
+.profile-delete-action {
+  margin-left: auto;
+}
+
 .profile-password-form {
   width: 100%;
   max-width: 360px;

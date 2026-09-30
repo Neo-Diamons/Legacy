@@ -24,3 +24,10 @@ export async function changePassword(
   if (!response.ok) throw new Error(await readErrorMessage(response));
   return response.json() as Promise<AuthResponse>;
 }
+
+export async function deleteUser(id: string): Promise<void> {
+  const response = await authFetch(`/users/${id}`, {
+    method: 'DELETE',
+  });
+  if (!response.ok) throw new Error(await readErrorMessage(response));
+}

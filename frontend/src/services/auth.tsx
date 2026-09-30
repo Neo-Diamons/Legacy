@@ -9,7 +9,7 @@ import {
   saveAuthSession,
   saveAuthUser,
 } from './authClient';
-import { changePassword, updateUser } from './users';
+import { changePassword, deleteUser, updateUser } from './users';
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState(getStoredAuthUser);
@@ -48,6 +48,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
       setUser(session.user);
       setSessionKey((key) => key + 1);
+    },
+    async deleteAccount() {
+      if (!user) return;
+      await deleteUser(user.id);
+      clearAuthSession();
+      setUser(null);
     },
     logout() {
       clearAuthSession();

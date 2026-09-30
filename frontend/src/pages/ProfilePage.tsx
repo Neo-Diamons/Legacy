@@ -1,5 +1,5 @@
 import { useState, type SubmitEvent } from 'react';
-import { Alert, Button, Col, Form, Placeholder, Row } from 'react-bootstrap';
+import { Alert, Button, Col, Form, Modal, Placeholder, Row } from 'react-bootstrap';
 
 import { useAppData } from '../context/appDataContext';
 import { useAuth } from '../services/authContext';
@@ -7,7 +7,7 @@ import { formatDate, initialsOf } from '../utils/format';
 
 export function ProfilePage() {
   const { loading, user, projects, tasks, updateUserName } = useAppData();
-  const { changePassword } = useAuth();
+  const { changePassword, deleteAccount } = useAuth();
   const [name, setName] = useState(user.name);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -17,6 +17,9 @@ export function ProfilePage() {
   const [changingPassword, setChangingPassword] = useState(false);
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const [passwordChanged, setPasswordChanged] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const completedTasks = tasks.filter((t) => t.completed).length;
   const completionRate = tasks.length === 0 ? 0 : Math.round((completedTasks / tasks.length) * 100);
@@ -32,6 +35,17 @@ export function ProfilePage() {
       setError(err instanceof Error ? err.message : 'Impossible d’enregistrer le nom.');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    setDeletingAccount(true);
+    setDeleteError(null);
+    try {
+      await deleteAccount();
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : 'Impossible de supprimer le compte.');
+      setDeletingAccount(false);
     }
   };
 
@@ -110,6 +124,17 @@ export function ProfilePage() {
             Enregistrer
           </Button>
         </Form>
+
+        <div className="profile-delete-action">
+          <Button
+            variant="outline-danger"
+            size="sm"
+            onClick={() => setShowDeleteModal(true)}
+            disabled={deletingAccount}
+          >
+            Supprimer mon compte
+          </Button>
+        </div>
       </div>
 
       <div className="widget-card profile-card mt-3">
@@ -167,6 +192,32 @@ export function ProfilePage() {
           </Button>
         </Form>
       </div>
+
+      <Modal show={showDeleteModal} onHide={() => !deletingAccount && setShowDeleteModal(false)} centered>
+        <Modal.Header closeButton={!deletingAccount}>
+          <Modal.Title>Supprimer le compte ?</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <p className="mb-2">
+            Cette action est définitive. Le compte <strong>{user.email}</strong> ainsi que tous ses projets et tâches
+            seront supprimés.
+          </p>
+          <p className="mb-3 text-danger fw-semibold">Cette action ne peut pas être annulée.</p>
+          {deleteError && (
+            <Alert variant="danger" role="alert" className="py-2 small mb-0">
+              {deleteError}
+            </Alert>
+          )}
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowDeleteModal(false)} disabled={deletingAccount}>
+            Annuler
+          </Button>
+          <Button variant="danger" onClick={handleDeleteAccount} disabled={deletingAccount}>
+            {deletingAccount ? 'Suppression…' : 'Supprimer définitivement'}
+          </Button>
+        </Modal.Footer>
+      </Modal>
 
       <Row className="g-3 mt-1">
         <Col xs={6} md={3}>
