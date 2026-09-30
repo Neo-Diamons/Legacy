@@ -4,7 +4,7 @@ import { HTTPException } from 'hono/http-exception';
 import { createRouter } from '@http/app.js';
 import { jwtAuth, getJwtSecret } from '@http/auth.js';
 import { hashPassword, verifyPassword } from '@utils/password.js';
-import { userService, type User } from '@service/user.service.js';
+import { userService, type PublicUser, type User } from '@service/user.service.js';
 import {
   LoginBodySchema,
   RegisterUserBodySchema,
@@ -21,7 +21,7 @@ import { requireOwnUser } from '@http/identity.js';
 export const authController = createRouter();
 export const userController = createRouter();
 
-function serializeUser(user: User) {
+function serializeUser(user: PublicUser | User) {
   return {
     id: user.id,
     email: user.email,
@@ -61,7 +61,7 @@ const register = createRoute({
 authController.openapi(register, async (c) => {
   const body = c.req.valid('json');
   const email = normalizeEmail(body.email);
-  if (await userService.getUserByEmail(email)) throw new HTTPException(409, { message: 'Email already registered' });
+  if (await userService.emailExists(email)) throw new HTTPException(409, { message: 'Email already registered' });
   const user: User = {
     id: crypto.randomUUID(),
     email,

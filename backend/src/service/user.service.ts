@@ -8,6 +8,7 @@ import { projects as sqliteProjects } from '@model/project.sqlite.model.js';
 import { projects as mysqlProjects } from '@model/project.mysql.model.js';
 
 export type User = SqliteUser | MysqlUser;
+export type PublicUser = Omit<User, 'passwordHash'>;
 type UserInput = {
   id: string;
   email: string;
@@ -17,11 +18,12 @@ type UserInput = {
   createdAt: Date;
 };
 type UserUpdate = Partial<Pick<UserInput, 'email' | 'name' | 'passwordHash' | 'mustChangePassword'>>;
-export type UserDataExport = { user: User; projects: unknown[]; items: unknown[] };
+export type UserDataExport = { user: PublicUser; projects: unknown[]; items: unknown[] };
 
 interface UserService {
-  getUsers(): Promise<User[]>;
-  getUser(id: string): Promise<User | undefined>;
+  getUsers(): Promise<PublicUser[]>;
+  getUser(id: string): Promise<PublicUser | undefined>;
+  emailExists(email: string): Promise<boolean>;
   getUserByEmail(email: string): Promise<User | undefined>;
   createUser(user: UserInput): Promise<void>;
   updateUser(id: string, update: UserUpdate): Promise<number>;
@@ -31,10 +33,38 @@ interface UserService {
 
 const sqliteService: UserService = {
   async getUsers() {
-    return sqlite.db.select().from(sqliteUsers).all();
+    return sqlite.db
+      .select({
+        id: sqliteUsers.id,
+        email: sqliteUsers.email,
+        name: sqliteUsers.name,
+        mustChangePassword: sqliteUsers.mustChangePassword,
+        createdAt: sqliteUsers.createdAt,
+      })
+      .from(sqliteUsers)
+      .all();
   },
   async getUser(id) {
-    return sqlite.db.select().from(sqliteUsers).where(eq(sqliteUsers.id, id)).get();
+    return sqlite.db
+      .select({
+        id: sqliteUsers.id,
+        email: sqliteUsers.email,
+        name: sqliteUsers.name,
+        mustChangePassword: sqliteUsers.mustChangePassword,
+        createdAt: sqliteUsers.createdAt,
+      })
+      .from(sqliteUsers)
+      .where(eq(sqliteUsers.id, id))
+      .get();
+  },
+  async emailExists(email) {
+    return (
+      sqlite.db
+        .select({ id: sqliteUsers.id })
+        .from(sqliteUsers)
+        .where(eq(sqliteUsers.email, email))
+        .get() !== undefined
+    );
   },
   async getUserByEmail(email) {
     return sqlite.db.select().from(sqliteUsers).where(eq(sqliteUsers.email, email)).get();
@@ -64,9 +94,37 @@ const sqliteService: UserService = {
 };
 
 const mysqlService: UserService = {
-  getUsers: () => mysql.db.select().from(mysqlUsers),
+  async getUsers() {
+    return mysql.db
+      .select({
+        id: mysqlUsers.id,
+        email: mysqlUsers.email,
+        name: mysqlUsers.name,
+        mustChangePassword: mysqlUsers.mustChangePassword,
+        createdAt: mysqlUsers.createdAt,
+      })
+      .from(mysqlUsers);
+  },
   async getUser(id) {
-    return (await mysql.db.select().from(mysqlUsers).where(eq(mysqlUsers.id, id)).limit(1))[0];
+    return (
+      await mysql.db
+        .select({
+          id: mysqlUsers.id,
+          email: mysqlUsers.email,
+          name: mysqlUsers.name,
+          mustChangePassword: mysqlUsers.mustChangePassword,
+          createdAt: mysqlUsers.createdAt,
+        })
+        .from(mysqlUsers)
+        .where(eq(mysqlUsers.id, id))
+        .limit(1)
+    )[0];
+  },
+  async emailExists(email) {
+    return (
+      (await mysql.db.select({ id: mysqlUsers.id }).from(mysqlUsers).where(eq(mysqlUsers.email, email)).limit(1))
+        .length > 0
+    );
   },
   async getUserByEmail(email) {
     return (await mysql.db.select().from(mysqlUsers).where(eq(mysqlUsers.email, email)).limit(1))[0];
