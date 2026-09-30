@@ -131,8 +131,12 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
           addNotification(201, 'Task created!');
           break;
         case 'item.updated':
-          setItems((prev) => prev.map((i) => (i.id === event.item.id ? event.item : i)));
-          addNotification(204, `Task ${event.item.completed ? 'completed' : 'uncompleted'}!`);
+          {
+            const wasCompleted = itemsRef.current.find((i) => i.id === event.item.id)?.completed;
+            setItems((prev) => prev.map((i) => (i.id === event.item.id ? event.item : i)));
+            if (event.item.completed) addNotification(204, 'Task completed!');
+            else addNotification(204, wasCompleted ? 'Task uncompleted!' : 'Task updated!');
+          }
           break;
         case 'item.deleted':
           setItems((prev) => prev.filter((i) => i.id !== event.id));
@@ -211,6 +215,25 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       });
   };
 
+  const updateTaskPriority = (taskId: string, priority: Task['priority']) => {
+    const item = itemsRef.current.find((i) => i.id === taskId);
+    if (!item || item.priority === priority) return;
+
+    updateItem(taskId, {
+      name: item.name,
+      completed: item.completed,
+      description: item.description,
+      priority,
+      dueDate: item.dueDate,
+    })
+      .then(({ item: updatedItem }) => {
+        setItems((prev) => prev.map((i) => (i.id === updatedItem.id ? updatedItem : i)));
+      })
+      .catch((error) => {
+        formatPopUpAndAddNotification(error);
+      });
+  };
+
   const deleteTask = (taskId: string) => {
     deleteItem(taskId)
       .then(() => {
@@ -248,6 +271,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       deleteProject,
       createTask,
       toggleTask,
+      updateTaskPriority,
       deleteTask,
       updateUserName,
       projectStats,

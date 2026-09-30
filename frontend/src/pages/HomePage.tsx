@@ -7,7 +7,7 @@ import { useAppData } from '../context/appDataContext';
 const MAX_TASKS_SHOWN = 6;
 
 export function HomePage({ onSelectProject }: { onSelectProject: (projectId: string) => void }) {
-  const { loading, user, projects, tasks, toggleTask, projectStats } = useAppData();
+  const { loading, user, projects, tasks, toggleTask, updateTaskPriority, projectStats } = useAppData();
 
   const upcomingTasks = [...tasks]
     .filter((task) => !task.completed)
@@ -50,11 +50,22 @@ export function HomePage({ onSelectProject }: { onSelectProject: (projectId: str
               <p className="empty-state">Aucune tâche en cours. 🎉</p>
             )}
 
-            {!loading &&
-              upcomingTasks.map((task) => {
-                const project = projects.find((p) => p.id === task.projectId);
-                return <TaskRow key={task.id} task={task} project={project} onToggle={toggleTask} />;
-              })}
+            {!loading && upcomingTasks.length > 0 && (
+              <ul className="task-list">
+                {upcomingTasks.map((task) => {
+                  const project = projects.find((p) => p.id === task.projectId);
+                  return (
+                    <TaskRow
+                      key={task.id}
+                      task={task}
+                      project={project}
+                      onToggle={toggleTask}
+                      onMove={updateTaskPriority}
+                    />
+                  );
+                })}
+              </ul>
+            )}
           </section>
         </Col>
 

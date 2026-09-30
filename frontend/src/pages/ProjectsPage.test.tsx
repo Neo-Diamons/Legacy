@@ -60,7 +60,9 @@ describe('project detail', () => {
     expect(screen.getByText('Open')).not.toHaveClass('completed');
     expect(within(rowOf('Open')).getByRole('checkbox')).not.toBeChecked();
     expect(within(rowOf('Finished')).getByRole('checkbox')).toBeChecked();
-    expect(within(rowOf('Finished')).getByRole('checkbox')).toHaveAccessibleName('Marquer comme non terminée');
+    expect(within(rowOf('Finished')).getByRole('checkbox')).toHaveAccessibleName(
+      'Marquer comme non terminée : Finished'
+    );
   });
 
   test('deleting the project is disabled until the backend supports it', async () => {
@@ -90,7 +92,7 @@ describe('toggling a task', () => {
       priority: 'high',
       dueDate: '2026-05-01',
     });
-    expect(await screen.findByRole('checkbox', { name: 'Marquer comme non terminée' })).toBeChecked();
+    expect(await screen.findByRole('checkbox', { name: /^Marquer comme non terminée/ })).toBeChecked();
     expect(screen.getByText('Flip me')).toHaveClass('completed');
   });
 
@@ -105,7 +107,7 @@ describe('toggling a task', () => {
     fireEvent.click(within(rowOf('Undo me')).getByRole('checkbox'));
 
     expect(bodyOf(callsWith(api, 'PUT')[0]!).completed).toBe(false);
-    expect(await screen.findByRole('checkbox', { name: 'Marquer comme terminée' })).not.toBeChecked();
+    expect(await screen.findByRole('checkbox', { name: /^Marquer comme terminée/ })).not.toBeChecked();
   });
 
   test.each([
@@ -147,7 +149,7 @@ describe('deleting a task', () => {
     renderApp('/projects/p-1');
     await screen.findByText('Goner');
 
-    fireEvent.click(within(rowOf('Goner')).getByRole('button', { name: 'Supprimer la tâche' }));
+    fireEvent.click(within(rowOf('Goner')).getByRole('button', { name: /^Supprimer la tâche/ }));
 
     await waitFor(() => expect(screen.queryByText('Goner')).not.toBeInTheDocument());
     expect(callsWith(api, 'DELETE').map(([url]) => url)).toEqual(['/items/1']);
@@ -161,7 +163,7 @@ describe('deleting a task', () => {
     renderApp('/projects/p-1');
     await screen.findByText('Sticky');
 
-    fireEvent.click(within(rowOf('Sticky')).getByRole('button', { name: 'Supprimer la tâche' }));
+    fireEvent.click(within(rowOf('Sticky')).getByRole('button', { name: /^Supprimer la tâche/ }));
 
     expect(await screen.findByText('Internal Server Error')).toBeInTheDocument();
     expect(screen.getByText('Sticky')).toBeInTheDocument();
@@ -171,7 +173,108 @@ describe('deleting a task', () => {
     stubApi([item('1', 'Home task')]);
     renderApp('/');
     await screen.findByText('Home task');
-    expect(screen.queryByRole('button', { name: 'Supprimer la tâche' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Supprimer la tâche/ })).not.toBeInTheDocument();
+  });
+});
+
+describe('kanban view', () => {
+  test('the view toggle switches between list and kanban and reports the pressed state', async () => {
+    stubApi([item('1', 'Todo')]);
+    renderApp('/projects/p-1');
+    await screen.findByText('Todo');
+
+    const list = screen.getByRole('button', { name: 'Liste' });
+    const kanban = screen.getByRole('button', { name: 'Kanban' });
+    expect(list).toHaveAttribute('aria-pressed', 'true');
+    expect(kanban).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.queryByRole('heading', { name: /Haute/ })).not.toBeInTheDocument();
+
+    fireEvent.click(kanban);
+    expect(kanban).toHaveAttribute('aria-pressed', 'true');
+    expect(list).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.getByRole('heading', { name: /Haute/ })).toBeInTheDocument();
+
+    fireEvent.click(list);
+    expect(list).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.queryByRole('heading', { name: /Haute/ })).not.toBeInTheDocument();
+  });
+
+  test('the view toggle is hidden for a project without tasks', async () => {
+    stubApi([]);
+    renderApp('/projects/p-1');
+    await screen.findByText("Ce projet n'a pas encore de tâche.");
+    expect(screen.queryByRole('group', { name: "Mode d'affichage" })).not.toBeInTheDocument();
+  });
+
+  test('tasks are grouped in one labelled column per priority', async () => {
+    stubApi([item('1', 'Low one', { priority: 'low' }), item('2', 'Urgent one', { priority: 'urgent' })]);
+    renderApp('/projects/p-1');
+    await screen.findByText('Low one');
+    fireEvent.click(screen.getByRole('button', { name: 'Kanban' }));
+
+    expect(
+      screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent?.replace(/\s*\(.*\)/, '').trim())
+    ).toEqual(['Basse', 'Moyenne', 'Haute', 'Urgente']);
+    const urgent = screen.getByRole('region', { name: /Urgente/ });
+    expect(within(urgent).getByText('Urgent one')).toBeInTheDocument();
+    expect(within(urgent).queryByText('Low one')).not.toBeInTheDocument();
+  });
+
+  test('deleting a task from the kanban is announced', async () => {
+    stubApi([item('1', 'Goner'), item('2', 'Stays')], (_url, init) =>
+      init?.method === 'DELETE' ? { ok: true, status: 204, statusText: 'No Content' } : undefined
+    );
+    renderApp('/projects/p-1');
+    await screen.findByText('Goner');
+    fireEvent.click(screen.getByRole('button', { name: 'Kanban' }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Supprimer la tâche : Goner' }));
+
+    expect(await screen.findByText('Tâche « Goner » supprimée')).toBeInTheDocument();
+  });
+
+  test('dragging a task to another column updates its priority', async () => {
+    const api = stubApi([item('1', 'Move me')], (_url, init) =>
+      init?.method === 'PUT' ? jsonResponse(item('1', 'Move me', { priority: 'high' })) : undefined
+    );
+    renderApp('/projects/p-1');
+    await screen.findByText('Move me');
+    fireEvent.click(screen.getByRole('button', { name: 'Kanban' }));
+
+    const dataTransfer = {
+      data: '',
+      setData(_format: string, value: string) {
+        this.data = value;
+      },
+      getData() {
+        return this.data;
+      },
+    };
+    const highColumn = screen.getByRole('heading', { name: /Haute/ }).closest('.kanban-column-body') as HTMLElement;
+
+    fireEvent.dragStart(rowOf('Move me'), { dataTransfer });
+    fireEvent.drop(highColumn, { dataTransfer });
+
+    expect(await within(highColumn).findByText('Move me')).toBeInTheDocument();
+    const [call] = callsWith(api, 'PUT');
+    expect(call![0]).toBe('/items/1');
+    expect(bodyOf(call!)).toMatchObject({ name: 'Move me', priority: 'high' });
+  });
+
+  test('a task can be moved with the priority dropdown and is announced', async () => {
+    const api = stubApi([item('1', 'Move me')], (_url, init) =>
+      init?.method === 'PUT' ? jsonResponse(item('1', 'Move me', { priority: 'high' })) : undefined
+    );
+    renderApp('/projects/p-1');
+    await screen.findByText('Move me');
+    fireEvent.click(screen.getByRole('button', { name: 'Kanban' }));
+
+    fireEvent.click(screen.getByRole('button', { name: /^Priorité de Move me/ }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Haute' }));
+
+    expect(await screen.findByText('Tâche « Move me » déplacée vers la colonne Haute')).toBeInTheDocument();
+    const [call] = callsWith(api, 'PUT');
+    expect(bodyOf(call!)).toMatchObject({ priority: 'high' });
   });
 });
 
