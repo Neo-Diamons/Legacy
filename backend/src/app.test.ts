@@ -29,20 +29,22 @@ describe('route protection', () => {
     ['PUT', `/users/${id}`],
     ['DELETE', `/users/${id}`],
     ['GET', `/users/${id}/export`],
-    ['GET', '/doc'],
-    ['GET', '/scalar'],
   ])('%s %s answers 401 without a token', async (method, path) => {
     const res = await app.request(path, { method });
     expect(res.status).toBe(401);
   });
 
-  it.each([['/items'], ['/projects'], ['/users'], ['/doc'], ['/scalar']])(
+  it.each([['/items'], ['/projects'], ['/users']])(
     '%s answers 401 for a revoked token',
     async (path) => {
       await userService.updateUser(alice.id, { passwordHash: 'new-hash' });
       expect((await call(alice, 'GET', path)).status).toBe(401);
     }
   );
+
+  it.each([['/doc'], ['/scalar']])('serves %s without a token', async (path) => {
+    expect((await app.request(path)).status).toBe(200);
+  });
 
   it('leaves registration and login open', async () => {
     const register = await call(null, 'POST', '/auth/register', {
@@ -101,6 +103,7 @@ describe('API documentation', () => {
         'PUT /users/{id}',
         'DELETE /users/{id}',
         'GET /users/{id}/export',
+        'POST /users/{id}/password',
       ].sort()
     );
   });

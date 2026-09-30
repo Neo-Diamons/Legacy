@@ -150,7 +150,8 @@ The backend serves its own reference docs, generated from the zod schemas:
 Authentication is provided by `POST /auth/register` and `POST /auth/login`, both of
 which return a JWT and a sanitized user object. Send it as
 `Authorization: Bearer <token>` when calling `/users`, `/items` or `/projects`.
-The OpenAPI document and Scalar UI are also protected by the same JWT middleware.
+The OpenAPI document (`/doc`) and Scalar UI (`/scalar`) are public so they can be
+opened in a browser; they expose no credentials or user data.
 Items, projects and realtime item events are scoped to the authenticated user.
 
 The user API supports `GET/PUT/DELETE /users/:id` for the authenticated owner and

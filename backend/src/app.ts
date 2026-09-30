@@ -30,7 +30,6 @@ export function createApp({ log = true }: { log?: boolean } = {}) {
 
   registerErrorHandler(app);
 
-  app.use('/doc', jwtAuth());
   app.doc('/doc', {
     openapi: '3.0.0',
     info: {
@@ -38,7 +37,6 @@ export function createApp({ log = true }: { log?: boolean } = {}) {
       title: 'Legacy',
     },
   });
-  app.use('/scalar', jwtAuth());
   app.get(
     '/scalar',
     Scalar({
