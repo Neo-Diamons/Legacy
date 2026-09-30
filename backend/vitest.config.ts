@@ -26,12 +26,11 @@ export default defineConfig(({ mode }) => ({
     globals: true,
     environment: 'node',
     include: ['src/**/*.test.ts'],
-    // Every file shares one database (sqlite file or mysql server), so files must not run concurrently.
     fileParallelism: false,
     env: {
-      SQLITE_DB_LOCATION: './todo.test.db',
       ...loadEnv(mode, repoRoot, ''),
       ...loadEnv(mode, root, ''),
+      SQLITE_DB_LOCATION: process.env.TEST_SQLITE_DB_LOCATION ?? './todo.test.db',
       JWT_SECRET: 'test-secret-that-is-at-least-32-characters-long',
     },
     coverage: {
