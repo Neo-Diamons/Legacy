@@ -5,6 +5,8 @@ import { CreateTaskButton } from '../components/CreateTaskButton';
 import { ProjectCard } from '../components/ProjectCard';
 import { TaskRow } from '../components/TaskRow';
 import { useAppData } from '../context/appDataContext';
+import {KanbanContainer} from "../components/KanbanContainer";
+import { useState } from 'react';
 
 export function ProjectsPage({
   selectedProjectId,
@@ -65,9 +67,11 @@ export function ProjectsPage({
 }
 
 function ProjectDetail({ projectId, onBack }: { projectId: string; onBack: () => void }) {
-  const { projects, tasks, toggleTask, deleteTask, deleteProject } = useAppData();
+  const { projects, tasks, toggleTask, updateTaskPriority, deleteTask, deleteProject } = useAppData();
   const project = projects.find((p) => p.id === projectId);
   const projectTasks = tasks.filter((t) => t.projectId === projectId);
+  const [showKanban, setShowKanban] = useState(false);
+  const [kanbanNameButton, setKanbanNameButton] = useState("kanban vue");
 
   if (!project) return null;
 
@@ -95,18 +99,42 @@ function ProjectDetail({ projectId, onBack }: { projectId: string; onBack: () =>
           <Button variant="outline-danger" size="sm" disabled title="Bientôt disponible" onClick={handleDeleteProject}>
             Supprimer le projet
           </Button>
+          <Button
+            variant="outline-primary" size="sm"
+            onClick={() => {
+              setShowKanban(!showKanban);
+              (showKanban) ? setKanbanNameButton("Vue Classique") : setKanbanNameButton("Vue Kanban");
+            }}
+          >
+            {kanbanNameButton}
+          </Button>
         </div>
       </header>
 
+
       {projectTasks.length === 0 ? (
         <p className="empty-state">Ce projet n'a pas encore de tâche.</p>
-      ) : (
+      ) : !showKanban ? (
         <div className="widget-card">
           {projectTasks.map((task) => (
-            <TaskRow key={task.id} task={task} onToggle={toggleTask} onDelete={deleteTask} />
+            <TaskRow
+              key={task.id}
+              task={task}
+              onToggle={toggleTask}
+              onDelete={deleteTask}
+            />
           ))}
         </div>
+      ) : (
+        <KanbanContainer
+          tasks={projectTasks}
+          project={project}
+          toggleTask={toggleTask}
+          updateTaskPriority={updateTaskPriority}
+          deleteTask={deleteTask}
+        />
       )}
     </div>
   );
 }
+
