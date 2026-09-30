@@ -8,7 +8,7 @@ import { KanbanContainer } from '../components/KanbanContainer';
 import { ProjectCard } from '../components/ProjectCard';
 import { TaskRow } from '../components/TaskRow';
 import { useAppData } from '../context/appDataContext';
-import type { Task, TaskPriority, FilterParams } from '../types';
+import type { TaskPriority, FilterParams } from '../types';
 import { toDateInputValue } from '../services/items';
 import { FilterSelector } from '../components/FilterSelector';
 
@@ -108,18 +108,6 @@ function ProjectDetail({ projectId, onBack }: { projectId: string; onBack: () =>
 
   const [sortBy, setSortBy] = useState<'priority' | 'dueDate'>('priority');
 
-  const sortedTasks = [...projectTasks].sort((a, b) => {
-    if (sortBy === 'priority') {
-      return PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority];
-    }
-
-    if (a.dueDate === null && b.dueDate === null) return 0;
-    if (a.dueDate === null) return 1;
-    if (b.dueDate === null) return -1;
-
-    return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
-  });
-
   const filteredTasks = projectTasks.filter((task) => {
     if (filterParams.priority && task.priority !== filterParams.priority) return false;
 
@@ -128,6 +116,18 @@ function ProjectDetail({ projectId, onBack }: { projectId: string; onBack: () =>
     if (filterParams.dueDate && (!taskDate || taskDate > filterParams.dueDate)) return false;
 
     return true;
+  });
+
+  const sortedTasks = [...filteredTasks].sort((a, b) => {
+  if (sortBy === 'priority') {
+    return PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority];
+  }
+
+  if (a.dueDate === null && b.dueDate === null) return 0;
+  if (a.dueDate === null) return 1;
+  if (b.dueDate === null) return -1;
+
+  return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
   });
 
   if (!project) return null;
@@ -249,7 +249,7 @@ function ProjectDetail({ projectId, onBack }: { projectId: string; onBack: () =>
         </div>
 
         <ul className="task-list">
-          {projectTasks.map((task) => (
+          {sortedTasks.map((task) => (
             <TaskRow
               key={task.id}
               task={task}
