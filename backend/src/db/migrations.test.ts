@@ -61,7 +61,17 @@ describe('a fresh database', () => {
 
   it('has the expected tables and columns', () => {
     expect(columns('users')).toEqual(
-      ['created_at', 'email', 'id', 'must_change_password', 'name', 'password_hash', 'token_version'].sort()
+      [
+        'created_at',
+        'email',
+        'id',
+        'must_change_password',
+        'name',
+        'password_hash',
+        'privacy_consent_at',
+        'privacy_policy_version',
+        'token_version',
+      ].sort()
     );
     expect(columns('projects')).toEqual(['color', 'created_at', 'id', 'name', 'user_id']);
     expect(columns('todo_items')).toEqual(

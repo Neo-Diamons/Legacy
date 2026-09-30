@@ -12,6 +12,8 @@ const newUser = (overrides: Partial<Parameters<typeof userService.createUser>[0]
   mustChangePassword: false,
   tokenVersion: 0,
   createdAt: new Date('2026-01-01T00:00:00.000Z'),
+  privacyConsentAt: null,
+  privacyPolicyVersion: null,
   ...overrides,
 });
 
@@ -29,6 +31,8 @@ describe('createUser / getUser / getUserByEmail', () => {
       name: user.name,
       mustChangePassword: true,
       createdAt: user.createdAt,
+      privacyConsentAt: null,
+      privacyPolicyVersion: null,
     });
     expect(found).not.toHaveProperty('passwordHash');
     expect(found).not.toHaveProperty('tokenVersion');

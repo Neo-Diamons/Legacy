@@ -27,8 +27,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       saveAuthSession(session);
       setUser(session.user);
     },
-    async register(name, email, password) {
-      const session = await authenticate('/auth/register', { name, email, password });
+    async register(name, email, password, acceptPrivacyPolicy) {
+      const session = await authenticate('/auth/register', { name, email, password, acceptPrivacyPolicy });
       saveAuthSession(session);
       setUser(session.user);
     },

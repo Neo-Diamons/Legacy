@@ -1,5 +1,6 @@
 import { useState, type SubmitEvent } from 'react';
 import { Alert, Button, Card, Form } from 'react-bootstrap';
+import { Link } from 'react-router-dom';
 
 import { useAuth } from '../services/authContext';
 
@@ -11,6 +12,7 @@ export function LoginPage() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [acceptedPrivacy, setAcceptedPrivacy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -26,7 +28,7 @@ export function LoginPage() {
     setSubmitting(true);
     setError(null);
     try {
-      if (isRegister) await register(name.trim(), email.trim(), password);
+      if (isRegister) await register(name.trim(), email.trim(), password, acceptedPrivacy);
       else await login(email.trim(), password);
       // On success the AuthProvider stores the session and App swaps this page for the app shell.
     } catch (err) {
@@ -82,6 +84,25 @@ export function LoginPage() {
               />
               {isRegister && <Form.Text className="text-muted">12 caractères minimum.</Form.Text>}
             </Form.Group>
+
+            {isRegister && (
+              <Form.Group controlId="auth-privacy" className="mb-3">
+                <Form.Check
+                  type="checkbox"
+                  checked={acceptedPrivacy}
+                  onChange={(e) => setAcceptedPrivacy(e.target.checked)}
+                  required
+                  label={
+                    <>
+                      J’ai lu et j’accepte la{' '}
+                      <Link to="/privacy" target="_blank" rel="noopener">
+                        politique de confidentialité
+                      </Link>
+                    </>
+                  }
+                />
+              </Form.Group>
+            )}
 
             {error && (
               <Alert variant="danger" role="alert" className="py-2 small">

@@ -148,7 +148,8 @@ The backend serves its own reference docs, generated from the zod schemas:
 - **OpenAPI 3.0 spec** — <http://localhost:3000/doc>
 
 Authentication is provided by `POST /auth/register` and `POST /auth/login`, both of
-which return a JWT and a sanitized user object. Send it as
+which return a JWT and a sanitized user object. Registration requires
+`acceptPrivacyPolicy: true` (see [Privacy](#privacy)). Send it as
 `Authorization: Bearer <token>` when calling `/users`, `/items` or `/projects`.
 The OpenAPI document (`/doc`) and Scalar UI (`/scalar`) are public so they can be
 opened in a browser; they expose no credentials or user data.
@@ -165,9 +166,25 @@ adding ownership does not discard existing data. The legacy account is has a new
 default password as a result of the migration which is: `LegacyUser123!`.
 
 The application implements technical support for access, rectification, export
-and deletion requests. Retention periods, legal basis/consent, privacy notices,
-and the controller's operational GDPR procedures must still be defined for the
-deployment; code alone cannot establish legal compliance.
+and deletion requests. Retention periods, the legal basis, and the controller's
+operational GDPR procedures must still be defined for the deployment; code alone
+cannot establish legal compliance.
+
+### Privacy
+
+- **Consent at signup.** The registration form has a required, unticked checkbox
+  linking to the privacy policy. The API rejects registration with `422` unless
+  the body contains `acceptPrivacyPolicy: true`.
+- **What is stored.** The consent time (`users.privacy_consent_at`) and the policy
+  version accepted (`users.privacy_policy_version`). Both are returned on the user
+  object and in the export. Accounts created before consent capture have `null`.
+- **Privacy policy.** Public page at `/privacy` (`frontend/src/pages/PrivacyPage.tsx`),
+  linked from the signup form and the footer. After a material change, bump
+  `PRIVACY_POLICY_VERSION` in both `backend/src/utils/privacy.ts` and that page.
+- **Retention is not documented.** The policy page states that data is kept until
+  the account is deleted and that no other period is defined. The controller must
+  set real retention periods before production use. Existing accounts are not
+  re-prompted when the policy version changes.
 
 ---
 

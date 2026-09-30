@@ -34,13 +34,10 @@ describe('route protection', () => {
     expect(res.status).toBe(401);
   });
 
-  it.each([['/items'], ['/projects'], ['/users']])(
-    '%s answers 401 for a revoked token',
-    async (path) => {
-      await userService.updateUser(alice.id, { passwordHash: 'new-hash' });
-      expect((await call(alice, 'GET', path)).status).toBe(401);
-    }
-  );
+  it.each([['/items'], ['/projects'], ['/users']])('%s answers 401 for a revoked token', async (path) => {
+    await userService.updateUser(alice.id, { passwordHash: 'new-hash' });
+    expect((await call(alice, 'GET', path)).status).toBe(401);
+  });
 
   it.each([['/doc'], ['/scalar']])('serves %s without a token', async (path) => {
     expect((await app.request(path)).status).toBe(200);
@@ -51,6 +48,7 @@ describe('route protection', () => {
       email: 'open@example.com',
       name: 'Open',
       password: 'correct-horse-battery',
+      acceptPrivacyPolicy: true,
     });
     expect(register.status).toBe(201);
     expect(

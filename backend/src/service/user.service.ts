@@ -17,6 +17,8 @@ type UserInput = {
   mustChangePassword: boolean;
   tokenVersion: number;
   createdAt: Date;
+  privacyConsentAt?: Date | null;
+  privacyPolicyVersion?: string | null;
 };
 type UserUpdate = Partial<Pick<UserInput, 'email' | 'name' | 'passwordHash' | 'mustChangePassword'>>;
 export type UserDataExport = { user: PublicUser; projects: unknown[]; items: unknown[] };
@@ -42,6 +44,8 @@ const sqliteService: UserService = {
         name: sqliteUsers.name,
         mustChangePassword: sqliteUsers.mustChangePassword,
         createdAt: sqliteUsers.createdAt,
+        privacyConsentAt: sqliteUsers.privacyConsentAt,
+        privacyPolicyVersion: sqliteUsers.privacyPolicyVersion,
       })
       .from(sqliteUsers)
       .where(eq(sqliteUsers.id, id))
@@ -96,6 +100,8 @@ const mysqlService: UserService = {
           name: mysqlUsers.name,
           mustChangePassword: mysqlUsers.mustChangePassword,
           createdAt: mysqlUsers.createdAt,
+          privacyConsentAt: mysqlUsers.privacyConsentAt,
+          privacyPolicyVersion: mysqlUsers.privacyPolicyVersion,
         })
         .from(mysqlUsers)
         .where(eq(mysqlUsers.id, id))

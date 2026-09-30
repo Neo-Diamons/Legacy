@@ -1,12 +1,13 @@
 import { decode } from 'hono/jwt';
 import { userService } from '@service/user.service.js';
 import { verifyPassword } from '@utils/password.js';
+import { PRIVACY_POLICY_VERSION } from '@utils/privacy.js';
 import { resetDb } from '../test/db.js';
 import { PASSWORD, call, json, seedUser } from '../test/fixtures.js';
 
 const register = (body: Record<string, unknown>) => call(null, 'POST', '/auth/register', body);
 const login = (body: Record<string, unknown>) => call(null, 'POST', '/auth/login', body);
-const valid = { email: 'alice@example.com', name: 'Alice', password: PASSWORD };
+const valid = { email: 'alice@example.com', name: 'Alice', password: PASSWORD, acceptPrivacyPolicy: true };
 
 beforeEach(resetDb);
 
@@ -22,9 +23,22 @@ describe('POST /auth/register', () => {
       name: 'Alice',
       createdAt: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T.*Z$/),
       mustChangePassword: false,
+      privacyConsentAt: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T.*Z$/),
+      privacyPolicyVersion: PRIVACY_POLICY_VERSION,
     });
     expect(body.token).toEqual(expect.any(String));
     expect(await userService.getUser(body.user.id)).toBeDefined();
+  });
+
+  it('records when and against which policy version the consent was given', async () => {
+    const before = Date.now();
+    const { user } = await json(await register(valid));
+
+    const stored = await userService.getUserById(user.id);
+    expect(stored?.privacyPolicyVersion).toBe(PRIVACY_POLICY_VERSION);
+    // Stored with second precision on sqlite.
+    expect(stored!.privacyConsentAt!.getTime()).toBeGreaterThanOrEqual(before - 1000);
+    expect(stored!.privacyConsentAt!.getTime()).toBeLessThanOrEqual(Date.now());
   });
 
   it('never returns the password, its hash or the token version', async () => {
@@ -100,6 +114,9 @@ describe('POST /auth/register', () => {
     ['a missing email', { name: 'A', password: PASSWORD }],
     ['a missing name', { email: 'a@example.com', password: PASSWORD }],
     ['a missing password', { email: 'a@example.com', name: 'A' }],
+    ['a missing privacy consent', { email: 'a@example.com', name: 'A', password: PASSWORD }],
+    ['a refused privacy consent', { ...valid, acceptPrivacyPolicy: false }],
+    ['a non-boolean privacy consent', { ...valid, acceptPrivacyPolicy: 'true' }],
     ['an invalid email', { ...valid, email: 'not-an-email' }],
     ['an email with surrounding spaces', { ...valid, email: ' alice@example.com ' }],
     ['an empty name', { ...valid, name: '' }],

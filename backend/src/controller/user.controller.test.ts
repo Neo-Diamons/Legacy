@@ -26,7 +26,16 @@ describe('authentication', () => {
     ['DELETE', `/users/${crypto.randomUUID()}`],
     ['GET', `/users/${crypto.randomUUID()}/export`],
   ])('%s %s answers 401 without a token', async (method, path) => {
-    expect((await call(null, method, path, method === 'PUT' ? { name: 'x' } : method === 'POST' ? { currentPassword: 'x', newPassword: 'y' } : undefined)).status).toBe(401);
+    expect(
+      (
+        await call(
+          null,
+          method,
+          path,
+          method === 'PUT' ? { name: 'x' } : method === 'POST' ? { currentPassword: 'x', newPassword: 'y' } : undefined
+        )
+      ).status
+    ).toBe(401);
   });
 });
 
@@ -42,6 +51,8 @@ describe('GET /users', () => {
         name: 'alice',
         createdAt: expect.any(String),
         mustChangePassword: false,
+        privacyConsentAt: null,
+        privacyPolicyVersion: null,
       },
     ]);
   });
@@ -54,7 +65,15 @@ describe('GET /users/:id', () => {
     expect(res.status).toBe(200);
     const body = await json(res);
     expect(body).toMatchObject({ id: alice.id, email: 'alice@example.com' });
-    expect(Object.keys(body).sort()).toEqual(['createdAt', 'email', 'id', 'mustChangePassword', 'name']);
+    expect(Object.keys(body).sort()).toEqual([
+      'createdAt',
+      'email',
+      'id',
+      'mustChangePassword',
+      'name',
+      'privacyConsentAt',
+      'privacyPolicyVersion',
+    ]);
   });
 
   it('answers 403 for another existing user and for a user that does not exist', async () => {
@@ -78,9 +97,20 @@ describe('POST /users/:id/password', () => {
     expect(res.status).toBe(200);
     const body = await json(res);
     expect(body.user).toMatchObject({ id: alice.id, email: 'alice@example.com', mustChangePassword: false });
-    expect(Object.keys(body.user).sort()).toEqual(['createdAt', 'email', 'id', 'mustChangePassword', 'name']);
+    expect(Object.keys(body.user).sort()).toEqual([
+      'createdAt',
+      'email',
+      'id',
+      'mustChangePassword',
+      'name',
+      'privacyConsentAt',
+      'privacyPolicyVersion',
+    ]);
     expect(decode(body.token).payload.tv).toBe(1);
-    expect((await call({ ...alice, headers: { ...alice.headers, Authorization: `Bearer ${body.token}` } }, 'GET', '/users')).status).toBe(200);
+    expect(
+      (await call({ ...alice, headers: { ...alice.headers, Authorization: `Bearer ${body.token}` } }, 'GET', '/users'))
+        .status
+    ).toBe(200);
     expect((await login('alice@example.com', NEW_PASSWORD)).status).toBe(200);
     expect((await login('alice@example.com', PASSWORD)).status).toBe(401);
   });
@@ -307,6 +337,7 @@ describe('DELETE /users/:id', () => {
       email: 'alice@example.com',
       name: 'New',
       password: PASSWORD,
+      acceptPrivacyPolicy: true,
     });
     const { user, token } = await json(res);
 

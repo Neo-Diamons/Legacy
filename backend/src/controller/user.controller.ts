@@ -4,6 +4,7 @@ import { HTTPException } from 'hono/http-exception';
 import { createRouter } from '@http/app.js';
 import { jwtAuth, getJwtSecret } from '@http/auth.js';
 import { hashPassword, verifyPassword } from '@utils/password.js';
+import { PRIVACY_POLICY_VERSION } from '@utils/privacy.js';
 import { userService, type PublicUser, type User } from '@service/user.service.js';
 import {
   ChangePasswordBodySchema,
@@ -30,6 +31,8 @@ function serializeUser(user: PublicUser | User) {
     name: user.name,
     createdAt: user.createdAt.toISOString(),
     mustChangePassword: user.mustChangePassword,
+    privacyConsentAt: user.privacyConsentAt?.toISOString() ?? null,
+    privacyPolicyVersion: user.privacyPolicyVersion ?? null,
   };
 }
 
@@ -74,6 +77,7 @@ const register = createRoute({
     201: { content: { 'application/json': { schema: TokenResponseSchema } }, description: 'Created' },
     409: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Email exists' },
   },
+  description: 'Requires `acceptPrivacyPolicy: true`; the consent time and policy version are stored with the account.',
 });
 authController.openapi(register, async (c) => {
   const body = c.req.valid('json');
@@ -87,6 +91,8 @@ authController.openapi(register, async (c) => {
     mustChangePassword: false,
     tokenVersion: 0,
     createdAt: new Date(),
+    privacyConsentAt: new Date(),
+    privacyPolicyVersion: PRIVACY_POLICY_VERSION,
   };
   await withEmailConflict(email, user.id, () => userService.createUser(user));
   return c.json({ token: await issueToken(user), user: serializeUser(user) }, 201);

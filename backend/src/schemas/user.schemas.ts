@@ -7,12 +7,19 @@ export const UserResponseSchema = z
     name: z.string(),
     createdAt: z.iso.datetime(),
     mustChangePassword: z.boolean(),
+    privacyConsentAt: z.iso.datetime().nullable(),
+    privacyPolicyVersion: z.string().nullable(),
   })
   .openapi('User');
 export type UserResponse = z.infer<typeof UserResponseSchema>;
 
 export const RegisterUserBodySchema = z
-  .object({ email: z.email().max(255), name: z.string().min(1).max(255), password: z.string().min(12) })
+  .object({
+    email: z.email().max(255),
+    name: z.string().min(1).max(255),
+    password: z.string().min(12),
+    acceptPrivacyPolicy: z.literal(true, { error: 'The privacy policy must be accepted' }),
+  })
   .strict()
   .openapi('RegisterUser');
 export type RegisterUserBody = z.infer<typeof RegisterUserBodySchema>;

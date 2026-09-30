@@ -8,6 +8,8 @@ export const users = sqliteTable('users', {
   passwordHash: text('password_hash').notNull(),
   mustChangePassword: integer('must_change_password', { mode: 'boolean' }).notNull().default(false),
   tokenVersion: integer('token_version').notNull().default(0),
+  privacyConsentAt: integer('privacy_consent_at', { mode: 'timestamp' }),
+  privacyPolicyVersion: text('privacy_policy_version'),
   createdAt: integer('created_at', { mode: 'timestamp' })
     .notNull()
     .default(sql`(unixepoch())`),

@@ -7,6 +7,7 @@ import { NotificationContainer } from './components/NotificationContainer';
 import { AppDataProvider } from './context/AppDataProvider';
 import { HomePage } from './pages/HomePage';
 import { ProfilePage } from './pages/ProfilePage';
+import { PrivacyPage } from './pages/PrivacyPage';
 import { ProjectsPage } from './pages/ProjectsPage';
 import { LoginPage } from './pages/LoginPage';
 import { AuthProvider } from './services/auth';
@@ -34,7 +35,20 @@ export default function App() {
 function AuthenticatedApp() {
   const { loading, user } = useAuth();
   if (loading) return null;
-  if (!user) return <LoginPage />;
+  if (!user)
+    return (
+      <Routes>
+        <Route
+          path="/privacy"
+          element={
+            <Container>
+              <PrivacyPage />
+            </Container>
+          }
+        />
+        <Route path="*" element={<LoginPage />} />
+      </Routes>
+    );
 
   return <AuthenticatedShell />;
 }
@@ -101,12 +115,15 @@ function AuthenticatedShell() {
             <Route path="/projects" element={<ProjectsRoute />} />
             <Route path="/projects/:projectId" element={<ProjectsRoute />} />
             <Route path="/profile" element={<ProfilePage />} />
+            <Route path="/privacy" element={<PrivacyPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </main>
 
         <footer className="app-footer">
-          <small>Legacy Todo App</small>
+          <small>
+            Legacy Todo App · <Link to="/privacy">Confidentialité</Link>
+          </small>
         </footer>
       </Container>
     </AppDataProvider>

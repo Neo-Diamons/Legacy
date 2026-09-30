@@ -4,6 +4,8 @@ export interface AuthUser {
   email: string;
   createdAt: string;
   mustChangePassword?: boolean;
+  privacyConsentAt?: string | null;
+  privacyPolicyVersion?: string | null;
 }
 
 export interface AuthResponse {
@@ -67,7 +69,8 @@ export function getStoredAuthUser(): AuthUser | null {
 function authErrorMessage(status: number, serverMessage?: string): string {
   if (status === 401) return 'Email ou mot de passe incorrect.';
   if (status === 409) return 'Cet email est déjà utilisé.';
-  if (status === 422) return 'Données invalides : vérifiez l’email et utilisez un mot de passe de 12 caractères minimum.';
+  if (status === 422)
+    return 'Données invalides : vérifiez l’email et utilisez un mot de passe de 12 caractères minimum.';
   return serverMessage ?? `Erreur ${status}`;
 }
 
@@ -76,7 +79,7 @@ export async function readErrorMessage(response: Response): Promise<string> {
   return error?.message ?? `${response.status} ${response.statusText}`;
 }
 
-export async function authenticate(path: string, body: Record<string, string>): Promise<AuthResponse> {
+export async function authenticate(path: string, body: Record<string, string | boolean>): Promise<AuthResponse> {
   let response: Response;
   try {
     response = await fetch(path, {
@@ -128,7 +131,10 @@ export function expireAuthSession(): void {
 
 /** fetch with the bearer token attached; a 401 (expired or invalid token) ends the session. */
 export async function authFetch(input: string, init: RequestInit = {}): Promise<Response> {
-  const response = await fetch(input, { ...init, headers: { ...authHeaders(), ...(init.headers as Record<string, string>) } });
+  const response = await fetch(input, {
+    ...init,
+    headers: { ...authHeaders(), ...(init.headers as Record<string, string>) },
+  });
   if (response.status === 401) expireAuthSession();
   return response;
 }
