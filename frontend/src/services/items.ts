@@ -52,7 +52,10 @@ export function createItem(input: ItemInput): Promise<{ status: number; item: It
   return fetch('/items', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(input),
+    body: JSON.stringify({
+      ...input,
+      dueDate: toApiDueDate(input.dueDate),
+    }),
   }).then((res) => {
     if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
     return res.json().then((item) => ({ status: res.status, item }));
@@ -66,7 +69,10 @@ export function updateItem(
   return fetch(`/items/${id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(input),
+    body: JSON.stringify({
+      ...input,
+      dueDate: toApiDueDate(input.dueDate),
+    }),
   }).then((res) => {
     if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
     return res.json().then((item) => ({ status: res.status, item }));
