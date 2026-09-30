@@ -29,8 +29,11 @@ export function TaskRow({
         className="task-row-check"
       />
       <div className="task-row-body">
-        <span className={`task-row-title ${task.completed ? 'completed' : ''}`}>{task.name}</span>
-        <span className="task-row-meta">
+        <div className={`task-row-title ${task.completed ? 'completed' : ''}`}>
+          {task.name}
+          {task.completed && <span className="visually-hidden"> (terminée)</span>}
+        </div>
+        <div className="task-row-meta">
           <Dropdown className="d-inline-block me-2" onSelect={(key) => key && onMove(task.id, key as TaskPriority)}>
             <Dropdown.Toggle
               as="button"
@@ -49,15 +52,23 @@ export function TaskRow({
             </Dropdown.Menu>
           </Dropdown>
           {project && (
-            <span className="text-muted small me-2">
-              <span className="project-dot project-dot-inline" style={{ backgroundColor: project.color }} />
-              {project.name}
-            </span>
+            <>
+              <span className="text-muted small me-2">
+                <span className="visually-hidden">Projet : </span>
+                <span
+                  className="project-dot project-dot-inline"
+                  style={{ backgroundColor: project.color }}
+                  aria-hidden="true"
+                />
+                {project.name}
+              </span>
+              <span className="visually-hidden">. </span>
+            </>
           )}
           <span className="text-muted small">
             {task.dueDate ? `Échéance ${formatShortDate(task.dueDate)}` : 'Sans échéance'}
           </span>
-        </span>
+        </div>
       </div>
       {onDelete && (
         <Button

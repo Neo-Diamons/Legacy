@@ -72,5 +72,12 @@ export function openItemSocket(onEvent: (event: ItemEvent) => void): () => void 
   socket.addEventListener('message', (message) => {
     onEvent(JSON.parse(message.data) as ItemEvent);
   });
-  return () => socket.close();
+  return () => {
+    // Closing while CONNECTING (e.g. StrictMode double mount) logs a browser warning; wait for open.
+    if (socket.readyState === WebSocket.CONNECTING) {
+      socket.addEventListener('open', () => socket.close());
+    } else {
+      socket.close();
+    }
+  };
 }

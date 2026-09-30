@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { Container, Nav } from 'react-bootstrap';
 import { Link, Navigate, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom';
 
@@ -28,19 +29,45 @@ export default function App() {
       ? 'profile'
       : 'home';
 
+  const mainRef = useRef<HTMLElement>(null);
+  const firstRender = useRef(true);
+
+  // Move focus to the page heading on navigation so keyboard and screen-reader users land on the new content.
+  useEffect(() => {
+    if (firstRender.current) {
+      firstRender.current = false;
+      return;
+    }
+    const heading = mainRef.current?.querySelector<HTMLElement>('h1');
+    if (heading) {
+      heading.tabIndex = -1;
+      heading.focus();
+    } else {
+      mainRef.current?.focus();
+    }
+  }, [location.pathname]);
+
   return (
     <AppDataProvider>
+      <a href="#main" className="visually-hidden-focusable skip-link">
+        Aller au contenu principal
+      </a>
       <Container>
         <NotificationContainer />
         <header className="app-topbar">
           <Nav as="nav" variant="pills" activeKey={activeTab}>
             <Nav.Item>
-              <Nav.Link as={Link} to="/" eventKey="home">
+              <Nav.Link as={Link} to="/" eventKey="home" aria-current={activeTab === 'home' ? 'page' : undefined}>
                 Accueil
               </Nav.Link>
             </Nav.Item>
             <Nav.Item>
-              <Nav.Link as={Link} to="/projects" eventKey="projects">
+              <Nav.Link
+                as={Link}
+                to="/projects"
+                eventKey="projects"
+                aria-current={activeTab === 'projects' ? 'page' : undefined}
+              >
                 Projets
               </Nav.Link>
             </Nav.Item>
@@ -49,7 +76,7 @@ export default function App() {
           <UserMenu onProfileClick={() => navigate('/profile')} />
         </header>
 
-        <main>
+        <main id="main" ref={mainRef} tabIndex={-1}>
           <Routes>
             <Route path="/" element={<HomePage onSelectProject={(id) => navigate(`/projects/${id}`)} />} />
             <Route path="/projects" element={<ProjectsRoute />} />

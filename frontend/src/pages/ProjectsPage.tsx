@@ -51,17 +51,18 @@ export function ProjectsPage({
         </div>
       )}
 
-      <div className="project-grid">
+      <ul className="project-grid list-unstyled">
         {!loading &&
           projects.map((project) => (
-            <ProjectCard
-              key={project.id}
-              project={project}
-              stats={projectStats(project.id)}
-              onClick={() => onSelectProject(project.id)}
-            />
+            <li key={project.id}>
+              <ProjectCard
+                project={project}
+                stats={projectStats(project.id)}
+                onClick={() => onSelectProject(project.id)}
+              />
+            </li>
           ))}
-      </div>
+      </ul>
     </div>
   );
 }
@@ -86,7 +87,7 @@ function ProjectDetail({ projectId, onBack }: { projectId: string; onBack: () =>
       <header className="page-header project-detail-header">
         <div className="page-header-row">
           <div className="project-detail-title">
-            <span className="project-dot" style={{ backgroundColor: project.color }} />
+            <span className="project-dot" style={{ backgroundColor: project.color }} aria-hidden="true" />
             <h1 className="page-title mb-0">{project.name}</h1>
           </div>
           <Button variant="link" className="back-link" onClick={onBack}>
