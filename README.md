@@ -220,6 +220,17 @@ a PR coverage report), production build, and `npm audit --audit-level=high`.
 
 ---
 
+## Monitoring
+
+The backend exposes Prometheus metrics on `GET /metrics` (HTTP count/latency, WebSocket connections and tickets, item events, Node.js runtime). Set `METRICS_TOKEN` to require `Authorization: Bearer <token>`.
+
+```bash
+docker compose up -d
+```
+
+- Prometheus: <http://localhost:9090> (scrapes the backend and cAdvisor container metrics)
+- Grafana: <http://localhost:3001> (default login `admin` / `admin`), dashboard **Legacy backend** is provisioned from `monitoring/grafana/dashboards/`.
+
 ## Accessibility audit (RGAA)
 
 The frontend is audited against the

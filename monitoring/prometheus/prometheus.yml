@@ -12,3 +12,12 @@ scrape_configs:
   - job_name: "cadvisor"
     static_configs:
       - targets: ["cadvisor:8080"]
+
+  # Backend metrics (GET /metrics)
+  - job_name: "legacy-backend"
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["backend:3000"]
+    # If METRICS_TOKEN is set on the backend, add:
+    # authorization:
+    #   credentials_file: /run/secrets/metrics_token
