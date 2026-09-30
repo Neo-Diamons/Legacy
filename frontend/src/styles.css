@@ -468,3 +468,7 @@ main:focus,
 main h1:focus {
   outline: none;
 }
+
+.task-row-overdue {
+  background-color: #f8d7da !important;
+}

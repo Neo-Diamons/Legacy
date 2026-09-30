@@ -21,8 +21,17 @@ export function TaskRow({
   onMove: (taskId: string, priority: TaskPriority) => void;
   onEdit?: (taskId: string) => void;
 }) {
+  const isOverdue =
+    !task.completed &&
+    task.dueDate !== null &&
+    new Date(task.dueDate).getTime() < Date.now();
+
   return (
-    <li className="task-row" draggable={Boolean(onDragStart)} onDragStart={onDragStart}>
+    <li
+      className={`task-row ${isOverdue ? 'task-row-overdue' : ''}`}
+      draggable={Boolean(onDragStart)}
+      onDragStart={onDragStart}
+    >
       <Form.Check
         type="checkbox"
         checked={task.completed}
