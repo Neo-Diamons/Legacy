@@ -54,7 +54,15 @@ export function HomePage({ onSelectProject }: { onSelectProject: (projectId: str
               <ul className="task-list">
                 {upcomingTasks.map((task) => {
                   const project = projects.find((p) => p.id === task.projectId);
-                  return <TaskRow key={task.id} task={task} project={project} onToggle={toggleTask} onMove={updateTaskPriority} />;
+                  return (
+                    <TaskRow
+                      key={task.id}
+                      task={task}
+                      project={project}
+                      onToggle={toggleTask}
+                      onMove={updateTaskPriority}
+                    />
+                  );
                 })}
               </ul>
             )}
