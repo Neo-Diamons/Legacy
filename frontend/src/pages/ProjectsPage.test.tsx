@@ -193,7 +193,7 @@ describe('kanban view', () => {
         return this.data;
       },
     };
-    const highColumn = screen.getByText('High').closest('.kanban-column-body') as HTMLElement;
+    const highColumn = screen.getByText('Haute').closest('.kanban-column-body') as HTMLElement;
 
     fireEvent.dragStart(rowOf('Move me'), { dataTransfer });
     fireEvent.drop(highColumn, { dataTransfer });
