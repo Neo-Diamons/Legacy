@@ -3,6 +3,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, test } from 'vitest';
 
 import { AppDataProvider } from '../context/AppDataProvider';
+import { AuthProvider } from '../services/auth';
 import { HomePage } from './HomePage';
 import {
   DeleteSeedProject,
@@ -12,22 +13,23 @@ import {
   item,
   jsonResponse,
   renderApp,
+  signIn,
   stubApi,
   stubFetch,
+  stubPendingApi,
 } from '../test/helpers';
 
 const shownTitles = () => Array.from(document.querySelectorAll('.task-row-title')).map((el) => el.textContent);
 
 describe('home page', () => {
   test('shows a busy skeleton until items load, then the greeting', async () => {
-    let resolve: (value: unknown) => void = () => undefined;
-    stubFetch(() => new Promise((r) => (resolve = r)));
+    const api = stubPendingApi();
     const { container } = renderApp();
 
     expect(container.querySelectorAll('[aria-busy="true"]')).toHaveLength(2);
     expect(screen.queryByText(/Bonjour/)).not.toBeInTheDocument();
 
-    resolve(jsonResponse([]));
+    api.release();
     expect(await screen.findByText('Bonjour Michel 👋')).toBeInTheDocument();
     expect(container.querySelector('[aria-busy="true"]')).not.toBeInTheDocument();
   });
@@ -53,7 +55,8 @@ describe('home page', () => {
     expect(await screen.findByText('Internal Server Error')).toBeInTheDocument();
     expect(await screen.findByText('Bonjour Michel 👋')).toBeInTheDocument();
     expect(container.querySelector('[aria-busy="true"]')).not.toBeInTheDocument();
-    expect(screen.getByText('Aucune tâche en cours. 🎉')).toBeInTheDocument();
+    // No project could be loaded either, so the user is pointed to the Projects tab rather than told all is done.
+    expect(screen.getByText(/Vous n'avez pas encore de projet/)).toBeInTheDocument();
   });
 
   test('lists upcoming tasks by due date, undated last, completed hidden', async () => {
@@ -143,12 +146,15 @@ describe('home page', () => {
   describe('without any project', () => {
     const renderWithoutProject = async (items = [] as ReturnType<typeof item>[]) => {
       stubApi(items);
+      signIn();
       render(
         <MemoryRouter>
-          <AppDataProvider>
-            <DeleteSeedProject />
-            <HomePage onSelectProject={() => undefined} />
-          </AppDataProvider>
+          <AuthProvider>
+            <AppDataProvider>
+              <DeleteSeedProject />
+              <HomePage onSelectProject={() => undefined} />
+            </AppDataProvider>
+          </AuthProvider>
         </MemoryRouter>
       );
       await screen.findByText('Bonjour Michel 👋');
@@ -158,16 +164,16 @@ describe('home page', () => {
     test('points the user to the Projects tab instead of a misleading "all done"', async () => {
       await renderWithoutProject();
 
-      expect(screen.getByText(/Vous n'avez pas encore de projet/)).toBeInTheDocument();
+      expect(await screen.findByText(/Vous n'avez pas encore de projet/)).toBeInTheDocument();
       expect(screen.getByText(/Vous ne participez à aucun projet/)).toBeInTheDocument();
       expect(screen.queryByText('Aucune tâche en cours. 🎉')).not.toBeInTheDocument();
       expect(screen.queryByRole('button', { name: /Mon projet/ })).not.toBeInTheDocument();
     });
 
     test('unassigned tasks are still listed, without a project label', async () => {
-      await renderWithoutProject([item('1', 'Homeless')]);
+      await renderWithoutProject([item('1', 'Homeless', { projectId: null })]);
 
-      const row = screen.getByText('Homeless').closest('.task-row') as HTMLElement;
+      const row = (await screen.findByText('Homeless')).closest('.task-row') as HTMLElement;
       expect(row.querySelector('.project-dot')).not.toBeInTheDocument();
     });
   });

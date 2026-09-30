@@ -3,6 +3,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, test, vi } from 'vitest';
 
 import { AppDataProvider } from '../context/AppDataProvider';
+import { AuthProvider } from '../services/auth';
 import { ProjectsPage } from './ProjectsPage';
 
 import {
@@ -15,22 +16,21 @@ import {
   jsonResponse,
   renderApp,
   stubApi,
-  stubFetch,
+  stubPendingApi,
 } from '../test/helpers';
 
 const rowOf = (name: string) => screen.getByText(name).closest('.task-row') as HTMLElement;
 
 describe('projects list', () => {
   test('shows a skeleton and hides the create button while loading', async () => {
-    let resolve: (value: unknown) => void = () => undefined;
-    stubFetch(() => new Promise((r) => (resolve = r)));
+    const api = stubPendingApi();
     const { container } = renderApp('/projects');
 
     expect(container.querySelector('[aria-busy="true"]')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: '+ Nouveau projet' })).not.toBeInTheDocument();
     expect(screen.queryByText('Mon projet')).not.toBeInTheDocument();
 
-    resolve(jsonResponse([]));
+    api.release();
     expect(await screen.findByText('Mon projet')).toBeInTheDocument();
     expect(container.querySelector('[aria-busy="true"]')).not.toBeInTheDocument();
   });
@@ -304,17 +304,20 @@ describe('projects list without any project', () => {
     stubApi([]);
     render(
       <MemoryRouter>
-        <AppDataProvider>
-          <DeleteSeedProject />
-          <ProjectsPage selectedProjectId={null} onSelectProject={() => undefined} />
-        </AppDataProvider>
+        <AuthProvider>
+          <AppDataProvider>
+            <DeleteSeedProject />
+            <ProjectsPage selectedProjectId={null} onSelectProject={() => undefined} />
+          </AppDataProvider>
+        </AuthProvider>
       </MemoryRouter>
     );
     await screen.findByText('Mon projet');
     fireEvent.click(screen.getByText('delete seed project'));
+    await waitFor(() => expect(screen.queryByText('Mon projet')).not.toBeInTheDocument());
 
     expect(screen.getByText(/Vous ne participez à aucun projet/)).toBeInTheDocument();
     expect(screen.queryByText('Mon projet')).not.toBeInTheDocument();
-    expect(screen.getAllByRole('button', { name: '+ Nouveau projet' })).toHaveLength(2);
+    expect(screen.getByRole('button', { name: '+ Nouveau projet' })).toBeInTheDocument();
   });
 });

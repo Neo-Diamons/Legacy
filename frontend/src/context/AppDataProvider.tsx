@@ -60,6 +60,17 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
   const [assignments, setAssignments] = useState<Record<string, string>>({});
   const [notifications, setNotifications] = useState<Notification[]>([]);
 
+  const notificationTimers = useRef(new Set<ReturnType<typeof setTimeout>>());
+
+  // A toast timer firing after unmount would update state of a torn-down tree.
+  useEffect(() => {
+    const timers = notificationTimers.current;
+    return () => {
+      timers.forEach(clearTimeout);
+      timers.clear();
+    };
+  }, []);
+
   const removeNotification = useCallback((id: string) => {
     setNotifications((prev) => prev.filter((n) => n.id !== id));
   }, []);
@@ -75,9 +86,11 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
 
       setNotifications((prev) => [...prev, notification]);
 
-      setTimeout(() => {
+      const timer = setTimeout(() => {
+        notificationTimers.current.delete(timer);
         removeNotification(notification.id);
       }, 2000);
+      notificationTimers.current.add(timer);
     },
     [removeNotification]
   );
@@ -198,6 +211,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     deleteProjectRequest(projectId)
       .then(() => {
         setProjects((prev) => prev.filter((project) => project.id !== projectId));
+        setItems((prev) => prev.filter((item) => (item.projectId ?? assignments[item.id]) !== projectId));
         setAssignments((prev) => Object.fromEntries(Object.entries(prev).filter(([, pid]) => pid !== projectId)));
       })
       .catch((error) => {
