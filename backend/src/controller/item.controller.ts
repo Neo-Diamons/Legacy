@@ -23,7 +23,6 @@ export const itemController = createRouter();
 function serializeItem(item: Item): ItemResponse {
   return {
     ...item,
-    projectId: item.projectId ?? null,
     dueDate: item.dueDate ? item.dueDate.toISOString() : null,
     overdue: !!item.dueDate && !item.completed && item.dueDate.getTime() < Date.now(),
     createdAt: item.createdAt.toISOString(),
@@ -36,7 +35,7 @@ function normalizeCreateInput(body: CreateBodyItem) {
     description: body.description ?? null,
     priority: body.priority ?? ('medium' as const),
     dueDate: body.dueDate ? new Date(body.dueDate) : null,
-    projectId: body.projectId ?? null,
+    projectId: body.projectId,
   };
 }
 
@@ -47,7 +46,8 @@ function normalizeUpdateInput(body: UpdateBodyItem) {
     description: body.description ?? null,
     priority: body.priority ?? ('medium' as const),
     dueDate: body.dueDate ? new Date(body.dueDate) : null,
-    projectId: body.projectId ?? null,
+    // undefined = keep current project (drizzle skips undefined).
+    projectId: body.projectId,
   };
 }
 
@@ -100,7 +100,7 @@ const createItem = createRoute({
 itemController.openapi(createItem, async (c) => {
   const body = c.req.valid('json');
   const userId = getAuthenticatedUserId(c);
-  if (body.projectId && !(await projectService.getProject(body.projectId, userId))) {
+  if (!(await projectService.getProject(body.projectId, userId))) {
     throw new HTTPException(404, { message: 'Project not found' });
   }
   const item: Item = {

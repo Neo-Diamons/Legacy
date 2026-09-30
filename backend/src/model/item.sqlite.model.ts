@@ -1,11 +1,17 @@
 import { sql } from 'drizzle-orm';
 import { integer, sqliteTable, text } from 'drizzle-orm/sqlite-core';
 import { PRIORITIES } from './priority.js';
+import { users } from './user.sqlite.model.js';
+import { projects } from './project.sqlite.model.js';
 
 export const todoItems = sqliteTable('todo_items', {
   id: text('id').primaryKey(),
-  userId: text('user_id').notNull().default('00000000-0000-4000-8000-000000000000'),
-  projectId: text('project_id'),
+  userId: text('user_id')
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  projectId: text('project_id')
+    .notNull()
+    .references(() => projects.id, { onDelete: 'cascade' }),
   name: text('name').notNull(),
   description: text('description'),
   completed: integer('completed', { mode: 'boolean' }).notNull().default(false),
@@ -16,6 +22,6 @@ export const todoItems = sqliteTable('todo_items', {
     .default(sql`(unixepoch())`),
 });
 
-export type Item = Omit<typeof todoItems.$inferSelect, 'userId' | 'projectId'> &
-  Partial<Pick<typeof todoItems.$inferSelect, 'userId' | 'projectId'>>;
-export type ItemUpdate = Pick<Item, 'name' | 'description' | 'completed' | 'priority' | 'dueDate' | 'projectId'>;
+export type Item = typeof todoItems.$inferSelect;
+export type ItemUpdate = Pick<Item, 'name' | 'description' | 'completed' | 'priority' | 'dueDate'> &
+  Partial<Pick<Item, 'projectId'>>;

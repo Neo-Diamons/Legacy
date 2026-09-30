@@ -6,21 +6,12 @@ import type { ListItemsQuery } from '@schemas/item.schemas.js';
 
 export type { Item, ItemUpdate };
 
-export const LEGACY_USER_ID = '00000000-0000-4000-8000-000000000000';
-
-function normalizeItem(item: Item): Item {
-  if (item.projectId !== null) return item;
-  const normalized = { ...item };
-  delete normalized.projectId;
-  return normalized;
-}
-
 interface ItemService {
-  getItems(userIdOrOptions?: string | ListItemsQuery, options?: ListItemsQuery): Promise<Item[]>;
-  getItem(id: string, userId?: string): Promise<Item | undefined>;
+  getItems(userId: string, options?: ListItemsQuery): Promise<Item[]>;
+  getItem(id: string, userId: string): Promise<Item | undefined>;
   storeItem(item: Item): Promise<void>;
-  updateItem(id: string, item: ItemUpdate, userId?: string): Promise<number>;
-  removeItem(id: string, userId?: string): Promise<number>;
+  updateItem(id: string, item: ItemUpdate, userId: string): Promise<number>;
+  removeItem(id: string, userId: string): Promise<number>;
 }
 
 interface ItemColumns {
@@ -29,13 +20,6 @@ interface ItemColumns {
   priority: AnyColumn;
   dueDate: AnyColumn;
   completed: AnyColumn;
-}
-
-function resolveItemQuery(userIdOrOptions?: string | ListItemsQuery, options?: ListItemsQuery) {
-  return {
-    userId: typeof userIdOrOptions === 'string' ? userIdOrOptions : LEGACY_USER_ID,
-    options: typeof userIdOrOptions === 'string' ? options : userIdOrOptions,
-  };
 }
 
 function getTodayRange() {
@@ -98,29 +82,28 @@ function buildItemOrderBy(columns: ItemColumns, options?: ListItemsQuery): SQL[]
 }
 
 const sqliteItemService: ItemService = {
-  async getItems(userIdOrOptions, options) {
+  async getItems(userId, options) {
     let query = sqlite.db.select().from(sqliteItems).$dynamic();
-    const resolved = resolveItemQuery(userIdOrOptions, options);
 
-    query = query.where(buildItemFilter(sqliteItems, resolved.userId, resolved.options));
+    query = query.where(buildItemFilter(sqliteItems, userId, options));
 
-    const orderBy = buildItemOrderBy(sqliteItems, resolved.options);
+    const orderBy = buildItemOrderBy(sqliteItems, options);
     if (orderBy) query = query.orderBy(...orderBy);
 
-    return query.all().map(normalizeItem);
+    return query.all();
   },
-  async getItem(id, userId = LEGACY_USER_ID) {
+  async getItem(id, userId) {
     const item = sqlite.db
       .select()
       .from(sqliteItems)
       .where(and(eq(sqliteItems.id, id), eq(sqliteItems.userId, userId)))
       .get();
-    return item ? normalizeItem(item) : undefined;
+    return item;
   },
   async storeItem(item) {
     sqlite.db.insert(sqliteItems).values(item).run();
   },
-  async updateItem(id, item, userId = LEGACY_USER_ID) {
+  async updateItem(id, item, userId) {
     return sqlite.db
       .update(sqliteItems)
       .set({
@@ -134,7 +117,7 @@ const sqliteItemService: ItemService = {
       .where(and(eq(sqliteItems.id, id), eq(sqliteItems.userId, userId)))
       .run().changes;
   },
-  async removeItem(id, userId = LEGACY_USER_ID) {
+  async removeItem(id, userId) {
     return sqlite.db
       .delete(sqliteItems)
       .where(and(eq(sqliteItems.id, id), eq(sqliteItems.userId, userId)))
@@ -143,29 +126,28 @@ const sqliteItemService: ItemService = {
 };
 
 const mysqlItemService: ItemService = {
-  async getItems(userIdOrOptions, options) {
+  async getItems(userId, options) {
     let query = mysql.db.select().from(mysqlItems).$dynamic();
-    const resolved = resolveItemQuery(userIdOrOptions, options);
 
-    query = query.where(buildItemFilter(mysqlItems, resolved.userId, resolved.options));
+    query = query.where(buildItemFilter(mysqlItems, userId, options));
 
-    const orderBy = buildItemOrderBy(mysqlItems, resolved.options);
+    const orderBy = buildItemOrderBy(mysqlItems, options);
     if (orderBy) query = query.orderBy(...orderBy);
 
-    return query.then((items) => items.map(normalizeItem));
+    return query;
   },
-  async getItem(id, userId = LEGACY_USER_ID) {
+  async getItem(id, userId) {
     const rows = await mysql.db
       .select()
       .from(mysqlItems)
       .where(and(eq(mysqlItems.id, id), eq(mysqlItems.userId, userId)))
       .limit(1);
-    return rows[0] ? normalizeItem(rows[0]) : undefined;
+    return rows[0];
   },
   async storeItem(item) {
     await mysql.db.insert(mysqlItems).values(item);
   },
-  async updateItem(id, item, userId = LEGACY_USER_ID) {
+  async updateItem(id, item, userId) {
     const [res] = await mysql.db
       .update(mysqlItems)
       .set({
@@ -179,7 +161,7 @@ const mysqlItemService: ItemService = {
       .where(and(eq(mysqlItems.id, id), eq(mysqlItems.userId, userId)));
     return res.affectedRows;
   },
-  async removeItem(id, userId = LEGACY_USER_ID) {
+  async removeItem(id, userId) {
     const [res] = await mysql.db.delete(mysqlItems).where(and(eq(mysqlItems.id, id), eq(mysqlItems.userId, userId)));
     return res.affectedRows;
   },

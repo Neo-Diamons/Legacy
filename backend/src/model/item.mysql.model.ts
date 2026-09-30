@@ -1,11 +1,17 @@
 import { sql } from 'drizzle-orm';
 import { boolean, datetime, mysqlEnum, mysqlTable, text, varchar } from 'drizzle-orm/mysql-core';
 import { PRIORITIES } from './priority.js';
+import { users } from './user.mysql.model.js';
+import { projects } from './project.mysql.model.js';
 
 export const todoItems = mysqlTable('todo_items', {
   id: varchar('id', { length: 36 }).primaryKey(),
-  userId: varchar('user_id', { length: 36 }).notNull().default('00000000-0000-4000-8000-000000000000'),
-  projectId: varchar('project_id', { length: 36 }),
+  userId: varchar('user_id', { length: 36 })
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  projectId: varchar('project_id', { length: 36 })
+    .notNull()
+    .references(() => projects.id, { onDelete: 'cascade' }),
   name: text('name').notNull(),
   description: text('description'),
   completed: boolean('completed').notNull().default(false),
@@ -16,5 +22,4 @@ export const todoItems = mysqlTable('todo_items', {
     .default(sql`CURRENT_TIMESTAMP`),
 });
 
-export type Item = Omit<typeof todoItems.$inferSelect, 'userId' | 'projectId'> &
-  Partial<Pick<typeof todoItems.$inferSelect, 'userId' | 'projectId'>>;
+export type Item = typeof todoItems.$inferSelect;

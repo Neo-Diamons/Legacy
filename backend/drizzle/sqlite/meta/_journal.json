@@ -85,6 +85,13 @@
       "when": 1790630113933,
       "tag": "0011_moaning_abomination",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "6",
+      "when": 1790761755298,
+      "tag": "0012_require_item_owner_and_project",
+      "breakpoints": true
     }
   ]
 }
