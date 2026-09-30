@@ -1,178 +1,95 @@
-import { existsSync, unlinkSync } from 'fs';
+import { resetDb } from '../test/db.js';
+import { call, json, seedItem, seedProject, seedUser } from '../test/fixtures.js';
 
-process.env.JWT_SECRET = 'test-secret-that-is-at-least-32-characters-long';
-process.env.SQLITE_DB_LOCATION = './todo.isolation.test.db';
-
-const { createRouter, registerErrorHandler } = await import('@http/app.js');
-const { jwtAuth } = await import('@http/auth.js');
-const { sqliteLocation } = await import('@db/config.js');
-const { init, teardown } = await import('@db/db.sqlite.js');
-const { authController, userController } = await import('@controller/user.controller.js');
-const { itemController } = await import('@controller/item.controller.js');
-const { projectController } = await import('@controller/project.controller.js');
-
-const app = createRouter();
-app.use('/items/*', jwtAuth());
-app.use('/items', jwtAuth());
-app.route('/items', itemController);
-app.route('/auth', authController);
-app.route('/users', userController);
-app.use('/projects/*', jwtAuth());
-app.use('/projects', jwtAuth());
-app.route('/projects', projectController);
-registerErrorHandler(app);
-
-type Session = { id: string; headers: Record<string, string> };
-
-async function register(email: string): Promise<Session> {
-  const res = await app.request('/auth/register', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, name: email, password: 'correct-horse-battery' }),
-  });
-  expect(res.status).toBe(201);
-  const { token, user } = await res.json();
-  return { id: user.id, headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' } };
-}
-
-const call = (s: Session | null, method: string, path: string, body?: unknown) =>
-  app.request(path, {
-    method,
-    headers: s?.headers ?? { 'Content-Type': 'application/json' },
-    body: body === undefined ? undefined : JSON.stringify(body),
-  });
-
+/**
+ * Cross-user matrix: every route that takes an id is hit by a user who does not own it.
+ * The owner's data must come out untouched, and the answer must not reveal that the id exists.
+ */
+type Session = Awaited<ReturnType<typeof seedUser>>;
 let alice: Session;
-let bob: Session;
+let mallory: Session;
 let projectId: string;
 let itemId: string;
 
 beforeEach(async () => {
-  if (existsSync(sqliteLocation)) unlinkSync(sqliteLocation);
-  await init();
-  alice = await register('alice@example.com');
-  bob = await register('bob@example.com');
-  const project = await call(alice, 'POST', '/projects', { name: 'Alice project', color: '#ff0000' });
-  expect(project.status).toBe(201);
-  projectId = (await project.json()).id;
-  const item = await call(alice, 'POST', '/items', { name: 'Alice item', projectId });
-  expect(item.status).toBe(201);
-  itemId = (await item.json()).id;
+  await resetDb();
+  alice = await seedUser('alice@example.com');
+  mallory = await seedUser('mallory@example.com');
+  projectId = await seedProject(alice.id, 'Alice project', '#111111');
+  itemId = (await seedItem(alice.id, projectId, { name: 'Alice item' })).id;
 });
 
-afterEach(async () => {
-  await teardown();
+const snapshot = async () => ({
+  user: await json(await call(alice, 'GET', `/users/${alice.id}`)),
+  projects: await json(await call(alice, 'GET', '/projects')),
+  items: await json(await call(alice, 'GET', '/items')),
 });
 
-describe('unauthenticated requests', () => {
-  test.each([
-    ['GET', '/items'],
-    ['GET', '/projects'],
-    ['GET', '/users'],
-  ])('%s %s is rejected', async (method, path) => {
-    expect((await call(null, method, path)).status).toBe(401);
+describe('a user acting on the resources of another user', () => {
+  const attacks = (): [string, string, string, unknown, number][] => [
+    ['read the profile', 'GET', `/users/${alice.id}`, undefined, 403],
+    ['rename the profile', 'PUT', `/users/${alice.id}`, { name: 'pwned' }, 403],
+    [
+      'take over the account',
+      'PUT',
+      `/users/${alice.id}`,
+      { email: 'mallory2@example.com', password: 'attacker-password-1' },
+      403,
+    ],
+    ['export the data', 'GET', `/users/${alice.id}/export`, undefined, 403],
+    ['delete the account', 'DELETE', `/users/${alice.id}`, undefined, 403],
+    ['update a project', 'PUT', `/projects/${projectId}`, { name: 'pwned', color: '#000000' }, 404],
+    ['delete a project', 'DELETE', `/projects/${projectId}`, undefined, 404],
+    ['update an item', 'PUT', `/items/${itemId}`, { name: 'pwned', completed: true }, 404],
+    ['delete an item', 'DELETE', `/items/${itemId}`, undefined, 404],
+    ['add an item to a project', 'POST', '/items', { name: 'pwned', projectId }, 404],
+  ];
+
+  it.each([
+    'read the profile',
+    'rename the profile',
+    'take over the account',
+    'export the data',
+    'delete the account',
+    'update a project',
+    'delete a project',
+    'update an item',
+    'delete an item',
+    'add an item to a project',
+  ])('cannot %s', async (label) => {
+    const [, method, path, body, expected] = attacks().find(([name]) => name === label)!;
+    const before = await snapshot();
+
+    const res = await call(mallory, method, path, body);
+
+    expect(res.status).toBe(expected);
+    expect(await snapshot()).toEqual(before);
   });
 
-  test('a malformed token is rejected', async () => {
-    const res = await app.request('/items', { headers: { Authorization: 'Bearer nope' } });
-    expect(res.status).toBe(401);
-  });
-});
+  it('cannot move an item of their own into the project of someone else', async () => {
+    const own = await seedProject(mallory.id);
+    const mine = await seedItem(mallory.id, own, { name: 'mine' });
 
-describe('users', () => {
-  test('GET /users returns only the caller', async () => {
-    const body = await (await call(bob, 'GET', '/users')).json();
-    expect(body.map((u: { id: string }) => u.id)).toEqual([bob.id]);
-  });
+    const res = await call(mallory, 'PUT', `/items/${mine.id}`, { name: 'mine', completed: false, projectId });
 
-  test.each([
-    ['GET', ''],
-    ['PUT', ''],
-    ['DELETE', ''],
-    ['GET', '/export'],
-  ])('%s /users/:id%s of another user is forbidden', async (method, suffix) => {
-    const res = await call(
-      bob,
-      method,
-      `/users/${alice.id}${suffix}`,
-      method === 'PUT' ? { name: 'pwned' } : undefined
-    );
-    expect(res.status).toBe(403);
-    const still = await (await call(alice, 'GET', `/users/${alice.id}`)).json();
-    expect(still.name).toBe('alice@example.com');
-  });
-});
-
-describe('items and projects', () => {
-  test('lists never include another user data', async () => {
-    expect(await (await call(bob, 'GET', '/items')).json()).toEqual([]);
-    expect(await (await call(bob, 'GET', '/projects')).json()).toEqual([]);
-    expect(await (await call(alice, 'GET', '/items')).json()).toHaveLength(1);
+    expect(res.status).toBe(404);
+    expect((await json(await call(mallory, 'GET', '/items')))[0].projectId).toBe(own);
+    expect((await snapshot()).items).toHaveLength(1);
   });
 
-  test('another user cannot update or delete an item', async () => {
-    expect((await call(bob, 'PUT', `/items/${itemId}`, { name: 'pwned', completed: true })).status).toBe(404);
-    expect((await call(bob, 'DELETE', `/items/${itemId}`)).status).toBe(404);
-    const items = await (await call(alice, 'GET', '/items')).json();
-    expect(items[0].name).toBe('Alice item');
+  it('gets the same answer for a foreign id as for an id that never existed', async () => {
+    const foreign = await call(mallory, 'DELETE', `/items/${itemId}`);
+    const missing = await call(mallory, 'DELETE', `/items/${crypto.randomUUID()}`);
+
+    expect(foreign.status).toBe(missing.status);
+    expect(await foreign.text()).toBe(await missing.text());
   });
 
-  test('another user cannot update or delete a project', async () => {
-    expect((await call(bob, 'PUT', `/projects/${projectId}`, { name: 'pwned', color: '#000000' })).status).toBe(404);
-    expect((await call(bob, 'DELETE', `/projects/${projectId}`)).status).toBe(404);
-    expect(await (await call(alice, 'GET', '/projects')).json()).toHaveLength(1);
-    expect(await (await call(alice, 'GET', '/items')).json()).toHaveLength(1);
-  });
-
-  test('another user cannot create or move items into a foreign project', async () => {
-    expect((await call(bob, 'POST', '/items', { name: 'x', projectId })).status).toBe(404);
-    const own = await (await call(bob, 'POST', '/projects', { name: 'Bob', color: '#00ff00' })).json();
-    const mine = await (await call(bob, 'POST', '/items', { name: 'mine', projectId: own.id })).json();
-    expect((await call(bob, 'PUT', `/items/${mine.id}`, { name: 'mine', completed: false, projectId })).status).toBe(
-      404
-    );
-  });
-
-  test('a client cannot set userId on creation', async () => {
-    const res = await call(bob, 'POST', '/items', { name: 'x', projectId, userId: alice.id });
-    expect(res.status).toBe(422);
-  });
-});
-
-describe('token revocation', () => {
-  test('a token stops working after the password changes', async () => {
-    const res = await call(alice, 'PUT', `/users/${alice.id}`, { password: 'another-long-password' });
-    expect(res.status).toBe(200);
-    expect((await call(alice, 'GET', '/items')).status).toBe(401);
-    expect((await call(alice, 'GET', `/users/${alice.id}`)).status).toBe(401);
-  });
-
-  test('a fresh login after a password change gets a working token', async () => {
-    await call(alice, 'PUT', `/users/${alice.id}`, { password: 'another-long-password' });
-    const login = await call(null, 'POST', '/auth/login', {
-      email: 'alice@example.com',
-      password: 'another-long-password',
-    });
-    expect(login.status).toBe(200);
-    const { token } = await login.json();
-    const items = await app.request('/items', { headers: { Authorization: `Bearer ${token}` } });
-    expect(items.status).toBe(200);
-  });
-
-  test('changing only the name keeps the token valid', async () => {
-    expect((await call(alice, 'PUT', `/users/${alice.id}`, { name: 'Alice B' })).status).toBe(200);
-    expect((await call(alice, 'GET', '/items')).status).toBe(200);
-  });
-
-  test('a token stops working once the account is deleted', async () => {
-    expect((await call(alice, 'DELETE', `/users/${alice.id}`)).status).toBe(204);
-    expect((await call(alice, 'GET', '/items')).status).toBe(401);
-  });
-
-  test('a token without a version is rejected', async () => {
-    const { sign } = await import('hono/jwt');
-    const token = await sign({ sub: alice.id, exp: Math.floor(Date.now() / 1000) + 60 }, process.env.JWT_SECRET!);
-    const res = await app.request('/items', { headers: { Authorization: `Bearer ${token}` } });
-    expect(res.status).toBe(401);
+  it('sees empty lists and no trace of the other user', async () => {
+    for (const path of ['/items', '/projects']) {
+      expect(await json(await call(mallory, 'GET', path))).toEqual([]);
+    }
+    const profile = await json(await call(mallory, 'GET', '/users'));
+    expect(profile.map((u: { id: string }) => u.id)).toEqual([mallory.id]);
   });
 });

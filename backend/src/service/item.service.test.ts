@@ -1,194 +1,370 @@
-import { existsSync, unlinkSync } from 'fs';
+import { itemService } from '@service/item.service.js';
+import { resetDb } from '../test/db.js';
+import { seedItem, seedProject, seedUser } from '../test/fixtures.js';
 
-import { itemService as db } from '@service/item.service.js';
-import { init, teardown, db as sqliteDb } from '@db/db.sqlite.js';
-import { sqliteLocation } from '@db/config.js';
-import { users } from '@model/user.sqlite.model.js';
-import { projects } from '@model/project.sqlite.model.js';
+type Session = Awaited<ReturnType<typeof seedUser>>;
+const { storeItem, getItems, getItem, updateItem, removeItem } = itemService;
 
-const { storeItem, getItems, updateItem, removeItem, getItem } = db;
-
-const USER = '11111111-1111-4111-8111-111111111111';
-const OTHER_USER = '22222222-2222-4222-8222-222222222222';
-const PROJECT = '33333333-3333-4333-8333-333333333333';
-const OTHER_PROJECT = '44444444-4444-4444-8444-444444444444';
-
-const makeItem = (overrides: Partial<Parameters<typeof storeItem>[0]> = {}) => ({
-  id: '7aef3d7c-d301-4846-8358-2a91ec9d6be3',
-  userId: USER,
-  projectId: PROJECT,
-  name: 'Test',
-  completed: false,
-  priority: 'medium' as const,
-  description: null,
-  dueDate: null,
-  createdAt: new Date('2026-01-01T00:00:00.000Z'),
-  ...overrides,
-});
-
-const ITEM = makeItem();
-const { name, description, completed, priority, dueDate } = ITEM;
-const ITEM_FIELDS = { name, description, completed, priority, dueDate };
+let alice: Session;
+let bob: Session;
+let aliceProject: string;
+let bobProject: string;
 
 beforeEach(async () => {
-  if (existsSync(sqliteLocation)) {
-    unlinkSync(sqliteLocation);
-  }
-  await init();
-
-  for (const [id, email] of [
-    [USER, 'user@example.com'],
-    [OTHER_USER, 'other@example.com'],
-  ]) {
-    sqliteDb.insert(users).values({ id, email, name: email, passwordHash: 'x' }).run();
-  }
-  sqliteDb.insert(projects).values({ id: PROJECT, userId: USER, name: 'P', color: '#000000' }).run();
-  sqliteDb.insert(projects).values({ id: OTHER_PROJECT, userId: OTHER_USER, name: 'O', color: '#000000' }).run();
+  await resetDb();
+  alice = await seedUser('alice@example.com');
+  bob = await seedUser('bob@example.com');
+  aliceProject = await seedProject(alice.id);
+  bobProject = await seedProject(bob.id);
 });
 
-afterEach(async () => {
-  try {
-    await teardown();
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== 'SQLITE_MISUSE') {
-      throw error;
-    }
-  }
+afterEach(() => {
+  vi.useRealTimers();
 });
 
-test('it can store and retrieve items', async () => {
-  await storeItem(ITEM);
+const names = async (userId: string, options?: Parameters<typeof getItems>[1]) =>
+  (await getItems(userId, options)).map((i) => i.name);
 
-  const items = await getItems(USER);
-  expect(items.length).toBe(1);
-  expect(items[0]).toEqual(ITEM);
+const fields = (item: Awaited<ReturnType<typeof seedItem>>) => ({
+  name: item.name,
+  description: item.description,
+  completed: item.completed,
+  priority: item.priority,
+  dueDate: item.dueDate,
 });
 
-test('it can update an existing item', async () => {
-  expect(await getItems(USER)).toHaveLength(0);
+describe('storeItem / getItem / getItems', () => {
+  it('stores an item and returns it unchanged', async () => {
+    const item = await seedItem(alice.id, aliceProject, {
+      name: 'Buy milk',
+      description: 'Oat',
+      priority: 'high',
+      completed: true,
+      dueDate: new Date('2026-10-01T10:00:00.000Z'),
+    });
 
-  await storeItem(ITEM);
+    expect(await getItem(item.id, alice.id)).toEqual(item);
+    expect(await getItems(alice.id)).toEqual([item]);
+  });
 
-  const changed = await updateItem(ITEM.id, { ...ITEM_FIELDS, completed: true }, USER);
-  expect(changed).toBe(1);
+  it.each([
+    ['an empty name', { name: '' }],
+    ['a very long name', { name: 'A'.repeat(1000) }],
+    ['special characters', { name: `Robert'); DROP TABLE todo_items;-- <b>é日本語🚀</b>` }],
+    ['a multi-line description', { description: 'line 1\nline 2\n\ttabbed' }],
+  ])('round-trips an item with %s', async (_label, overrides) => {
+    const item = await seedItem(alice.id, aliceProject, overrides);
+    expect(await getItem(item.id, alice.id)).toEqual(item);
+  });
 
-  const items = await getItems(USER);
-  expect(items.length).toBe(1);
-  expect(items[0].completed).toBe(true);
+  it('returns undefined for an unknown id', async () => {
+    expect(await getItem(crypto.randomUUID(), alice.id)).toBeUndefined();
+  });
+
+  it('returns an empty list when the user has no items', async () => {
+    expect(await getItems(alice.id)).toEqual([]);
+  });
+
+  it('refuses an item pointing to a project that does not exist', async () => {
+    await expect(
+      storeItem({
+        id: crypto.randomUUID(),
+        userId: alice.id,
+        projectId: crypto.randomUUID(),
+        name: 'x',
+        description: null,
+        completed: false,
+        priority: 'medium',
+        dueDate: null,
+        createdAt: new Date(),
+      })
+    ).rejects.toThrow();
+  });
+
+  it('refuses a duplicate id', async () => {
+    const item = await seedItem(alice.id, aliceProject);
+    await expect(storeItem({ ...item, name: 'other' })).rejects.toThrow();
+    expect((await getItem(item.id, alice.id))?.name).toBe('Item');
+  });
 });
 
-test('updateItem returns 0 for an unknown id', async () => {
-  expect(await updateItem('this-id-does-not-exist', ITEM_FIELDS, USER)).toBe(0);
+describe('updateItem', () => {
+  it('updates every editable field and reports one changed row', async () => {
+    const item = await seedItem(alice.id, aliceProject);
+
+    const changed = await updateItem(
+      item.id,
+      {
+        name: 'Renamed',
+        description: 'Now described',
+        completed: true,
+        priority: 'urgent',
+        dueDate: new Date('2026-12-24T18:00:00.000Z'),
+        projectId: aliceProject,
+      },
+      alice.id
+    );
+
+    expect(changed).toBe(1);
+    expect(await getItem(item.id, alice.id)).toEqual({
+      ...item,
+      name: 'Renamed',
+      description: 'Now described',
+      completed: true,
+      priority: 'urgent',
+      dueDate: new Date('2026-12-24T18:00:00.000Z'),
+    });
+  });
+
+  it('can clear the description and due date', async () => {
+    const item = await seedItem(alice.id, aliceProject, {
+      description: 'to clear',
+      dueDate: new Date('2026-12-24T18:00:00.000Z'),
+    });
+
+    await updateItem(item.id, { ...fields(item), description: null, dueDate: null }, alice.id);
+
+    expect(await getItem(item.id, alice.id)).toMatchObject({ description: null, dueDate: null });
+  });
+
+  it('keeps the current project when projectId is not given', async () => {
+    const item = await seedItem(alice.id, aliceProject);
+    await updateItem(item.id, { ...fields(item), name: 'x' }, alice.id);
+
+    expect((await getItem(item.id, alice.id))?.projectId).toBe(aliceProject);
+  });
+
+  it('moves the item to another project', async () => {
+    const other = await seedProject(alice.id, 'Other');
+    const item = await seedItem(alice.id, aliceProject);
+
+    await updateItem(item.id, { ...fields(item), projectId: other }, alice.id);
+
+    expect((await getItem(item.id, alice.id))?.projectId).toBe(other);
+  });
+
+  it('never changes the owner or the creation date', async () => {
+    const item = await seedItem(alice.id, aliceProject);
+    await updateItem(
+      item.id,
+      { ...fields(item), userId: bob.id, createdAt: new Date('2000-01-01T00:00:00.000Z') } as never,
+      alice.id
+    );
+
+    const after = await getItem(item.id, alice.id);
+    expect(after?.userId).toBe(alice.id);
+    expect(after?.createdAt).toEqual(item.createdAt);
+  });
+
+  it('returns 0 and changes nothing for an unknown id', async () => {
+    const item = await seedItem(alice.id, aliceProject);
+    expect(await updateItem(crypto.randomUUID(), { ...fields(item), name: 'x' }, alice.id)).toBe(0);
+    expect(await names(alice.id)).toEqual(['Item']);
+  });
+
+  it('only updates the selected item', async () => {
+    const first = await seedItem(alice.id, aliceProject, { name: 'first' });
+    const second = await seedItem(alice.id, aliceProject, { name: 'second' });
+
+    await updateItem(first.id, { ...fields(first), completed: true }, alice.id);
+
+    expect(await getItem(first.id, alice.id)).toMatchObject({ completed: true });
+    expect(await getItem(second.id, alice.id)).toEqual(second);
+  });
+
+  it('does not let another user update the item', async () => {
+    const item = await seedItem(alice.id, aliceProject);
+
+    expect(await updateItem(item.id, { ...fields(item), name: 'pwned' }, bob.id)).toBe(0);
+    expect(await getItem(item.id, alice.id)).toEqual(item);
+  });
 });
 
-test('it can remove an existing item', async () => {
-  await storeItem(ITEM);
+describe('removeItem', () => {
+  it('removes the item', async () => {
+    const item = await seedItem(alice.id, aliceProject);
 
-  expect(await removeItem(ITEM.id, USER)).toBe(1);
-  expect(await getItems(USER)).toHaveLength(0);
-});
+    expect(await removeItem(item.id, alice.id)).toBe(1);
+    expect(await getItems(alice.id)).toEqual([]);
+  });
 
-test('removeItem returns 0 for an unknown id', async () => {
-  expect(await removeItem('this-id-does-not-exist', USER)).toBe(0);
-});
+  it('only removes the selected item', async () => {
+    const first = await seedItem(alice.id, aliceProject, { name: 'first' });
+    const second = await seedItem(alice.id, aliceProject, { name: 'second' });
 
-test('it can get a single item', async () => {
-  await storeItem(ITEM);
+    await removeItem(first.id, alice.id);
 
-  expect(await getItem(ITEM.id, USER)).toEqual(ITEM);
-});
+    expect(await getItems(alice.id)).toEqual([second]);
+  });
 
-test('it can store an item with an empty name', async () => {
-  const item = makeItem({ id: 'empty-name-id', name: '' });
-  await storeItem(item);
+  it('returns 0 for an unknown id', async () => {
+    expect(await removeItem(crypto.randomUUID(), alice.id)).toBe(0);
+  });
 
-  expect(await getItem(item.id, USER)).toEqual(item);
-});
+  it('does not let another user remove the item', async () => {
+    const item = await seedItem(alice.id, aliceProject);
 
-test('it can store an item with a very long name', async () => {
-  const item = makeItem({ id: 'long-name-id', name: 'A'.repeat(1000) });
-  await storeItem(item);
-
-  expect(await getItem(item.id, USER)).toEqual(item);
-});
-
-test('it can store a completed item', async () => {
-  const item = makeItem({ id: 'completed-id', name: 'Already completed', completed: true });
-  await storeItem(item);
-
-  expect(await getItem(item.id, USER)).toEqual(item);
-});
-
-test('it can store and update an item with a description', async () => {
-  const item = makeItem({ id: 'described-id', description: 'A description' });
-  await storeItem(item);
-  expect(await getItem(item.id, USER)).toEqual(item);
-
-  await updateItem(item.id, { ...ITEM_FIELDS, description: 'Updated description' }, USER);
-  expect((await getItem(item.id, USER))?.description).toBe('Updated description');
-});
-
-test('it returns no item for an unknown id', async () => {
-  expect(await getItem('this-id-does-not-exist', USER)).toBeUndefined();
-});
-
-test('it can store multiple items', async () => {
-  const item2 = makeItem({ id: 'second-item-id', name: 'Second item' });
-  await storeItem(ITEM);
-  await storeItem(item2);
-
-  const items = await getItems(USER);
-  expect(items).toHaveLength(2);
-  expect(items).toContainEqual(ITEM);
-  expect(items).toContainEqual(item2);
-});
-
-test('it only updates the selected item', async () => {
-  const item2 = makeItem({ id: 'second-item-id', name: 'Second item' });
-  await storeItem(ITEM);
-  await storeItem(item2);
-
-  await updateItem(ITEM.id, { ...ITEM_FIELDS, completed: true }, USER);
-
-  const items = await getItems(USER);
-  expect(items).toContainEqual({ ...ITEM, completed: true });
-  expect(items).toContainEqual(item2);
-});
-
-test('it only removes the selected item', async () => {
-  const item2 = makeItem({ id: 'second-item-id', name: 'Second item' });
-  await storeItem(ITEM);
-  await storeItem(item2);
-
-  await removeItem(ITEM.id, USER);
-
-  expect(await getItems(USER)).toEqual([item2]);
+    expect(await removeItem(item.id, bob.id)).toBe(0);
+    expect(await getItem(item.id, alice.id)).toEqual(item);
+  });
 });
 
 describe('user scoping', () => {
-  const foreign = makeItem({ id: 'foreign-id', userId: OTHER_USER, projectId: OTHER_PROJECT, name: 'Foreign' });
+  it('never mixes the items of two users, with or without filters', async () => {
+    const mine = await seedItem(alice.id, aliceProject, { name: 'mine', priority: 'high' });
+    const theirs = await seedItem(bob.id, bobProject, { name: 'theirs', priority: 'high' });
 
-  beforeEach(async () => {
-    await storeItem(ITEM);
-    await storeItem(foreign);
+    expect(await getItems(alice.id)).toEqual([mine]);
+    expect(await getItems(bob.id)).toEqual([theirs]);
+    expect(await names(alice.id, { priority: 'high', sortBy: 'name', sortOrder: 'asc' })).toEqual(['mine']);
+    expect(await getItem(theirs.id, alice.id)).toBeUndefined();
+  });
+});
+
+describe('priority filter', () => {
+  it('returns only items with the requested priority', async () => {
+    for (const priority of ['low', 'medium', 'high', 'urgent'] as const) {
+      await seedItem(alice.id, aliceProject, { name: priority, priority });
+    }
+
+    expect(await names(alice.id, { priority: 'high' })).toEqual(['high']);
+    expect(await names(alice.id, { priority: 'urgent' })).toEqual(['urgent']);
+    expect(await names(alice.id, { priority: 'low' })).toEqual(['low']);
+  });
+});
+
+describe('date filters', () => {
+  // Wednesday 30 September 2026, noon local time. Only Date is faked so database drivers keep working.
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date(2026, 8, 30, 12, 0, 0));
   });
 
-  test('getItems only returns the caller items', async () => {
-    expect(await getItems(USER)).toEqual([ITEM]);
-    expect(await getItems(OTHER_USER)).toEqual([foreign]);
+  const due = (name: string, dueDate: Date | null, overrides = {}) =>
+    seedItem(alice.id, aliceProject, { name, dueDate, ...overrides });
+
+  describe('today', () => {
+    it('includes the whole local day and nothing outside it', async () => {
+      await due('yesterday 23:59:59', new Date(2026, 8, 29, 23, 59, 59));
+      await due('today 00:00:00', new Date(2026, 8, 30, 0, 0, 0));
+      await due('today 23:59:59', new Date(2026, 8, 30, 23, 59, 59));
+      await due('tomorrow 00:00:00', new Date(2026, 9, 1, 0, 0, 0));
+      await due('no due date', null);
+
+      expect((await names(alice.id, { filter: 'today' })).sort()).toEqual(['today 00:00:00', 'today 23:59:59']);
+    });
+
+    it('includes completed items due today', async () => {
+      await due('done today', new Date(2026, 8, 30, 9, 0, 0), { completed: true });
+      expect(await names(alice.id, { filter: 'today' })).toEqual(['done today']);
+    });
   });
 
-  test('getItem does not return another user item', async () => {
-    expect(await getItem(foreign.id, USER)).toBeUndefined();
+  describe('week (Monday to Sunday)', () => {
+    it('spans Monday 00:00 up to the next Monday 00:00', async () => {
+      await due('sunday before 23:59:59', new Date(2026, 8, 27, 23, 59, 59));
+      await due('monday 00:00:00', new Date(2026, 8, 28, 0, 0, 0));
+      await due('wednesday', new Date(2026, 8, 30, 12, 0, 0));
+      await due('sunday 23:59:59', new Date(2026, 9, 4, 23, 59, 59));
+      await due('next monday 00:00:00', new Date(2026, 9, 5, 0, 0, 0));
+      await due('no due date', null);
+
+      expect((await names(alice.id, { filter: 'week' })).sort()).toEqual([
+        'monday 00:00:00',
+        'sunday 23:59:59',
+        'wednesday',
+      ]);
+    });
+
+    it('treats Sunday as the last day of its week, not the first of the next', async () => {
+      vi.setSystemTime(new Date(2026, 9, 4, 12, 0, 0));
+      await due('monday', new Date(2026, 8, 28, 8, 0, 0));
+      await due('next monday', new Date(2026, 9, 5, 8, 0, 0));
+
+      expect(await names(alice.id, { filter: 'week' })).toEqual(['monday']);
+    });
+
+    it('starts a new week on Monday at midnight', async () => {
+      vi.setSystemTime(new Date(2026, 9, 5, 0, 0, 0));
+      await due('last sunday', new Date(2026, 9, 4, 23, 59, 59));
+      await due('this monday', new Date(2026, 9, 5, 0, 0, 1));
+
+      expect(await names(alice.id, { filter: 'week' })).toEqual(['this monday']);
+    });
   });
 
-  test('updateItem does not touch another user item', async () => {
-    expect(await updateItem(foreign.id, { ...ITEM_FIELDS, name: 'pwned' }, USER)).toBe(0);
-    expect((await getItem(foreign.id, OTHER_USER))?.name).toBe('Foreign');
+  describe('overdue', () => {
+    it('returns incomplete items whose due date has passed', async () => {
+      await due('one second ago', new Date(2026, 8, 30, 11, 59, 59));
+      await due('last year', new Date(2025, 0, 1, 0, 0, 0));
+      await due('one second ahead', new Date(2026, 8, 30, 12, 0, 1));
+      await due('done and late', new Date(2026, 8, 1, 0, 0, 0), { completed: true });
+      await due('no due date', null);
+
+      expect((await names(alice.id, { filter: 'overdue' })).sort()).toEqual(['last year', 'one second ago']);
+    });
   });
 
-  test('removeItem does not delete another user item', async () => {
-    expect(await removeItem(foreign.id, USER)).toBe(0);
-    expect(await getItem(foreign.id, OTHER_USER)).toEqual(foreign);
+  it('combines a date filter with a priority filter', async () => {
+    await due('urgent today', new Date(2026, 8, 30, 9, 0, 0), { priority: 'urgent' });
+    await due('low today', new Date(2026, 8, 30, 9, 0, 0), { priority: 'low' });
+    await due('urgent later', new Date(2026, 9, 20, 9, 0, 0), { priority: 'urgent' });
+
+    expect(await names(alice.id, { filter: 'today', priority: 'urgent' })).toEqual(['urgent today']);
+  });
+
+  it('applies the date filter to the requesting user only', async () => {
+    await due('mine', new Date(2026, 8, 30, 9, 0, 0));
+    await seedItem(bob.id, bobProject, { name: 'theirs', dueDate: new Date(2026, 8, 30, 9, 0, 0) });
+
+    expect(await names(alice.id, { filter: 'today' })).toEqual(['mine']);
+  });
+});
+
+describe('sorting', () => {
+  it('sorts by priority, highest first by default and lowest first with asc', async () => {
+    for (const priority of ['medium', 'urgent', 'low', 'high'] as const) {
+      await seedItem(alice.id, aliceProject, { name: priority, priority });
+    }
+
+    expect(await names(alice.id, { sortBy: 'priority' })).toEqual(['urgent', 'high', 'medium', 'low']);
+    expect(await names(alice.id, { sortBy: 'priority', sortOrder: 'desc' })).toEqual([
+      'urgent',
+      'high',
+      'medium',
+      'low',
+    ]);
+    expect(await names(alice.id, { sortBy: 'priority', sortOrder: 'asc' })).toEqual([
+      'low',
+      'medium',
+      'high',
+      'urgent',
+    ]);
+  });
+
+  it('sorts by name ascending by default and descending on request', async () => {
+    for (const name of ['banana', 'cherry', 'apple']) await seedItem(alice.id, aliceProject, { name });
+
+    expect(await names(alice.id, { sortBy: 'name' })).toEqual(['apple', 'banana', 'cherry']);
+    expect(await names(alice.id, { sortBy: 'name', sortOrder: 'asc' })).toEqual(['apple', 'banana', 'cherry']);
+    expect(await names(alice.id, { sortBy: 'name', sortOrder: 'desc' })).toEqual(['cherry', 'banana', 'apple']);
+  });
+
+  it('sorts by due date and always puts items without a due date last', async () => {
+    await seedItem(alice.id, aliceProject, { name: 'none' });
+    await seedItem(alice.id, aliceProject, { name: 'later', dueDate: new Date('2026-12-01T00:00:00.000Z') });
+    await seedItem(alice.id, aliceProject, { name: 'sooner', dueDate: new Date('2026-11-01T00:00:00.000Z') });
+
+    expect(await names(alice.id, { sortBy: 'dueDate' })).toEqual(['sooner', 'later', 'none']);
+    expect(await names(alice.id, { sortBy: 'dueDate', sortOrder: 'asc' })).toEqual(['sooner', 'later', 'none']);
+    expect(await names(alice.id, { sortBy: 'dueDate', sortOrder: 'desc' })).toEqual(['later', 'sooner', 'none']);
+  });
+
+  it('sorts within a filter', async () => {
+    await seedItem(alice.id, aliceProject, { name: 'b', priority: 'high' });
+    await seedItem(alice.id, aliceProject, { name: 'a', priority: 'high' });
+    await seedItem(alice.id, aliceProject, { name: 'c', priority: 'low' });
+
+    expect(await names(alice.id, { priority: 'high', sortBy: 'name' })).toEqual(['a', 'b']);
   });
 });

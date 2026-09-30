@@ -60,3 +60,13 @@ export function broadcastItemEvent(event: ItemEvent, ownerId: string) {
     }
   }
 }
+
+/** Closes every socket of a user, e.g. once their session was revoked. */
+export function disconnectUser(ownerId: string) {
+  for (const [client, owner] of clientOwners) {
+    if (owner !== ownerId) continue;
+    clients.delete(client);
+    clientOwners.delete(client);
+    client.close(1008, 'Session revoked');
+  }
+}

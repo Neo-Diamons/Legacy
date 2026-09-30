@@ -12,7 +12,7 @@ export const UserResponseSchema = z
 export type UserResponse = z.infer<typeof UserResponseSchema>;
 
 export const RegisterUserBodySchema = z
-  .object({ email: z.email(), name: z.string().min(1), password: z.string().min(12) })
+  .object({ email: z.email().max(255), name: z.string().min(1).max(255), password: z.string().min(12) })
   .strict()
   .openapi('RegisterUser');
 export type RegisterUserBody = z.infer<typeof RegisterUserBodySchema>;
@@ -23,7 +23,11 @@ export const LoginBodySchema = z
   .openapi('Login');
 
 export const UpdateUserBodySchema = z
-  .object({ email: z.email().optional(), name: z.string().min(1).optional(), password: z.string().min(12).optional() })
+  .object({
+    email: z.email().max(255).optional(),
+    name: z.string().min(1).max(255).optional(),
+    password: z.string().min(12).optional(),
+  })
   .strict()
   .openapi('UpdateUser');
 export type UpdateUserBody = z.infer<typeof UpdateUserBodySchema>;

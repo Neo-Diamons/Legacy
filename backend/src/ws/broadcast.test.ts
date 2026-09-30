@@ -1,180 +1,324 @@
 import { serve, type ServerType } from '@hono/node-server';
 import { WSContext } from 'hono/ws';
 import { WebSocket } from 'ws';
-import { sign } from 'hono/jwt';
-import { createRouter } from '@http/app.js';
-import { broadcastItemEvent, clientOwners, clients, registerWebSocket } from '@ws/broadcast.js';
+import { userService } from '@service/user.service.js';
+import { broadcastItemEvent, clientOwners, clients, disconnectUser } from '@ws/broadcast.js';
+import { resetDb } from '../test/db.js';
+import { PASSWORD, call, injectWebSocket, issueToken, json, seedProject, seedUser, app } from '../test/fixtures.js';
 
-vi.mock('@service/user.service.js', () => ({ userService: { getTokenVersion: async () => 0 } }));
+type Session = Awaited<ReturnType<typeof seedUser>>;
+type Message = { type: string; item?: { id: string; name: string }; id?: string };
 
-process.env.JWT_SECRET ??= 'test-secret-that-is-at-least-32-characters-long';
-const OWNER = '11111111-1111-4111-8111-111111111111';
-const OTHER = '22222222-2222-4222-8222-222222222222';
+let server: ServerType;
+let port: number;
+let alice: Session;
+let bob: Session;
+let project: string;
+const sockets: WebSocket[] = [];
 
-async function connect(port: number, owner = OWNER) {
-  const token = await sign({ sub: owner, tv: 0, exp: Math.floor(Date.now() / 1000) + 60 }, process.env.JWT_SECRET!);
-  const ws = new WebSocket(`ws://localhost:${port}/ws?token=${token}`);
-  await waitForOpen(ws);
-  return ws;
-}
-
-function startServer(): Promise<{ port: number; close: () => Promise<void> }> {
-  return new Promise((resolve) => {
-    const app = createRouter();
-    const injectWebSocket = registerWebSocket(app);
-
-    const server: ServerType = serve({ fetch: app.fetch, port: 0 }, (info) => {
-      injectWebSocket(server);
-      resolve({
-        port: info.port,
-        close: () => new Promise((res) => server.close(() => res())),
-      });
+beforeAll(async () => {
+  await new Promise<void>((resolve) => {
+    server = serve({ fetch: app.fetch, port: 0 }, (info) => {
+      port = info.port;
+      resolve();
     });
+    injectWebSocket(server);
   });
-}
+});
 
-function waitForOpen(ws: WebSocket): Promise<void> {
-  return new Promise((resolve, reject) => {
+afterAll(() => new Promise<void>((resolve) => server.close(() => resolve())));
+
+beforeEach(async () => {
+  await resetDb();
+  alice = await seedUser('alice@example.com', { password: PASSWORD });
+  bob = await seedUser('bob@example.com');
+  project = await seedProject(alice.id);
+});
+
+afterEach(async () => {
+  for (const ws of sockets.splice(0)) ws.terminate();
+  await vi.waitFor(() => expect(clients.size).toBe(0));
+});
+
+/** Opens a socket and records every message it receives. */
+async function connect(token: string) {
+  const ws = new WebSocket(`ws://localhost:${port}/ws?token=${token}`);
+  sockets.push(ws);
+  const messages: Message[] = [];
+  ws.on('message', (data) => messages.push(JSON.parse(data.toString())));
+  await new Promise<void>((resolve, reject) => {
     ws.once('open', () => resolve());
     ws.once('error', reject);
   });
+  return { ws, messages };
 }
 
-function waitForMessage(ws: WebSocket): Promise<unknown> {
-  return new Promise((resolve, reject) => {
-    ws.once('message', (data) => resolve(JSON.parse(data.toString())));
-    ws.once('error', reject);
+/** Status code of the HTTP answer when the upgrade is refused. */
+function rejection(url: string) {
+  return new Promise<number>((resolve, reject) => {
+    const ws = new WebSocket(url);
+    sockets.push(ws);
+    ws.on('unexpected-response', (_req, res) => resolve(res.statusCode!));
+    ws.on('open', () => reject(new Error('the upgrade was accepted')));
+    ws.on('error', () => {});
   });
 }
 
-describe('ws/broadcast', () => {
-  let port: number;
-  let close: () => Promise<void>;
+const closeCode = (ws: WebSocket) => new Promise<number>((resolve) => ws.once('close', (code) => resolve(code)));
+const settle = () => new Promise((resolve) => setTimeout(resolve, 50));
 
-  beforeAll(async () => {
-    ({ port, close } = await startServer());
+describe('handshake', () => {
+  it('accepts a valid token and registers the socket for its owner', async () => {
+    await connect(alice.token);
+
+    expect(clients.size).toBe(1);
+    expect([...clientOwners.values()]).toEqual([alice.id]);
   });
 
-  afterAll(() => close());
+  it('refuses a connection without a token', async () => {
+    expect(await rejection(`ws://localhost:${port}/ws`)).toBe(401);
+    expect(clients.size).toBe(0);
+  });
 
-  test('broadcasts item.created to a connected client', async () => {
-    const ws = await connect(port);
+  it('refuses an empty or malformed token', async () => {
+    expect(await rejection(`ws://localhost:${port}/ws?token=`)).toBe(401);
+    expect(await rejection(`ws://localhost:${port}/ws?token=garbage`)).toBe(401);
+  });
 
-    const message = waitForMessage(ws);
-    const item = {
-      id: '1',
-      name: 'Test',
-      completed: false,
-      priority: 'medium' as const,
-      description: null,
-      dueDate: null,
-      projectId: '33333333-3333-4333-8333-333333333333',
-      overdue: false,
-      createdAt: '2026-01-01T00:00:00.000Z',
-    };
-    broadcastItemEvent({ type: 'item.created', item }, OWNER);
+  it('does not read the token from the Authorization header', async () => {
+    const status = await new Promise<number>((resolve) => {
+      const ws = new WebSocket(`ws://localhost:${port}/ws`, { headers: alice.headers });
+      sockets.push(ws);
+      ws.on('unexpected-response', (_req, res) => resolve(res.statusCode!));
+      ws.on('error', () => {});
+    });
+    expect(status).toBe(401);
+  });
 
-    await expect(message).resolves.toEqual({ type: 'item.created', item });
+  it('refuses an expired token', async () => {
+    expect(await rejection(`ws://localhost:${port}/ws?token=${await issueToken(alice.id, 0, -10)}`)).toBe(401);
+  });
 
+  it('refuses a token signed with another secret', async () => {
+    const forged = await issueToken(alice.id, 0, 3600, 'a-different-secret-of-32-characters!!');
+    expect(await rejection(`ws://localhost:${port}/ws?token=${forged}`)).toBe(401);
+  });
+
+  it('refuses a token that has been revoked by a password change', async () => {
+    await call(alice, 'PUT', `/users/${alice.id}`, { password: 'a-brand-new-password' });
+    expect(await rejection(`ws://localhost:${port}/ws?token=${alice.token}`)).toBe(401);
+  });
+
+  it('refuses the token of a deleted user', async () => {
+    await userService.deleteUser(alice.id);
+    expect(await rejection(`ws://localhost:${port}/ws?token=${alice.token}`)).toBe(401);
+  });
+
+  it('never registers a refused socket', async () => {
+    await rejection(`ws://localhost:${port}/ws?token=garbage`);
+    expect(clients.size).toBe(0);
+    expect(clientOwners.size).toBe(0);
+  });
+
+  it('forgets a socket when it closes', async () => {
+    const { ws } = await connect(alice.token);
     ws.close();
+
+    await vi.waitFor(() => expect(clients.size).toBe(0));
+    expect(clientOwners.size).toBe(0);
+  });
+});
+
+describe('item events from the REST API', () => {
+  it('sends item.created to the owner with the item as answered by the API', async () => {
+    const { messages } = await connect(alice.token);
+
+    const created = await json(await call(alice, 'POST', '/items', { name: 'Buy milk', projectId: project }));
+
+    await vi.waitFor(() => expect(messages).toHaveLength(1));
+    expect(messages[0]).toEqual({ type: 'item.created', item: created });
   });
 
-  test('broadcasts item.updated and item.deleted', async () => {
-    const ws = await connect(port);
+  it('sends item.updated with the updated item', async () => {
+    const created = await json(await call(alice, 'POST', '/items', { name: 'Old', projectId: project }));
+    const { messages } = await connect(alice.token);
 
-    const updated = waitForMessage(ws);
-    const item = {
-      id: '2',
-      name: 'Updated',
-      completed: true,
-      priority: 'medium' as const,
-      description: null,
-      dueDate: null,
-      projectId: '33333333-3333-4333-8333-333333333333',
-      overdue: false,
-      createdAt: '2026-01-01T00:00:00.000Z',
-    };
-    broadcastItemEvent({ type: 'item.updated', item }, OWNER);
-    await expect(updated).resolves.toEqual({ type: 'item.updated', item });
+    const updated = await json(await call(alice, 'PUT', `/items/${created.id}`, { name: 'New', completed: true }));
 
-    const deleted = waitForMessage(ws);
-    broadcastItemEvent({ type: 'item.deleted', id: '2' }, OWNER);
-    await expect(deleted).resolves.toEqual({ type: 'item.deleted', id: '2' });
-
-    ws.close();
+    await vi.waitFor(() => expect(messages).toHaveLength(1));
+    expect(messages[0]).toEqual({ type: 'item.updated', item: updated });
+    expect(messages[0].item).toMatchObject({ name: 'New', completed: true });
   });
 
-  test('broadcasts to every connection of the owner', async () => {
-    const [ws1, ws2] = await Promise.all([connect(port), connect(port)]);
+  it('sends item.deleted with only the id', async () => {
+    const created = await json(await call(alice, 'POST', '/items', { name: 'x', projectId: project }));
+    const { messages } = await connect(alice.token);
 
-    const [m1, m2] = [waitForMessage(ws1), waitForMessage(ws2)];
-    const item = {
-      id: '3',
-      name: 'Multi',
-      completed: false,
-      priority: 'medium' as const,
-      description: null,
-      dueDate: null,
-      projectId: '33333333-3333-4333-8333-333333333333',
-      overdue: false,
-      createdAt: '2026-01-01T00:00:00.000Z',
-    };
-    broadcastItemEvent({ type: 'item.created', item }, OWNER);
+    await call(alice, 'DELETE', `/items/${created.id}`);
 
-    await expect(m1).resolves.toEqual({ type: 'item.created', item });
-    await expect(m2).resolves.toEqual({ type: 'item.created', item });
-
-    ws1.close();
-    ws2.close();
+    await vi.waitFor(() => expect(messages).toHaveLength(1));
+    expect(messages[0]).toEqual({ type: 'item.deleted', id: created.id });
   });
 
-  test('does not deliver to other users or unauthenticated sockets', async () => {
-    const other = await connect(port, OTHER);
-    const received = vi.fn();
-    other.on('message', received);
+  it('delivers events in the order they happened', async () => {
+    const { messages } = await connect(alice.token);
 
-    const anon = new WebSocket(`ws://localhost:${port}/ws`);
-    const rejected = new Promise<number>((resolve) =>
-      anon.once('unexpected-response', (_req, res) => resolve(res.statusCode!))
-    );
-    anon.on('error', () => {});
-    anon.on('message', received);
-    await expect(rejected).resolves.toBe(401);
+    const created = await json(await call(alice, 'POST', '/items', { name: 'x', projectId: project }));
+    await call(alice, 'PUT', `/items/${created.id}`, { name: 'y', completed: false });
+    await call(alice, 'DELETE', `/items/${created.id}`);
 
-    const owner = await connect(port);
-    const message = waitForMessage(owner);
-    broadcastItemEvent({ type: 'item.deleted', id: '6' }, OWNER);
-    await message;
-
-    expect(received).not.toHaveBeenCalled();
-    other.close();
-    owner.close();
+    await vi.waitFor(() => expect(messages).toHaveLength(3));
+    expect(messages.map((m) => m.type)).toEqual(['item.created', 'item.updated', 'item.deleted']);
   });
 
-  test('skips a client whose readyState is not open', () => {
+  it('reaches every open connection of the owner', async () => {
+    const [first, second] = [await connect(alice.token), await connect(alice.token)];
+
+    await call(alice, 'POST', '/items', { name: 'x', projectId: project });
+
+    await vi.waitFor(() => {
+      expect(first.messages).toHaveLength(1);
+      expect(second.messages).toHaveLength(1);
+    });
+  });
+
+  it('never reaches another user', async () => {
+    const mine = await connect(alice.token);
+    const theirs = await connect(bob.token);
+
+    await call(alice, 'POST', '/items', { name: 'private', projectId: project });
+    await vi.waitFor(() => expect(mine.messages).toHaveLength(1));
+    await settle();
+
+    expect(theirs.messages).toEqual([]);
+  });
+
+  it('does not broadcast when the request fails', async () => {
+    const created = await json(await call(alice, 'POST', '/items', { name: 'x', projectId: project }));
+    const { messages } = await connect(alice.token);
+
+    await call(alice, 'POST', '/items', { name: '', projectId: crypto.randomUUID() });
+    await call(alice, 'POST', '/items', { projectId: project });
+    await call(alice, 'PUT', `/items/${crypto.randomUUID()}`, { name: 'x', completed: false });
+    await call(alice, 'PUT', `/items/${created.id}`, { name: 'x' });
+    await call(alice, 'DELETE', `/items/${crypto.randomUUID()}`);
+    await call(bob, 'DELETE', `/items/${created.id}`);
+    await settle();
+
+    expect(messages).toEqual([]);
+  });
+
+  it('does not tell anyone about an item another user tried to change', async () => {
+    const created = await json(await call(alice, 'POST', '/items', { name: 'x', projectId: project }));
+    const owner = await connect(alice.token);
+    const intruder = await connect(bob.token);
+
+    await call(bob, 'PUT', `/items/${created.id}`, { name: 'hacked', completed: true });
+    await settle();
+
+    expect(owner.messages).toEqual([]);
+    expect(intruder.messages).toEqual([]);
+  });
+});
+
+describe('session revocation', () => {
+  it('closes the sockets of a user who changes their password', async () => {
+    const { ws } = await connect(alice.token);
+    const bobSocket = await connect(bob.token);
+    const closed = closeCode(ws);
+
+    await call(alice, 'PUT', `/users/${alice.id}`, { password: 'a-brand-new-password' });
+
+    expect(await closed).toBe(1008);
+    expect(clients.size).toBe(1);
+    expect(bobSocket.ws.readyState).toBe(WebSocket.OPEN);
+  });
+
+  it('closes the sockets of a user who deletes their account', async () => {
+    const { ws } = await connect(alice.token);
+    const closed = closeCode(ws);
+
+    await call(alice, 'DELETE', `/users/${alice.id}`);
+
+    expect(await closed).toBe(1008);
+    expect(clients.size).toBe(0);
+  });
+
+  it('keeps the sockets open when only the name changes', async () => {
+    const { ws } = await connect(alice.token);
+
+    await call(alice, 'PUT', `/users/${alice.id}`, { name: 'Renamed' });
+    await settle();
+
+    expect(ws.readyState).toBe(WebSocket.OPEN);
+  });
+
+  it('disconnectUser closes every socket of that user and nobody else', async () => {
+    const [a1, a2, b] = [await connect(alice.token), await connect(alice.token), await connect(bob.token)];
+    const closed = [closeCode(a1.ws), closeCode(a2.ws)];
+
+    disconnectUser(alice.id);
+
+    expect(await Promise.all(closed)).toEqual([1008, 1008]);
+    expect(b.ws.readyState).toBe(WebSocket.OPEN);
+    expect([...clientOwners.values()]).toEqual([bob.id]);
+  });
+
+  it('disconnectUser does nothing for a user without sockets', async () => {
+    const { ws } = await connect(alice.token);
+    disconnectUser(crypto.randomUUID());
+    expect(ws.readyState).toBe(WebSocket.OPEN);
+  });
+});
+
+describe('broadcastItemEvent', () => {
+  const event = { type: 'item.deleted', id: 'abc' } as const;
+
+  const fakes: WSContext[] = [];
+  const fakeClient = (readyState: 0 | 1 | 2 | 3, owner?: string) => {
     const send = vi.fn();
-    const stale = new WSContext({ send, close: vi.fn(), readyState: 3 });
-    clients.add(stale);
-    clientOwners.set(stale, OWNER);
+    const client = new WSContext({ send, close: vi.fn(), readyState });
+    clients.add(client);
+    fakes.push(client);
+    if (owner) clientOwners.set(client, owner);
+    return { client, send };
+  };
 
-    broadcastItemEvent({ type: 'item.deleted', id: '5' }, OWNER);
-
-    expect(send).not.toHaveBeenCalled();
-    clients.delete(stale);
-    clientOwners.delete(stale);
+  afterEach(() => {
+    for (const client of fakes.splice(0)) {
+      clients.delete(client);
+      clientOwners.delete(client);
+    }
   });
 
-  test('stops sending to a client after it disconnects', async () => {
-    const ws = await connect(port);
-    ws.close();
-    await new Promise((r) => setTimeout(r, 50));
+  it('sends the JSON encoded event to the sockets of the owner', () => {
+    const { send } = fakeClient(1, alice.id);
 
-    const stillOpen = await connect(port);
+    broadcastItemEvent(event, alice.id);
 
-    const message = waitForMessage(stillOpen);
-    broadcastItemEvent({ type: 'item.deleted', id: '4' }, OWNER);
-    await expect(message).resolves.toEqual({ type: 'item.deleted', id: '4' });
+    expect(send).toHaveBeenCalledTimes(1);
+    expect(JSON.parse(send.mock.calls[0][0])).toEqual(event);
+  });
 
-    stillOpen.close();
+  it('skips sockets of other owners', () => {
+    const { send } = fakeClient(1, bob.id);
+    broadcastItemEvent(event, alice.id);
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  it('skips sockets that have no owner', () => {
+    const { send } = fakeClient(1);
+    broadcastItemEvent(event, alice.id);
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  it.each([0, 2, 3] as const)('skips a socket whose readyState is %i (not open)', (readyState) => {
+    const { send } = fakeClient(readyState, alice.id);
+    broadcastItemEvent(event, alice.id);
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  it('does not throw when nobody is connected', () => {
+    expect(() => broadcastItemEvent(event, alice.id)).not.toThrow();
   });
 });

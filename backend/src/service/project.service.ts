@@ -34,13 +34,15 @@ const sqliteService: ProjectService = {
   async updateProject(id, userId, update) {
     return sqlite.db
       .update(sqliteProjects)
-      .set(update)
+      .set({ name: update.name, color: update.color })
       .where(and(eq(sqliteProjects.id, id), eq(sqliteProjects.userId, userId)))
       .run().changes;
   },
   async deleteProject(id, userId) {
     return sqlite.db.transaction((tx) => {
-      tx.delete(sqliteItems).where(and(eq(sqliteItems.projectId, id), eq(sqliteItems.userId, userId))).run();
+      tx.delete(sqliteItems)
+        .where(and(eq(sqliteItems.projectId, id), eq(sqliteItems.userId, userId)))
+        .run();
       return tx
         .delete(sqliteProjects)
         .where(and(eq(sqliteProjects.id, id), eq(sqliteProjects.userId, userId)))
@@ -68,7 +70,7 @@ const mysqlService: ProjectService = {
   async updateProject(id, userId, update) {
     const [result] = await mysql.db
       .update(mysqlProjects)
-      .set(update)
+      .set({ name: update.name, color: update.color })
       .where(and(eq(mysqlProjects.id, id), eq(mysqlProjects.userId, userId)));
     return result.affectedRows;
   },

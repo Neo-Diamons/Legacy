@@ -1,821 +1,500 @@
-import { vi } from 'vitest';
 import { ItemListResponseSchema, ItemResponseSchema } from '@schemas/item.schemas.js';
+import { itemService } from '@service/item.service.js';
+import { resetDb } from '../test/db.js';
+import { call, json, seedItem, seedProject, seedUser } from '../test/fixtures.js';
 
-const { persistence, uuid } = vi.hoisted(() => ({
-  persistence: {
-    getItems: vi.fn(),
-    getItem: vi.fn(),
-    storeItem: vi.fn(),
-    updateItem: vi.fn(),
-    removeItem: vi.fn(),
-  },
-  uuid: vi.fn(),
-}));
+type Session = Awaited<ReturnType<typeof seedUser>>;
+let alice: Session;
+let bob: Session;
+let project: string;
+let bobProject: string;
 
-vi.mock('@service/item.service.js', () => ({ itemService: persistence }));
-vi.mock('@service/user.service.js', () => ({ userService: {} }));
-vi.mock('@service/project.service.js', () => ({
-  projectService: { getProject: vi.fn(async (id: string) => ({ id })) },
-}));
+// Placeholder swapped for the real project id at run time (the id does not exist when the tables are built).
+const PROJECT = '__project__';
+const FOREIGN_ID = '99999999-9999-4999-8999-999999999999';
 
-const { itemController } = await import('@controller/item.controller.js');
-const { createRouter, registerErrorHandler } = await import('@http/app.js');
-const db = persistence;
-
-const app = createRouter();
-app.use('*', async (c, next) => {
-  c.set('jwtPayload', { sub: '00000000-0000-4000-8000-000000000000' });
-  await next();
-});
-app.route('/items', itemController);
-registerErrorHandler(app);
-
-const USER = '00000000-0000-4000-8000-000000000000';
-const PROJECT = '55555555-5555-4555-8555-555555555555';
-const ID = '3fa85f64-5717-4562-b3fc-2c963f66afa6';
-const ID2 = '11111111-1111-4111-8111-111111111111';
-const ID3 = '22222222-2222-4222-8222-222222222222';
-const ID4 = '33333333-3333-4333-8333-333333333333';
-
-const get = (query = '') => app.request(`/items${query}`);
-
-const post = (body: unknown) =>
-  app.request('/items', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-
-const put = (id: string, body: unknown) =>
-  app.request(`/items/${id}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-
-const del = (id: string) => app.request(`/items/${id}`, { method: 'DELETE' });
-
-beforeEach(() => {
-  vi.clearAllMocks();
-  vi.spyOn(crypto, 'randomUUID').mockImplementation(() => uuid());
+beforeEach(async () => {
+  await resetDb();
+  alice = await seedUser('alice@example.com');
+  bob = await seedUser('bob@example.com');
+  project = await seedProject(alice.id);
+  bobProject = await seedProject(bob.id);
 });
 
-const FIXED_CREATED_AT = '2026-01-01T00:00:00.000Z';
-const FIXED_CREATED_AT_DATE = new Date(FIXED_CREATED_AT);
+afterEach(() => {
+  vi.useRealTimers();
+});
+
+const list = async (query = '', session = alice) => json(await call(session, 'GET', `/items${query}`));
+const listNames = async (query = '', session = alice) =>
+  (await list(query, session)).map((i: { name: string }) => i.name);
+const create = (body: Record<string, unknown>, session = alice) => call(session, 'POST', '/items', body);
+const update = (id: string, body: Record<string, unknown>, session = alice) =>
+  call(session, 'PUT', `/items/${id}`, body);
+const remove = (id: string, session = alice) => call(session, 'DELETE', `/items/${id}`);
+
+describe('authentication', () => {
+  const id = crypto.randomUUID();
+  it.each([
+    ['GET', '/items', undefined],
+    ['POST', '/items', { name: 'x', projectId: FOREIGN_ID }],
+    ['PUT', `/items/${id}`, { name: 'x', completed: false }],
+    ['DELETE', `/items/${id}`, undefined],
+  ])('%s %s answers 401 without a token', async (method, path, body) => {
+    expect((await call(null, method, path, body)).status).toBe(401);
+  });
+});
 
 describe('GET /items', () => {
-  const ITEMS = [
-    {
-      id: ID,
-      name: 'A sample item',
-      completed: false,
-      priority: 'medium',
-      description: null,
-      dueDate: null,
-      projectId: PROJECT,
-      createdAt: FIXED_CREATED_AT_DATE,
-    },
-  ];
-
-  test('it gets items correctly', async () => {
-    db.getItems.mockResolvedValue(ITEMS);
-
-    const res = await get();
-
-    expect(db.getItems).toHaveBeenCalledTimes(1);
-    expect(await res.json()).toEqual([{ ...ITEMS[0], dueDate: null, createdAt: FIXED_CREATED_AT, overdue: false }]);
+  it('is empty for a new user', async () => {
+    const res = await call(alice, 'GET', '/items');
+    expect(res.status).toBe(200);
+    expect(await json(res)).toEqual([]);
   });
 
-  test('it returns an empty list when there are no items', async () => {
-    db.getItems.mockResolvedValue([]);
-
-    const res = await get();
-
-    expect(db.getItems).toHaveBeenCalledTimes(1);
-    expect(await res.json()).toEqual([]);
-  });
-
-  test('it returns multiple items correctly', async () => {
-    const items = [
-      {
-        id: ID,
-        name: 'First item',
-        completed: false,
-        priority: 'low',
-        description: null,
-        dueDate: null,
-        projectId: PROJECT,
-        createdAt: FIXED_CREATED_AT_DATE,
-      },
-      {
-        id: ID2,
-        name: 'Second item',
-        completed: true,
-        priority: 'high',
-        description: null,
-        dueDate: null,
-        projectId: PROJECT,
-        createdAt: FIXED_CREATED_AT_DATE,
-      },
-      {
-        id: ID3,
-        name: 'Third item',
-        completed: false,
-        priority: 'urgent',
-        description: null,
-        dueDate: null,
-        projectId: PROJECT,
-        createdAt: FIXED_CREATED_AT_DATE,
-      },
-    ];
-
-    db.getItems.mockResolvedValue(items);
-
-    const res = await get();
-
-    expect(db.getItems).toHaveBeenCalledTimes(1);
-    expect(await res.json()).toEqual(
-      items.map((item) => ({ ...item, dueDate: null, createdAt: FIXED_CREATED_AT, overdue: false }))
-    );
-  });
-
-  test('it returns items with an empty name', async () => {
-    const items = [
-      {
-        id: ID,
-        name: '',
-        completed: false,
-        priority: 'medium',
-        description: null,
-        dueDate: null,
-        projectId: PROJECT,
-        createdAt: FIXED_CREATED_AT_DATE,
-      },
-    ];
-
-    db.getItems.mockResolvedValue(items);
-
-    const res = await get();
-
-    expect(await res.json()).toEqual(
-      items.map((item) => ({ ...item, dueDate: null, createdAt: FIXED_CREATED_AT, overdue: false }))
-    );
-  });
-
-  test('it returns completed and incomplete items', async () => {
-    const items = [
-      {
-        id: ID,
-        name: 'Completed task',
-        completed: true,
-        priority: 'medium',
-        description: null,
-        dueDate: null,
-        projectId: PROJECT,
-        createdAt: FIXED_CREATED_AT_DATE,
-      },
-      {
-        id: ID2,
-        name: 'Pending task',
-        completed: false,
-        priority: 'medium',
-        description: null,
-        dueDate: null,
-        projectId: PROJECT,
-        createdAt: FIXED_CREATED_AT_DATE,
-      },
-    ];
-
-    db.getItems.mockResolvedValue(items);
-
-    const res = await get();
-
-    expect(await res.json()).toEqual(
-      items.map((item) => ({ ...item, dueDate: null, createdAt: FIXED_CREATED_AT, overdue: false }))
-    );
-  });
-
-  test('it flags an item with a past due date and not completed as overdue', async () => {
-    const items = [
-      {
-        id: ID,
-        name: 'Late task',
-        completed: false,
-        priority: 'medium',
-        description: null,
-        dueDate: new Date('2020-01-01T00:00:00.000Z'),
-        projectId: PROJECT,
-        createdAt: FIXED_CREATED_AT_DATE,
-      },
-    ];
-
-    db.getItems.mockResolvedValue(items);
-
-    const res = await get();
-
-    expect(await res.json()).toEqual([
-      {
-        id: ID,
-        name: 'Late task',
-        completed: false,
-        priority: 'medium',
-        description: null,
-        dueDate: '2020-01-01T00:00:00.000Z',
-        projectId: PROJECT,
-        createdAt: FIXED_CREATED_AT,
-        overdue: true,
-      },
-    ]);
-  });
-
-  test('it does not flag a completed item with a past due date as overdue', async () => {
-    const items = [
-      {
-        id: ID,
-        name: 'Late but done',
-        completed: true,
-        priority: 'medium',
-        description: null,
-        dueDate: new Date('2020-01-01T00:00:00.000Z'),
-        projectId: PROJECT,
-        createdAt: FIXED_CREATED_AT_DATE,
-      },
-    ];
-
-    db.getItems.mockResolvedValue(items);
-
-    const res = await get();
-
-    expect(await res.json()).toEqual([
-      {
-        id: ID,
-        name: 'Late but done',
-        completed: true,
-        priority: 'medium',
-        description: null,
-        dueDate: '2020-01-01T00:00:00.000Z',
-        projectId: PROJECT,
-        createdAt: FIXED_CREATED_AT,
-        overdue: false,
-      },
-    ]);
-  });
-
-  test('it forwards sort/filter query params to the service', async () => {
-    db.getItems.mockResolvedValue([]);
-
-    await get('?sortBy=dueDate&sortOrder=asc&priority=high&filter=today');
-
-    expect(db.getItems).toHaveBeenCalledWith(USER, {
-      sortBy: 'dueDate',
-      sortOrder: 'asc',
+  it('returns the items of the caller in the documented shape', async () => {
+    const item = await seedItem(alice.id, project, {
+      name: 'Buy milk',
+      description: 'Oat',
       priority: 'high',
-      filter: 'today',
+      dueDate: new Date('2099-01-01T10:00:00.000Z'),
+    });
+
+    const body = await list();
+
+    expect(() => ItemListResponseSchema.parse(body)).not.toThrow();
+    expect(body).toEqual([
+      {
+        id: item.id,
+        name: 'Buy milk',
+        description: 'Oat',
+        completed: false,
+        priority: 'high',
+        dueDate: '2099-01-01T10:00:00.000Z',
+        projectId: project,
+        overdue: false,
+        createdAt: '2026-01-01T00:00:00.000Z',
+      },
+    ]);
+  });
+
+  it('never exposes the owner id and never returns items of other users', async () => {
+    await seedItem(bob.id, bobProject, { name: 'Bobs secret' });
+    await seedItem(alice.id, project, { name: 'Mine' });
+
+    const text = await (await call(alice, 'GET', '/items')).text();
+
+    expect(JSON.parse(text).map((i: { name: string }) => i.name)).toEqual(['Mine']);
+    expect(text).not.toContain('Bobs secret');
+    expect(text).not.toContain(alice.id);
+    expect(text).not.toContain(bob.id);
+  });
+
+  describe('overdue flag', () => {
+    it('is set for an incomplete item whose due date has passed', async () => {
+      await seedItem(alice.id, project, { name: 'late', dueDate: new Date('2020-01-01T00:00:00.000Z') });
+      expect((await list())[0].overdue).toBe(true);
+    });
+
+    it.each([
+      ['a completed item', { completed: true, dueDate: new Date('2020-01-01T00:00:00.000Z') }],
+      ['an item due in the future', { dueDate: new Date('2099-01-01T00:00:00.000Z') }],
+      ['an item without a due date', { dueDate: null }],
+    ])('is not set for %s', async (_label, overrides) => {
+      await seedItem(alice.id, project, overrides);
+      expect((await list())[0].overdue).toBe(false);
     });
   });
 
-  test('it rejects an unknown query param with 422', async () => {
-    const res = await get('?bogus=1');
+  describe('query parameters', () => {
+    // Wednesday 15 May 2024, noon local time. Only Date is faked.
+    beforeEach(() => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(new Date(2024, 4, 15, 12, 0, 0));
+    });
 
-    expect(res.status).toBe(422);
-    expect(db.getItems).not.toHaveBeenCalled();
-  });
+    const seedDue = (name: string, dueDate: Date | null, overrides = {}) =>
+      seedItem(alice.id, project, { name, dueDate, ...overrides });
 
-  test('the response body conforms to ItemListResponseSchema', async () => {
-    db.getItems.mockResolvedValue([
-      {
-        id: ID,
-        name: 'A sample item',
-        completed: false,
-        priority: 'medium',
-        description: null,
-        dueDate: null,
-        projectId: PROJECT,
-        createdAt: FIXED_CREATED_AT_DATE,
-      },
-      {
-        id: ID2,
-        name: 'Another item',
-        completed: true,
-        priority: 'low',
-        description: null,
-        dueDate: null,
-        projectId: PROJECT,
-        createdAt: FIXED_CREATED_AT_DATE,
-      },
-    ]);
+    it('filter=today keeps only what is due today', async () => {
+      await seedDue('yesterday', new Date(2024, 4, 14, 23, 59, 59));
+      await seedDue('today', new Date(2024, 4, 15, 8, 0, 0));
+      await seedDue('tomorrow', new Date(2024, 4, 16, 0, 0, 0));
+      await seedDue('never', null);
 
-    const res = await get();
-    const body = await res.json();
+      expect(await listNames('?filter=today')).toEqual(['today']);
+    });
 
-    expect(() => ItemListResponseSchema.parse(body)).not.toThrow();
+    it('filter=week keeps Monday to Sunday of the current week', async () => {
+      await seedDue('last sunday', new Date(2024, 4, 12, 23, 59, 59));
+      await seedDue('monday', new Date(2024, 4, 13, 0, 0, 0));
+      await seedDue('sunday', new Date(2024, 4, 19, 23, 59, 59));
+      await seedDue('next monday', new Date(2024, 4, 20, 0, 0, 0));
+
+      expect((await listNames('?filter=week')).sort()).toEqual(['monday', 'sunday']);
+    });
+
+    it('filter=overdue keeps incomplete items past their due date', async () => {
+      await seedDue('late', new Date(2024, 4, 15, 11, 0, 0));
+      await seedDue('late but done', new Date(2024, 4, 15, 11, 0, 0), { completed: true });
+      await seedDue('upcoming', new Date(2024, 4, 15, 13, 0, 0));
+
+      expect(await listNames('?filter=overdue')).toEqual(['late']);
+    });
+
+    it('priority=<level> keeps only that priority', async () => {
+      await seedDue('a', null, { priority: 'low' });
+      await seedDue('b', null, { priority: 'urgent' });
+
+      expect(await listNames('?priority=urgent')).toEqual(['b']);
+    });
+
+    it('combines filter and priority', async () => {
+      const today = new Date(2024, 4, 15, 8, 0, 0);
+      await seedDue('urgent today', today, { priority: 'urgent' });
+      await seedDue('low today', today, { priority: 'low' });
+      await seedDue('urgent later', new Date(2024, 5, 20, 8, 0, 0), { priority: 'urgent' });
+
+      expect(await listNames('?filter=today&priority=urgent')).toEqual(['urgent today']);
+    });
+
+    it('sortBy=priority orders by urgency (highest first unless sortOrder=asc)', async () => {
+      for (const priority of ['medium', 'urgent', 'low', 'high']) await seedDue(priority, null, { priority });
+
+      expect(await listNames('?sortBy=priority')).toEqual(['urgent', 'high', 'medium', 'low']);
+      expect(await listNames('?sortBy=priority&sortOrder=asc')).toEqual(['low', 'medium', 'high', 'urgent']);
+    });
+
+    it('sortBy=name orders alphabetically', async () => {
+      for (const name of ['banana', 'cherry', 'apple']) await seedDue(name, null);
+
+      expect(await listNames('?sortBy=name&sortOrder=asc')).toEqual(['apple', 'banana', 'cherry']);
+      expect(await listNames('?sortBy=name&sortOrder=desc')).toEqual(['cherry', 'banana', 'apple']);
+    });
+
+    it('sortBy=dueDate orders by date with undated items last', async () => {
+      await seedDue('none', null);
+      await seedDue('later', new Date(2024, 8, 1, 0, 0, 0));
+      await seedDue('sooner', new Date(2024, 6, 1, 0, 0, 0));
+
+      expect(await listNames('?sortBy=dueDate&sortOrder=asc')).toEqual(['sooner', 'later', 'none']);
+      expect(await listNames('?sortBy=dueDate&sortOrder=desc')).toEqual(['later', 'sooner', 'none']);
+    });
+
+    it('applies filters only to the items of the caller', async () => {
+      await seedDue('mine', new Date(2024, 4, 15, 8, 0, 0));
+      await seedItem(bob.id, bobProject, { name: 'theirs', dueDate: new Date(2024, 4, 15, 8, 0, 0) });
+
+      expect(await listNames('?filter=today')).toEqual(['mine']);
+    });
+
+    it.each([
+      ['an unknown parameter', '?bogus=1'],
+      ['an unknown filter', '?filter=yesterday'],
+      ['an unknown priority', '?priority=critical'],
+      ['an unknown sort key', '?sortBy=id'],
+      ['an unknown sort order', '?sortOrder=sideways'],
+    ])('answers 422 for %s', async (_label, query) => {
+      const res = await call(alice, 'GET', `/items${query}`);
+      expect(res.status).toBe(422);
+      expect((await json(res)).message).toBe('Validation failed');
+    });
   });
 });
 
 describe('POST /items', () => {
-  beforeEach(() => {
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date(FIXED_CREATED_AT));
-  });
+  it('creates an item with sensible defaults and answers 201', async () => {
+    const res = await create({ name: 'Buy milk', projectId: project });
+    const body = await json(res);
 
-  afterEach(() => {
-    vi.useRealTimers();
-  });
-
-  test('it stores item correctly', async () => {
-    const id = ID;
-    const name = 'A sample item';
-
-    uuid.mockReturnValue(id);
-
-    const res = await post({ projectId: PROJECT, name });
-
-    const expectedItem = {
-      id,
-      name,
-      completed: false,
-      priority: 'medium',
-      description: null,
-      dueDate: null,
-      projectId: PROJECT,
-      createdAt: FIXED_CREATED_AT_DATE,
-    };
-
-    expect(db.storeItem).toHaveBeenCalledTimes(1);
-    expect(db.storeItem).toHaveBeenCalledWith({ ...expectedItem, userId: USER });
     expect(res.status).toBe(201);
-    expect(await res.json()).toEqual({ ...expectedItem, createdAt: FIXED_CREATED_AT, overdue: false });
-  });
-
-  test('it can create an item with an empty name', async () => {
-    const id = ID2;
-
-    uuid.mockReturnValue(id);
-
-    const res = await post({ projectId: PROJECT, name: '' });
-
-    expect(db.storeItem).toHaveBeenCalledWith({
-      userId: USER,
-      id,
-      name: '',
-      completed: false,
-      priority: 'medium',
-      description: null,
-      dueDate: null,
-      projectId: PROJECT,
-      createdAt: FIXED_CREATED_AT_DATE,
-    });
-
-    expect(await res.json()).toEqual({
-      id,
-      name: '',
-      completed: false,
-      priority: 'medium',
-      description: null,
-      dueDate: null,
-      projectId: PROJECT,
-      createdAt: FIXED_CREATED_AT,
-      overdue: false,
-    });
-  });
-
-  test('it can create an item with a long name', async () => {
-    const id = ID3;
-    const name = 'A'.repeat(500);
-
-    uuid.mockReturnValue(id);
-
-    await post({ projectId: PROJECT, name });
-
-    expect(db.storeItem).toHaveBeenCalledWith({
-      userId: USER,
-      id,
-      name,
-      completed: false,
-      priority: 'medium',
-      description: null,
-      dueDate: null,
-      projectId: PROJECT,
-      createdAt: FIXED_CREATED_AT_DATE,
-    });
-  });
-
-  test('it can create an item with special characters', async () => {
-    const id = ID4;
-    const name = 'Test @#$%éà !?';
-
-    uuid.mockReturnValue(id);
-
-    await post({ projectId: PROJECT, name });
-
-    expect(db.storeItem).toHaveBeenCalledWith({
-      userId: USER,
-      id,
-      name,
-      completed: false,
-      priority: 'medium',
-      description: null,
-      dueDate: null,
-      projectId: PROJECT,
-      createdAt: FIXED_CREATED_AT_DATE,
-    });
-  });
-
-  test('it can create an item with spaces in the name', async () => {
-    const id = ID;
-    const name = '   Test item   ';
-
-    uuid.mockReturnValue(id);
-
-    await post({ projectId: PROJECT, name });
-
-    expect(db.storeItem).toHaveBeenCalledWith({
-      userId: USER,
-      id,
-      name,
-      completed: false,
-      priority: 'medium',
-      description: null,
-      dueDate: null,
-      projectId: PROJECT,
-      createdAt: FIXED_CREATED_AT_DATE,
-    });
-  });
-
-  test('it can create an item with an explicit priority and due date', async () => {
-    const id = ID;
-
-    uuid.mockReturnValue(id);
-
-    const res = await post({
-      projectId: PROJECT,
-      name: 'Ship release',
-      priority: 'urgent',
-      dueDate: '2026-09-20T15:00:00.000Z',
-    });
-
-    expect(db.storeItem).toHaveBeenCalledWith({
-      userId: USER,
-      id,
-      name: 'Ship release',
-      completed: false,
-      priority: 'urgent',
-      description: null,
-      dueDate: new Date('2026-09-20T15:00:00.000Z'),
-      projectId: PROJECT,
-      createdAt: FIXED_CREATED_AT_DATE,
-    });
-
-    expect(await res.json()).toEqual({
-      id,
-      name: 'Ship release',
-      completed: false,
-      priority: 'urgent',
-      description: null,
-      dueDate: '2026-09-20T15:00:00.000Z',
-      projectId: PROJECT,
-      createdAt: FIXED_CREATED_AT,
-      overdue: false,
-    });
-  });
-
-  test('it can create an item with a description', async () => {
-    const id = ID;
-
-    uuid.mockReturnValue(id);
-
-    const res = await post({ projectId: PROJECT, name: 'Buy milk', description: 'Whole or oat, whichever is cheaper' });
-
-    expect(db.storeItem).toHaveBeenCalledWith({
-      userId: USER,
-      id,
+    expect(() => ItemResponseSchema.parse(body)).not.toThrow();
+    expect(body).toEqual({
+      id: expect.any(String),
       name: 'Buy milk',
+      description: null,
       completed: false,
       priority: 'medium',
-      description: 'Whole or oat, whichever is cheaper',
       dueDate: null,
-      projectId: PROJECT,
-      createdAt: FIXED_CREATED_AT_DATE,
-    });
-
-    expect(await res.json()).toEqual({
-      id,
-      name: 'Buy milk',
-      completed: false,
-      priority: 'medium',
-      description: 'Whole or oat, whichever is cheaper',
-      dueDate: null,
-      projectId: PROJECT,
-      createdAt: FIXED_CREATED_AT,
+      projectId: project,
       overdue: false,
+      createdAt: expect.any(String),
     });
+    expect(Math.abs(Date.now() - new Date(body.createdAt).getTime())).toBeLessThan(5000);
   });
 
-  test('it rejects an invalid priority with 422', async () => {
-    const res = await post({ projectId: PROJECT, name: 'x', priority: 'critical' });
+  it('persists the item for its owner, and only them', async () => {
+    const { id } = await json(await create({ name: 'Buy milk', projectId: project }));
+
+    expect(await itemService.getItem(id, alice.id)).toMatchObject({
+      name: 'Buy milk',
+      userId: alice.id,
+      projectId: project,
+    });
+    expect(await list()).toHaveLength(1);
+    expect(await list('', bob)).toEqual([]);
+  });
+
+  it('stores every optional field it is given', async () => {
+    const res = await create({
+      name: 'Report',
+      description: 'Quarterly',
+      priority: 'urgent',
+      dueDate: '2099-03-04T05:06:07.000Z',
+      projectId: project,
+    });
+
+    expect(await json(res)).toMatchObject({
+      description: 'Quarterly',
+      priority: 'urgent',
+      dueDate: '2099-03-04T05:06:07.000Z',
+      overdue: false,
+    });
+    expect((await list())[0]).toMatchObject({ description: 'Quarterly', priority: 'urgent' });
+  });
+
+  it('flags an item created with a past due date as overdue', async () => {
+    const res = await create({ name: 'Late', dueDate: '2020-01-01T00:00:00.000Z', projectId: project });
+    expect((await json(res)).overdue).toBe(true);
+  });
+
+  it.each([
+    ['a null description', { description: null }],
+    ['a null due date', { dueDate: null }],
+    ['an empty name', { name: '' }],
+    ['a very long name', { name: 'A'.repeat(10_000) }],
+    ['a very long description', { description: 'D'.repeat(10_000) }],
+    ['special characters', { name: `<script>alert("x")</script> ' " \\ é日本語🚀` }],
+    ['spaces in the name', { name: '  spaced  out  ' }],
+  ])('accepts %s and returns it unchanged', async (_label, overrides) => {
+    const res = await create({ name: 'x', projectId: project, ...overrides });
+    const body = await json(res);
+
+    expect(res.status).toBe(201);
+    for (const [key, value] of Object.entries(overrides)) expect(body[key]).toBe(value);
+    expect((await list())[0].name).toBe('name' in overrides ? overrides.name : 'x');
+  });
+
+  it('gives every item its own id', async () => {
+    const a = await json(await create({ name: 'same', projectId: project }));
+    const b = await json(await create({ name: 'same', projectId: project }));
+    expect(a.id).not.toBe(b.id);
+  });
+
+  it.each([
+    ['a missing name', { projectId: PROJECT }],
+    ['a missing project', { name: 'x' }],
+    ['a project id that is not a uuid', { name: 'x', projectId: 'nope' }],
+    ['an unknown priority', { name: 'x', projectId: PROJECT, priority: 'critical' }],
+    ['a due date that is not ISO 8601', { name: 'x', projectId: PROJECT, dueDate: 'tomorrow' }],
+    ['a due date without a time', { name: 'x', projectId: PROJECT, dueDate: '2099-01-01' }],
+    ['a non-string name', { name: 12, projectId: PROJECT }],
+    ['a name over 10000 characters', { name: 'A'.repeat(10_001), projectId: PROJECT }],
+    ['a description over 10000 characters', { name: 'x', description: 'D'.repeat(10_001), projectId: PROJECT }],
+    ['a forged id', { name: 'x', projectId: PROJECT, id: FOREIGN_ID }],
+    ['a forged owner', { name: 'x', projectId: PROJECT, userId: FOREIGN_ID }],
+    ['completed', { name: 'x', projectId: PROJECT, completed: true }],
+    ['a forged creation date', { name: 'x', projectId: PROJECT, createdAt: '2000-01-01T00:00:00.000Z' }],
+  ])('answers 422 for %s and stores nothing', async (_label, body) => {
+    const res = await create(JSON.parse(JSON.stringify(body).replace(PROJECT, project)));
 
     expect(res.status).toBe(422);
-    expect(db.storeItem).not.toHaveBeenCalled();
+    expect((await json(res)).message).toBe('Validation failed');
+    expect(await itemService.getItems(alice.id)).toEqual([]);
   });
 
-  test('the response body conforms to ItemResponseSchema', async () => {
-    uuid.mockReturnValue(ID);
+  it('answers 404 for a project that does not exist', async () => {
+    const res = await create({ name: 'x', projectId: crypto.randomUUID() });
 
-    const res = await post({ projectId: PROJECT, name: 'A sample item' });
-    const body = await res.json();
+    expect(res.status).toBe(404);
+    expect(await json(res)).toEqual({ message: 'Project not found' });
+    expect(await itemService.getItems(alice.id)).toEqual([]);
+  });
 
-    expect(() => ItemResponseSchema.parse(body)).not.toThrow();
+  it('answers 404 for a project of another user, and stores nothing anywhere', async () => {
+    const res = await create({ name: 'x', projectId: bobProject });
+
+    expect(res.status).toBe(404);
+    expect(await itemService.getItems(alice.id)).toEqual([]);
+    expect(await itemService.getItems(bob.id)).toEqual([]);
   });
 });
 
 describe('PUT /items/:id', () => {
-  beforeEach(() => {
-    db.updateItem.mockResolvedValue(1);
-    db.getItem.mockImplementation(async (id: string) => {
-      const [, update] = db.updateItem.mock.calls.at(-1) ?? [];
-      return {
-        id,
-        name: update?.name ?? 'Existing item',
-        completed: update?.completed ?? false,
-        priority: update?.priority ?? 'medium',
-        description: update?.description ?? null,
-        dueDate: update?.dueDate ?? null,
-        projectId: PROJECT,
-        createdAt: new Date(FIXED_CREATED_AT),
-      };
+  it('replaces the editable fields and returns the stored item', async () => {
+    const item = await seedItem(alice.id, project, { name: 'Old', description: 'old', priority: 'low' });
+
+    const res = await update(item.id, {
+      name: 'New',
+      completed: true,
+      description: 'new',
+      priority: 'urgent',
+      dueDate: '2099-05-06T07:08:09.000Z',
     });
-  });
 
-  test('it updates items correctly', async () => {
-    const res = await put(ID, { name: 'New title', completed: false });
-
-    expect(db.updateItem).toHaveBeenCalledTimes(1);
-    expect(db.updateItem).toHaveBeenCalledWith(
-      ID,
-      {
-        name: 'New title',
-        completed: false,
-        priority: 'medium',
-        description: null,
-        dueDate: null,
-      },
-      USER
-    );
-
-    expect(await res.json()).toEqual({
-      id: ID,
-      name: 'New title',
-      completed: false,
-      priority: 'medium',
-      description: null,
-      dueDate: null,
-      projectId: PROJECT,
-      createdAt: FIXED_CREATED_AT,
-      overdue: false,
-    });
-  });
-
-  test('the response body conforms to ItemResponseSchema', async () => {
-    const res = await put(ID, { name: 'New title', completed: true });
-    const body = await res.json();
-
+    expect(res.status).toBe(200);
+    const body = await json(res);
     expect(() => ItemResponseSchema.parse(body)).not.toThrow();
-  });
-
-  test('it updates an item with an empty name', async () => {
-    const res = await put(ID, { name: '', completed: false });
-
-    expect(db.updateItem).toHaveBeenCalledWith(
-      ID,
-      {
-        name: '',
-        completed: false,
-        priority: 'medium',
-        description: null,
-        dueDate: null,
-      },
-      USER
-    );
-
-    expect(await res.json()).toEqual({
-      id: ID,
-      name: '',
-      completed: false,
-      priority: 'medium',
-      description: null,
-      dueDate: null,
-      projectId: PROJECT,
-      createdAt: FIXED_CREATED_AT,
+    expect(body).toEqual({
+      id: item.id,
+      name: 'New',
+      completed: true,
+      description: 'new',
+      priority: 'urgent',
+      dueDate: '2099-05-06T07:08:09.000Z',
+      projectId: project,
       overdue: false,
+      createdAt: '2026-01-01T00:00:00.000Z',
     });
+    expect(await list()).toEqual([body]);
   });
 
-  test('it can mark an item as completed', async () => {
-    await put(ID, { name: 'Finished task', completed: true });
-
-    expect(db.updateItem).toHaveBeenCalledWith(
-      ID,
-      {
-        name: 'Finished task',
-        completed: true,
-        priority: 'medium',
-        description: null,
-        dueDate: null,
-      },
-      USER
-    );
+  it('marks an item as completed', async () => {
+    const item = await seedItem(alice.id, project, { name: 'Todo' });
+    expect((await json(await update(item.id, { name: 'Todo', completed: true }))).completed).toBe(true);
   });
 
-  test('it updates an item with a very long name', async () => {
-    const longName = 'A'.repeat(500);
-
-    await put(ID, { name: longName, completed: false });
-
-    expect(db.updateItem).toHaveBeenCalledWith(
-      ID,
-      {
-        name: longName,
-        completed: false,
-        priority: 'medium',
-        description: null,
-        dueDate: null,
-      },
-      USER
-    );
-  });
-
-  test('it updates an item with special characters', async () => {
-    await put(ID, { name: 'Tâche @#$% éà !?', completed: false });
-
-    expect(db.updateItem).toHaveBeenCalledWith(
-      ID,
-      {
-        name: 'Tâche @#$% éà !?',
-        completed: false,
-        priority: 'medium',
-        description: null,
-        dueDate: null,
-      },
-      USER
-    );
-  });
-
-  test('it accepts any valid uuid id', async () => {
-    await put(ID2, { name: 'Updated item', completed: true });
-
-    expect(db.updateItem).toHaveBeenCalledWith(
-      ID2,
-      { name: 'Updated item', completed: true, priority: 'medium', description: null, dueDate: null },
-      USER
-    );
-  });
-
-  test('it updates an item with an explicit priority and due date', async () => {
-    await put(ID, { name: 'Ship release', completed: false, priority: 'urgent', dueDate: '2026-09-20T15:00:00.000Z' });
-
-    expect(db.updateItem).toHaveBeenCalledWith(
-      ID,
-      {
-        name: 'Ship release',
-        completed: false,
-        priority: 'urgent',
-        description: null,
-        dueDate: new Date('2026-09-20T15:00:00.000Z'),
-      },
-      USER
-    );
-  });
-
-  test('it can clear a due date by passing null', async () => {
-    await put(ID, { name: 'No date', completed: false, priority: 'low', dueDate: null });
-
-    expect(db.updateItem).toHaveBeenCalledWith(
-      ID,
-      {
-        name: 'No date',
-        completed: false,
-        priority: 'low',
-        description: null,
-        dueDate: null,
-      },
-      USER
-    );
-  });
-
-  test('it can set a description', async () => {
-    await put(ID, { name: 'Buy milk', completed: false, description: 'Oat milk this time' });
-
-    expect(db.updateItem).toHaveBeenCalledWith(
-      ID,
-      {
-        name: 'Buy milk',
-        completed: false,
-        priority: 'medium',
-        description: 'Oat milk this time',
-        dueDate: null,
-      },
-      USER
-    );
-  });
-
-  test('it can clear a description by passing null', async () => {
-    await put(ID, { name: 'Buy milk', completed: false, description: null });
-
-    expect(db.updateItem).toHaveBeenCalledWith(
-      ID,
-      {
-        name: 'Buy milk',
-        completed: false,
-        priority: 'medium',
-        description: null,
-        dueDate: null,
-      },
-      USER
-    );
-  });
-
-  test('it rejects a non-uuid id with 422', async () => {
-    const res = await put('abc-123', { name: 'x', completed: false });
-
-    expect(res.status).toBe(422);
-    expect(await res.json()).toEqual({
-      message: 'Validation failed',
-      issues: [{ path: ['id'], message: expect.any(String) }],
+  it('clears the due date and description when they are sent as null', async () => {
+    const item = await seedItem(alice.id, project, {
+      description: 'to clear',
+      dueDate: new Date('2099-01-01T00:00:00.000Z'),
     });
-    expect(db.updateItem).not.toHaveBeenCalled();
+
+    const body = await json(await update(item.id, { name: 'x', completed: false, description: null, dueDate: null }));
+
+    expect(body).toMatchObject({ description: null, dueDate: null });
   });
 
-  test('it returns 404 when the item does not exist', async () => {
-    db.updateItem.mockResolvedValue(0);
+  it('treats the body as a full replacement: omitted optional fields are reset', async () => {
+    const item = await seedItem(alice.id, project, {
+      description: 'will be dropped',
+      priority: 'urgent',
+      dueDate: new Date('2099-01-01T00:00:00.000Z'),
+    });
 
-    const res = await put(ID, { name: 'x', completed: false });
+    const body = await json(await update(item.id, { name: 'x', completed: false }));
+
+    expect(body).toMatchObject({ description: null, priority: 'medium', dueDate: null });
+  });
+
+  it('keeps the project when projectId is omitted', async () => {
+    const item = await seedItem(alice.id, project);
+    expect((await json(await update(item.id, { name: 'x', completed: false }))).projectId).toBe(project);
+  });
+
+  it('moves the item to another project of the caller', async () => {
+    const other = await seedProject(alice.id, 'Other');
+    const item = await seedItem(alice.id, project);
+
+    const res = await update(item.id, { name: 'x', completed: false, projectId: other });
+
+    expect((await json(res)).projectId).toBe(other);
+    expect((await itemService.getItem(item.id, alice.id))?.projectId).toBe(other);
+  });
+
+  it('answers 404 when moving to a project of another user, leaving the item where it was', async () => {
+    const item = await seedItem(alice.id, project, { name: 'stay' });
+
+    const res = await update(item.id, { name: 'moved', completed: true, projectId: bobProject });
 
     expect(res.status).toBe(404);
-    expect(await res.json()).toEqual({ message: 'Item not found' });
-    expect(db.updateItem).toHaveBeenCalledWith(
-      ID,
-      {
-        name: 'x',
-        completed: false,
-        priority: 'medium',
-        description: null,
-        dueDate: null,
-      },
-      USER
-    );
+    expect(await json(res)).toEqual({ message: 'Project not found' });
+    expect(await itemService.getItem(item.id, alice.id)).toEqual(item);
   });
 
-  test('it rejects a missing completed field with 422', async () => {
-    const res = await put(ID, { name: 'x' });
+  it('answers 404 when moving to a project that does not exist', async () => {
+    const item = await seedItem(alice.id, project);
+    expect((await update(item.id, { name: 'x', completed: false, projectId: crypto.randomUUID() })).status).toBe(404);
+    expect((await itemService.getItem(item.id, alice.id))?.projectId).toBe(project);
+  });
 
-    expect(res.status).toBe(422);
-    expect(await res.json()).toEqual({
-      message: 'Validation failed',
-      issues: [{ path: ['completed'], message: expect.any(String) }],
-    });
-    expect(db.updateItem).not.toHaveBeenCalled();
+  it('recomputes the overdue flag when the item is completed', async () => {
+    const item = await seedItem(alice.id, project, { dueDate: new Date('2020-01-01T00:00:00.000Z') });
+    expect((await list())[0].overdue).toBe(true);
+
+    const body = await json(await update(item.id, { name: 'x', completed: true, dueDate: '2020-01-01T00:00:00.000Z' }));
+
+    expect(body.overdue).toBe(false);
+  });
+
+  it('answers 404 for an unknown item', async () => {
+    const res = await update(crypto.randomUUID(), { name: 'x', completed: false });
+    expect(res.status).toBe(404);
+    expect(await json(res)).toEqual({ message: 'Item not found' });
+  });
+
+  it('answers 404 for an item of another user and leaves it untouched', async () => {
+    const item = await seedItem(bob.id, bobProject, { name: 'Bobs' });
+
+    expect((await update(item.id, { name: 'Hacked', completed: true })).status).toBe(404);
+    expect(await itemService.getItem(item.id, bob.id)).toEqual(item);
+  });
+
+  it.each([
+    ['a missing name', { completed: false }],
+    ['a missing completed flag', { name: 'x' }],
+    ['a non-boolean completed flag', { name: 'x', completed: 'yes' }],
+    ['a name over 10000 characters', { name: 'A'.repeat(10_001), completed: false }],
+    ['a description over 10000 characters', { name: 'x', completed: false, description: 'D'.repeat(10_001) }],
+    ['an unknown priority', { name: 'x', completed: false, priority: 'critical' }],
+    ['a malformed due date', { name: 'x', completed: false, dueDate: 'soon' }],
+    ['a project id that is not a uuid', { name: 'x', completed: false, projectId: 'nope' }],
+    ['a forged owner', { name: 'x', completed: false, userId: FOREIGN_ID }],
+    ['a forged id', { name: 'x', completed: false, id: FOREIGN_ID }],
+  ])('answers 422 for %s and changes nothing', async (_label, body) => {
+    const item = await seedItem(alice.id, project);
+
+    expect((await update(item.id, body)).status).toBe(422);
+    expect(await itemService.getItem(item.id, alice.id)).toEqual(item);
+  });
+
+  it('answers 422 for an id that is not a uuid', async () => {
+    expect((await update('abc-123', { name: 'x', completed: false })).status).toBe(422);
   });
 });
 
 describe('DELETE /items/:id', () => {
-  beforeEach(() => {
-    db.removeItem.mockResolvedValue(1);
-  });
+  it('answers 204 with an empty body and removes the item', async () => {
+    const item = await seedItem(alice.id, project);
 
-  test('it removes item correctly', async () => {
-    const res = await del(ID);
+    const res = await remove(item.id);
 
-    expect(db.removeItem).toHaveBeenCalledTimes(1);
-    expect(db.removeItem).toHaveBeenCalledWith(ID, USER);
     expect(res.status).toBe(204);
+    expect(await res.text()).toBe('');
+    expect(await list()).toEqual([]);
   });
 
-  test('it removes an item for any valid uuid id', async () => {
-    const res = await del(ID2);
+  it('removes only the requested item', async () => {
+    const first = await seedItem(alice.id, project, { name: 'first' });
+    const second = await seedItem(alice.id, project, { name: 'second' });
 
-    expect(db.removeItem).toHaveBeenCalledWith(ID2, USER);
-    expect(res.status).toBe(204);
+    await remove(first.id);
+
+    expect(await listNames()).toEqual(['second']);
+    expect(await itemService.getItem(second.id, alice.id)).toEqual(second);
   });
 
-  test('it rejects a non-uuid id with 422', async () => {
-    const res = await del('a'.repeat(500));
+  it('answers 404 the second time', async () => {
+    const item = await seedItem(alice.id, project);
+    await remove(item.id);
 
-    expect(res.status).toBe(422);
-    expect(db.removeItem).not.toHaveBeenCalled();
-  });
-
-  test('it returns 404 when the item does not exist', async () => {
-    db.removeItem.mockResolvedValue(0);
-
-    const res = await del(ID);
-
+    const res = await remove(item.id);
     expect(res.status).toBe(404);
-    expect(db.removeItem).toHaveBeenCalledWith(ID, USER);
+    expect(await json(res)).toEqual({ message: 'Item not found' });
   });
 
-  test('it only calls removeItem once', async () => {
-    await del(ID);
+  it('answers 404 for an unknown item', async () => {
+    expect((await remove(crypto.randomUUID())).status).toBe(404);
+  });
 
-    expect(db.removeItem).toHaveBeenCalledTimes(1);
+  it('answers 404 for an item of another user and keeps it', async () => {
+    const item = await seedItem(bob.id, bobProject);
+
+    expect((await remove(item.id)).status).toBe(404);
+    expect(await itemService.getItem(item.id, bob.id)).toEqual(item);
+  });
+
+  it('answers 422 for an id that is not a uuid', async () => {
+    expect((await remove('a'.repeat(500))).status).toBe(422);
   });
 });

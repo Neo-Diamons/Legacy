@@ -17,6 +17,7 @@ import {
 } from '@schemas/user.schemas.js';
 import { ErrorResponseSchema } from '@schemas/error.schemas.js';
 import { requireOwnUser } from '@http/identity.js';
+import { disconnectUser } from '@ws/broadcast.js';
 
 export const authController = createRouter();
 export const userController = createRouter();
@@ -33,6 +34,20 @@ function serializeUser(user: PublicUser | User) {
 
 function normalizeEmail(email: string) {
   return email.trim().toLowerCase();
+}
+
+/**
+ * Runs a write that may violate the unique email index. The pre-check in the handlers is racy, so a
+ * failure is re-checked: if the email now belongs to another user it is a conflict, otherwise it is a real error.
+ */
+async function withEmailConflict<T>(email: string | undefined, ownerId: string | undefined, write: () => Promise<T>) {
+  try {
+    return await write();
+  } catch (error) {
+    const holder = email ? await userService.getUserByEmail(email) : undefined;
+    if (holder && holder.id !== ownerId) throw new HTTPException(409, { message: 'Email already registered' });
+    throw error;
+  }
 }
 
 async function issueToken(user: User) {
@@ -72,7 +87,7 @@ authController.openapi(register, async (c) => {
     tokenVersion: 0,
     createdAt: new Date(),
   };
-  await userService.createUser(user);
+  await withEmailConflict(email, user.id, () => userService.createUser(user));
   return c.json({ token: await issueToken(user), user: serializeUser(user) }, 201);
 });
 
@@ -135,17 +150,30 @@ const update = createRoute({
   responses: {
     200: { content: { 'application/json': { schema: UserResponseSchema } }, description: 'Updated user' },
     404: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Not found' },
+    409: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Email exists' },
   },
 });
 userController.openapi(update, async (c) => {
   const id = requireOwnUser(c, c.req.valid('param').id);
   const body: UpdateUserBody = c.req.valid('json');
-  const changed = await userService.updateUser(id, {
-    email: body.email ? normalizeEmail(body.email) : undefined,
+  const email = body.email ? normalizeEmail(body.email) : undefined;
+  const update = {
+    email,
     name: body.name,
     passwordHash: body.password ? await hashPassword(body.password) : undefined,
-  });
-  if (!changed) throw new HTTPException(404, { message: 'User not found' });
+    // Choosing a new password satisfies a forced password change.
+    mustChangePassword: body.password ? false : undefined,
+  };
+
+  if (email) {
+    const holder = await userService.getUserByEmail(email);
+    if (holder && holder.id !== id) throw new HTTPException(409, { message: 'Email already registered' });
+  }
+  if (Object.values(update).some((value) => value !== undefined)) {
+    const changed = await withEmailConflict(email, id, () => userService.updateUser(id, update));
+    if (!changed) throw new HTTPException(404, { message: 'User not found' });
+    if (update.passwordHash) disconnectUser(id);
+  }
   const user = await userService.getUser(id);
   if (!user) throw new HTTPException(404, { message: 'User not found' });
   return c.json(serializeUser(user), 200);
@@ -163,8 +191,9 @@ const remove = createRoute({
   },
 });
 userController.openapi(remove, async (c) => {
-  if (!(await userService.deleteUser(requireOwnUser(c, c.req.valid('param').id))))
-    throw new HTTPException(404, { message: 'User not found' });
+  const id = requireOwnUser(c, c.req.valid('param').id);
+  if (!(await userService.deleteUser(id))) throw new HTTPException(404, { message: 'User not found' });
+  disconnectUser(id);
   return c.body(null, 204);
 });
 

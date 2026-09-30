@@ -1,6 +1,9 @@
 import { z } from '@hono/zod-openapi';
 import { PRIORITIES } from '@model/priority.js';
 
+// MySQL TEXT columns hold 65,535 bytes: 10,000 characters stay below that even at 4 bytes each.
+const TEXT_LIMIT = 10_000;
+
 export const PriorityEnum = z.enum(PRIORITIES).openapi('Priority');
 export type PriorityValue = z.infer<typeof PriorityEnum>;
 
@@ -40,8 +43,13 @@ export type ListItemsQuery = z.infer<typeof ListItemsQuerySchema>;
 
 export const CreateItemBodySchema = z
   .object({
-    name: z.string().openapi({ example: 'Buy milk' }),
-    description: z.string().nullable().optional().openapi({ example: 'Whole or oat milk, whichever is cheaper' }),
+    name: z.string().max(TEXT_LIMIT).openapi({ example: 'Buy milk' }),
+    description: z
+      .string()
+      .max(TEXT_LIMIT)
+      .nullable()
+      .optional()
+      .openapi({ example: 'Whole or oat milk, whichever is cheaper' }),
     priority: PriorityEnum.optional().openapi({ example: 'medium' }),
     dueDate: z.iso.datetime().nullable().optional().openapi({ example: '2026-09-20T15:00:00.000Z' }),
     projectId: z.uuid().openapi({ example: '7c9e6679-7425-40de-944b-e07fc1f90ae7' }),
@@ -52,8 +60,13 @@ export type CreateBodyItem = z.infer<typeof CreateItemBodySchema>;
 
 export const UpdateItemBodySchema = z
   .object({
-    name: z.string().openapi({ example: 'Buy milk' }),
-    description: z.string().nullable().optional().openapi({ example: 'Whole or oat milk, whichever is cheaper' }),
+    name: z.string().max(TEXT_LIMIT).openapi({ example: 'Buy milk' }),
+    description: z
+      .string()
+      .max(TEXT_LIMIT)
+      .nullable()
+      .optional()
+      .openapi({ example: 'Whole or oat milk, whichever is cheaper' }),
     completed: z.boolean().openapi({ example: true }),
     priority: PriorityEnum.optional().openapi({ example: 'urgent' }),
     dueDate: z.iso.datetime().nullable().optional().openapi({ example: null }),
