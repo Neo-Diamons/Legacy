@@ -249,9 +249,11 @@ With no `URLS`, the script runs a Selenium IDE **scenario** audit of the local
 app, because every page except the login and privacy ones needs a session. It
 registers (or reuses) the `rgaa-audit@example.test` account through the API,
 seeds a project and a task, then audits signed out (login, register form,
-`/privacy`) and signed in (`/`, `/projects`, `/projects/<id>`, `/profile`,
-`/privacy`). To cover a new page, add a step block to `scripts/rgaa-scenario.side.json`
-(`open`, wait for the heading, `echo audit`).
+`/privacy`) and signed in (`/`, `/projects`, `/projects/<id>`, `/profile`).
+To cover a new page, add a step block to `scripts/rgaa-scenario.side.json`
+(`open`, wait for the heading, `echo audit`). Each `echo audit` must capture a
+**unique URL** (append `?audit=<name>` if needed): Asqatasun crashes with
+`Duplicate entry` when an audit captures the same URL twice.
 
 The script, in order: rebuilds/starts the app (`compose.yml`) when targeting
 the local app, starts the Asqatasun stack, provisions a `Legacy` contract if

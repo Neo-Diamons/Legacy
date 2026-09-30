@@ -2,11 +2,12 @@
 # Usage: scripts/rgaa-audit.sh [URLS] [REFERENTIAL] [LEVEL]
 #   URLS         comma-separated list of public pages (page audit, no login).
 #                default (empty): scenario audit of the local app — login/register/privacy pages
-#                signed out, then /, /projects, /projects/<id>, /profile and /privacy signed in
+#                signed out, then /, /projects, /projects/<id>, and /profile signed in
 #   REFERENTIAL  default: RGAA_4_0  (this server's Referential enum: RGAA_4_0 | RGAA_3_0 | ACCESSIWEB_2_2 | SEO)
 #   LEVEL        default: AA        (this server's Level enum: A | AA | AAA)
 # Env:
 #   RGAA_MIN_MARK  if set, exit 1 when the audit mark (/100) is below it
+#   AUDIT_TIMEOUT  seconds to wait for the audit (default: 900 scenario, 300 page)
 #   RGAA_MAX_FAILED  if set, exit 1 when failed criteria exceed it
 
 set -euo pipefail
@@ -20,7 +21,6 @@ APP_COMPOSE=(sudo docker compose -f "$APP_COMPOSE_FILE")
 ASQA_URL="http://localhost:8081"
 WEBAPP_URL="http://localhost:8080"
 STARTUP_TIMEOUT=180
-AUDIT_TIMEOUT=300
 ASQA_USER="admin@asqatasun.org"
 ASQA_PASS="myAsqaPassword"
 
@@ -35,6 +35,7 @@ else
   MODE=scenario
   TARGET_URLS=("${SCENARIO_BASE}/")
 fi
+if [ "$MODE" = scenario ]; then AUDIT_TIMEOUT="${AUDIT_TIMEOUT:-900}"; else AUDIT_TIMEOUT="${AUDIT_TIMEOUT:-300}"; fi
 REFERENTIAL="${2:-RGAA_4_0}"
 LEVEL="${3:-AA}"
 
@@ -231,6 +232,10 @@ while true; do
       die "audit ${AUDIT_ID} ended in ERROR — usually means the target URL wasn't actually renderable (check it loads a real page, not just a TCP-level response)"
       ;;
   esac
+  if "${COMPOSE[@]}" logs --no-color --tail=200 asqatasun-server 2>/dev/null | grep -q "Audit ${AUDIT_ID} crashed"; then
+    "${COMPOSE[@]}" logs --tail=50 asqatasun-server >&2
+    die "audit ${AUDIT_ID} crashed (status '${STATUS}') — see server logs above; each audited URL must be unique (Duplicate entry errors = same URL captured twice)"
+  fi
   if [ "$elapsed" -ge "$AUDIT_TIMEOUT" ]; then
     die "audit ${AUDIT_ID} still '${STATUS}' after ${AUDIT_TIMEOUT}s, giving up"
   fi
@@ -253,8 +258,8 @@ echo "    Failed: ${FAILED}   Needs manual review: ${NEED_INFO}"
 echo "    Detailed report: ${WEBAPP_URL} — log in and open audit #${AUDIT_ID} under 'My audits'"
 
 if [ "$MODE" = scenario ]; then
-  echo "    Signed-out pages: / (login), / (register form), /privacy"
-  echo "    Signed-in pages (${AUDIT_EMAIL} / ${AUDIT_PASSWORD}): /, /projects, /projects/${PROJECT_ID}, /profile, /privacy"
+  echo "    Signed-out pages: /?audit=login, /?audit=register, /privacy"
+  echo "    Signed-in pages (${AUDIT_EMAIL} / ${AUDIT_PASSWORD}): /, /projects, /projects/${PROJECT_ID}, /profile"
 elif [[ "${TARGET_URLS[0]}" == *host.docker.internal* ]]; then
   echo "    App pages you can open yourself:"
   for url in "${TARGET_URLS[@]}"; do
