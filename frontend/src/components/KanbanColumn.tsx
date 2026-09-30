@@ -5,7 +5,7 @@ import { TaskRow } from "./TaskRow";
 const translateCategory = (category: TaskPriority) => {
     switch (category) {
         case 'low':
-            return 'Faible';
+            return 'Baisse';
         case 'medium':
             return 'Moyenne';
         case 'high':
