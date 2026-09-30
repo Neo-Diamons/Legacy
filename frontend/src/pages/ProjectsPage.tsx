@@ -302,7 +302,7 @@ function ProjectDetail({ projectId, onBack }: { projectId: string; onBack: () =>
             <Form.Group controlId="edit-task-due-date" className="mt-3">
               <Form.Label>Échéance</Form.Label>
               <Form.Control
-                type="date"
+                type="datetime-local"
                 value={editDueDate}
                 onChange={(e) => setEditDueDate(e.target.value)}
               />

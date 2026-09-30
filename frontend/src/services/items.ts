@@ -34,6 +34,20 @@ export function fetchItems(): Promise<ItemResponse[]> {
     .then(({ data }) => data);
 }
 
+function toApiDueDate(dueDate: string | null | undefined): string | null | undefined {
+  if (!dueDate) return dueDate;
+
+  if (dueDate.includes('T')) {
+    return new Date(dueDate).toISOString();
+  }
+
+  return `${dueDate}T00:00:00.000Z`;
+}
+
+export function toDateInputValue(dueDate: string | null): string {
+  return dueDate ? dueDate.slice(0, 10) : '';
+}
+
 export function createItem(input: ItemInput): Promise<{ status: number; item: ItemResponse }> {
   return fetch('/items', {
     method: 'POST',

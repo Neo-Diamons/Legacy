@@ -77,7 +77,11 @@ export function CreateTaskButton({ projectId }: { projectId: string }) {
             </Form.Group>
             <Form.Group controlId="task-due-date">
               <Form.Label>Échéance (optionnelle)</Form.Label>
-              <Form.Control type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
+              <Form.Control
+                type="datetime-local"
+                value={dueDate}
+                onChange={(e) => setDueDate(e.target.value)}
+              />
             </Form.Group>
           </Modal.Body>
           <Modal.Footer>
