@@ -10,6 +10,7 @@
   },
   "scripts": {
     "dev": "node --watch --env-file-if-exists=../.env --import tsx src/index.ts",
+    "wait": "wait-port localhost:3000",
     "build": "tsdown",
     "start": "node --enable-source-maps --env-file-if-exists=../.env dist/index.mjs",
     "test": "vitest run",

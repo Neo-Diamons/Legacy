@@ -34,6 +34,7 @@ describe('creating a task', () => {
       description: null,
       priority: 'urgent',
       dueDate: new Date('2026-05-01T15:30').toISOString(),
+      projectId: 'p-1',
     });
 
     expect(await screen.findByText('Write tests')).toBeInTheDocument();
@@ -56,6 +57,7 @@ describe('creating a task', () => {
       description: null,
       priority: 'medium',
       dueDate: null,
+      projectId: 'p-1',
     });
   });
 
@@ -100,7 +102,7 @@ describe('creating a task', () => {
     fireEvent.change(screen.getByLabelText('Nom'), { target: { value: 'Rejected' } });
     fireEvent.click(submitButton());
 
-    expect(await screen.findByText('Unprocessable Entity')).toBeInTheDocument();
+    expect(await screen.findByText('422 Unprocessable Entity')).toBeInTheDocument();
     expect(screen.queryByText('Rejected')).not.toBeInTheDocument();
     expect(screen.getByText("Ce projet n'a pas encore de tâche.")).toBeInTheDocument();
   });

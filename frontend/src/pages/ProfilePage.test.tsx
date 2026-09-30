@@ -1,7 +1,7 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, test } from 'vitest';
 
-import { item, jsonResponse, renderApp, stubApi, stubFetch } from '../test/helpers';
+import { bodyOf, callsWith, item, jsonResponse, renderApp, stubApi, stubPendingApi, USER } from '../test/helpers';
 
 const stat = (label: string) => screen.getByText(label, { selector: '.stat-label' }).parentElement as HTMLElement;
 const save = () => screen.getByRole('button', { name: 'Enregistrer' });
@@ -9,14 +9,13 @@ const nameInput = () => screen.getByLabelText('Nom affiché');
 
 describe('profile page', () => {
   test('shows a placeholder, not the form, while loading', async () => {
-    let resolve: (value: unknown) => void = () => undefined;
-    stubFetch(() => new Promise((r) => (resolve = r)));
+    const api = stubPendingApi();
     renderApp('/profile');
 
     expect(screen.queryByLabelText('Nom affiché')).not.toBeInTheDocument();
     expect(screen.queryByText('Profil')).not.toBeInTheDocument();
 
-    resolve(jsonResponse([]));
+    api.release();
     expect(await screen.findByLabelText('Nom affiché')).toBeInTheDocument();
   });
 
@@ -82,14 +81,19 @@ describe('profile page', () => {
     });
 
     test('saving trims the name and updates avatar, profile and home greeting', async () => {
-      stubApi([]);
+      const api = stubApi([], (url, init) =>
+        url === `/users/${USER.id}` && init?.method === 'PUT'
+          ? jsonResponse({ ...USER, name: JSON.parse(init.body as string).name })
+          : undefined
+      );
       renderApp('/profile');
       await screen.findByLabelText('Nom affiché');
 
       fireEvent.change(nameInput(), { target: { value: '  Élodie Martin  ' } });
       fireEvent.click(save());
 
-      expect(screen.getByText('Élodie Martin', { selector: '.fw-semibold' })).toBeInTheDocument();
+      expect(await screen.findByText('Élodie Martin', { selector: '.fw-semibold' })).toBeInTheDocument();
+      expect(bodyOf(callsWith(api, 'PUT')[0]!)).toEqual({ name: 'Élodie Martin' });
       expect(document.querySelector('.profile-avatar')).toHaveTextContent('ÉM');
       expect(screen.getByRole('button', { name: 'Menu utilisateur' })).toHaveTextContent('ÉM');
       expect(save()).toBeDisabled(); // input still holds the padded value, which trims to the saved name

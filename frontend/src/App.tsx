@@ -2,12 +2,17 @@ import { useEffect, useRef } from 'react';
 import { Container, Nav } from 'react-bootstrap';
 import { Link, Navigate, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom';
 
+import { PublicLayout } from './components/PublicLayout';
 import { UserMenu } from './components/UserMenu';
 import { NotificationContainer } from './components/NotificationContainer';
 import { AppDataProvider } from './context/AppDataProvider';
 import { HomePage } from './pages/HomePage';
 import { ProfilePage } from './pages/ProfilePage';
+import { PrivacyPage } from './pages/PrivacyPage';
 import { ProjectsPage } from './pages/ProjectsPage';
+import { LoginPage } from './pages/LoginPage';
+import { AuthProvider } from './services/auth';
+import { useAuth } from './services/authContext';
 
 function ProjectsRoute() {
   const { projectId } = useParams();
@@ -21,6 +26,37 @@ function ProjectsRoute() {
 }
 
 export default function App() {
+  return (
+    <AuthProvider>
+      <AuthenticatedApp />
+    </AuthProvider>
+  );
+}
+
+function AuthenticatedApp() {
+  const { loading, user } = useAuth();
+  if (loading) return null;
+  if (!user)
+    return (
+      <Routes>
+        <Route
+          path="/privacy"
+          element={
+            <PublicLayout>
+              <Container>
+                <PrivacyPage />
+              </Container>
+            </PublicLayout>
+          }
+        />
+        <Route path="*" element={<LoginPage />} />
+      </Routes>
+    );
+
+  return <AuthenticatedShell />;
+}
+
+function AuthenticatedShell() {
   const location = useLocation();
   const navigate = useNavigate();
   const activeTab = location.pathname.startsWith('/projects')
@@ -82,12 +118,15 @@ export default function App() {
             <Route path="/projects" element={<ProjectsRoute />} />
             <Route path="/projects/:projectId" element={<ProjectsRoute />} />
             <Route path="/profile" element={<ProfilePage />} />
+            <Route path="/privacy" element={<PrivacyPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </main>
 
         <footer className="app-footer">
-          <small>Legacy Todo App</small>
+          <small>
+            Legacy Todo App · <Link to="/privacy">Confidentialité</Link>
+          </small>
         </footer>
       </Container>
     </AppDataProvider>

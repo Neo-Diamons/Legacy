@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import { describe, expect, test } from 'vitest';
 
 import { NotificationContainer } from '../components/NotificationContainer';
+import { AuthProvider } from '../services/auth';
 import { AppDataProvider } from './AppDataProvider';
 import { useAppData } from './appDataContext';
 import {
@@ -12,23 +13,26 @@ import {
   item,
   jsonResponse,
   stubFetch,
-  latestSocket,
+  findSocket,
   MockWebSocket,
   renderApp,
+  signIn,
   stubApi,
+  stubPendingApi,
 } from '../test/helpers';
 
 const rowOf = (name: string) => screen.getByText(name).closest('.task-row') as HTMLElement;
 
 describe('AppDataProvider lifecycle', () => {
-  test('opens exactly one websocket and closes it on unmount (no leak)', () => {
+  test('opens exactly one websocket and closes it on unmount (no leak)', async () => {
     stubApi([]);
     const { unmount } = renderApp();
+    const socket = await findSocket();
     expect(MockWebSocket.instances).toHaveLength(1);
-    expect(latestSocket().closed).toBe(false);
+    expect(socket.closed).toBe(false);
 
     unmount();
-    expect(latestSocket().closed).toBe(true);
+    expect(socket.closed).toBe(true);
   });
 
   test('re-rendering does not reopen the websocket or refetch items', async () => {
@@ -38,6 +42,9 @@ describe('AppDataProvider lifecycle', () => {
     expect(fetchMock.mock.calls.filter(([url]) => url === '/items')).toHaveLength(1);
   });
 });
+
+const noProjects = (url: string, init?: RequestInit) =>
+  url === '/projects' && !init?.method ? jsonResponse([]) : undefined;
 
 describe('project actions (not exposed in the UI yet)', () => {
   function Probe() {
@@ -51,7 +58,11 @@ describe('project actions (not exposed in the UI yet)', () => {
             </li>
           ))}
         </ul>
-        <button onClick={() => createTask({ name: 'Stray', projectId: 'ghost', priority: 'low', dueDate: null })}>
+        <button
+          onClick={() =>
+            createTask({ name: 'Stray', projectId: 'ghost', priority: 'low', dueDate: null }).catch(() => undefined)
+          }
+        >
           create in unknown project
         </button>
         <button onClick={() => toggleTask('ghost')}>toggle unknown task</button>
@@ -69,23 +80,28 @@ describe('project actions (not exposed in the UI yet)', () => {
     );
   }
 
-  const renderProbe = () =>
-    render(
-      <AppDataProvider>
-        <NotificationContainer />
-        <Probe />
-      </AppDataProvider>
+  const renderProbe = () => {
+    signIn();
+    return render(
+      <AuthProvider>
+        <AppDataProvider>
+          <NotificationContainer />
+          <Probe />
+        </AppDataProvider>
+      </AuthProvider>
     );
+  };
 
-  test('createProject appends a project with a trimmed name and a unique id', () => {
+  test('createProject appends a project with a trimmed name and a unique id', async () => {
     stubApi([]);
     renderProbe();
+    await findSettled('Mon projet');
 
     fireEvent.click(screen.getByText('create'));
     fireEvent.click(screen.getByText('create'));
 
+    await waitFor(() => expect(screen.getAllByText('Alpha')).toHaveLength(2));
     const alphas = screen.getAllByText('Alpha');
-    expect(alphas).toHaveLength(2);
     expect(alphas[0]!.textContent).toBe('Alpha'); // getByText normalizes whitespace, so check the raw text
     expect(alphas[0]).toHaveAttribute('data-color', '#123456');
     expect(screen.getByText('Mon projet')).toBeInTheDocument();
@@ -99,7 +115,7 @@ describe('project actions (not exposed in the UI yet)', () => {
 
     fireEvent.click(screen.getByText('delete seed'));
 
-    expect(screen.queryByText('Mon projet')).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByText('Mon projet')).not.toBeInTheDocument());
     expect(screen.getByTestId('stats')).toHaveTextContent('{"taskCount":0,"completedTaskCount":0}');
   });
   test('toggling an unknown task id does nothing (no request)', async () => {
@@ -114,7 +130,7 @@ describe('project actions (not exposed in the UI yet)', () => {
 
   test('a task created for an unknown project is still sent and keeps that project id', async () => {
     const api = stubApi([], (_url, init) =>
-      init?.method === 'POST' ? jsonResponse(item('9', 'Stray'), { status: 201 }) : undefined
+      init?.method === 'POST' ? jsonResponse(item('9', 'Stray', { projectId: 'ghost' }), { status: 201 }) : undefined
     );
     renderProbe();
     await findSettled('Mon projet');
@@ -126,23 +142,19 @@ describe('project actions (not exposed in the UI yet)', () => {
   });
 
   test('items loaded after the last project was deleted stay unassigned instead of crashing', async () => {
-    let resolve: (value: unknown) => void = () => undefined;
-    stubFetch(() => new Promise((r) => (resolve = r)));
+    stubApi([item('1', 'Late', { projectId: null })], noProjects);
     renderProbe();
-
-    fireEvent.click(screen.getByText('delete seed'));
-    await act(async () => resolve(jsonResponse([item('1', 'Late')])));
 
     expect(await screen.findByText('Late')).toHaveAttribute('data-project', '');
   });
 
   test('tasks arriving over the socket with no project stay unassigned', async () => {
-    stubApi([]);
+    stubApi([], noProjects);
     renderProbe();
-    await findSettled('Mon projet');
-    fireEvent.click(screen.getByText('delete seed'));
+    await findSocket();
+    await act(async () => undefined);
 
-    emitEvent({ type: 'item.created', item: item('2', 'Orphan') });
+    emitEvent({ type: 'item.created', item: item('2', 'Orphan', { projectId: null }) });
 
     expect(screen.getByText('Orphan')).toHaveAttribute('data-project', '');
   });
@@ -155,22 +167,24 @@ describe('project actions (not exposed in the UI yet)', () => {
   });
 
   test('an HTTP error while creating does not add the task', async () => {
-    stubApi([], (_url, init) => (init?.method === 'POST' ? errorResponse(500, 'Internal Server Error') : undefined));
+    const api = stubApi([], (_url, init) =>
+      init?.method === 'POST' ? errorResponse(500, 'Internal Server Error') : undefined
+    );
     renderProbe();
     await findSettled('Mon projet');
 
     fireEvent.click(screen.getByText('create in unknown project'));
 
-    await waitFor(() => expect(document.querySelector('i.fa-times-circle')).toBeInTheDocument());
+    await waitFor(() => expect(callsWith(api, 'POST')).toHaveLength(1));
     expect(screen.queryByText('Stray')).not.toBeInTheDocument();
   });
   test('an item announced over the socket before the initial fetch resolves is not duplicated', async () => {
-    let resolve: (value: unknown) => void = () => undefined;
-    stubFetch(() => new Promise((r) => (resolve = r)));
+    const api = stubPendingApi([item('1', 'Early bird'), item('2', 'Regular')]);
     renderProbe();
+    await findSocket();
 
     emitEvent({ type: 'item.created', item: item('1', 'Early bird') });
-    await act(async () => resolve(jsonResponse([item('1', 'Early bird'), item('2', 'Regular')])));
+    await act(async () => api.release());
 
     expect(await screen.findByText('Regular')).toHaveAttribute('data-project', 'p-1');
     expect(screen.getAllByText('Early bird')).toHaveLength(1);
@@ -184,11 +198,10 @@ describe('project actions (not exposed in the UI yet)', () => {
     await findSettled('Mon projet');
 
     fireEvent.click(screen.getByText('create in unknown project'));
-    emitEvent({ type: 'item.created', item: item('9', 'Stray') });
-    await act(async () => resolvePost(jsonResponse(item('9', 'Stray'), { status: 201 })));
+    emitEvent({ type: 'item.created', item: item('9', 'Stray', { projectId: 'ghost' }) });
+    await act(async () => resolvePost(jsonResponse(item('9', 'Stray', { projectId: 'ghost' }), { status: 201 })));
 
     expect(screen.getAllByText('Stray')).toHaveLength(1);
-    // the acting tab's explicit project choice wins over the default assignment from the echo
     expect(screen.getByText('Stray')).toHaveAttribute('data-project', 'ghost');
   });
 });

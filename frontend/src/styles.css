@@ -119,7 +119,7 @@ button:focus {
 }
 
 .empty-state {
-  color: #6c757d;
+  color: #595f66;
 }
 
 /* Task row, shared by the Home and Project-detail screens */
@@ -148,7 +148,7 @@ button:focus {
 
 .task-row-title.completed {
   text-decoration: line-through;
-  color: #6c757d;
+  color: #595f66;
 }
 
 .task-row-meta {
@@ -276,6 +276,15 @@ button:focus {
   min-width: 240px;
 }
 
+.profile-delete-action {
+  margin-left: auto;
+}
+
+.profile-password-form {
+  width: 100%;
+  max-width: 360px;
+}
+
 .stat-card {
   background-color: white;
   border-radius: 8px;
@@ -290,7 +299,7 @@ button:focus {
 }
 
 .stat-label {
-  color: #6c757d;
+  color: #595f66;
   font-size: 0.85rem;
 }
 
@@ -336,7 +345,7 @@ button:focus {
   align-items: center;
   justify-content: space-between;
   padding: 16px 18px;
-  border-bottom: 4px solid #94a3b8;
+  border-bottom: 4px solid #64748b;
   background: #f8fafc;
 }
 
@@ -380,7 +389,7 @@ button:focus {
 
 .kanban-empty {
   margin: auto;
-  color: #94a3b8;
+  color: #64748b;
   font-size: 0.9rem;
   text-align: center;
 }
@@ -435,7 +444,7 @@ button:focus {
   outline-offset: 2px;
 }
 
-.task-row-meta .text-muted {
+.text-muted {
   color: #595f66 !important;
 }
 
@@ -471,4 +480,115 @@ main h1:focus {
 
 .task-row-overdue {
   background-color: #f8d7da !important;
+}
+
+.auth-page {
+  min-height: 70vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 400px;
+  border: transparent;
+  border-radius: 8px;
+  box-shadow: 0 0 1em #ccc;
+}
+
+.auth-title {
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.privacy-page {
+  max-width: 760px;
+  margin: 0 auto;
+  padding-block: 24px;
+}
+
+.privacy-page .widget-card {
+  height: auto;
+}
+
+.privacy-page h2 {
+  margin-top: 20px;
+}
+
+.privacy-page h2:first-child {
+  margin-top: 0;
+}
+
+/* Bootstrap's default outline/danger colours fall under 4.5:1 on the #f4f4f4 page background (RGAA 3.2.x). */
+.btn-outline-primary {
+  --bs-btn-color: #0a58ca;
+  --bs-btn-border-color: #0a58ca;
+}
+
+.btn-outline-secondary {
+  --bs-btn-color: #595f66;
+  --bs-btn-border-color: #595f66;
+}
+
+.btn-outline-danger {
+  --bs-btn-color: #b02a37;
+  --bs-btn-border-color: #b02a37;
+}
+
+.text-danger {
+  color: #b02a37 !important;
+}
+
+/* Bootstrap's default link blue (#0d6efd) is 4.1:1 on the #f4f4f4 page background. */
+:root {
+  --bs-link-color: #0a58ca;
+  --bs-link-color-rgb: 10, 88, 202;
+  --bs-link-hover-color: #084298;
+  --bs-link-hover-color-rgb: 8, 66, 152;
+}
+
+/* Priority badges are bold small text: Bootstrap's white-on-yellow (medium) is ~1.6:1, white-on-red is 4.5:1 (RGAA 3.2.2). */
+.task-row-priority.bg-warning {
+  color: #000;
+}
+
+.task-row-priority.bg-danger {
+  background-color: #b02a37 !important;
+}
+
+/* Signed-out layout: header on top, footer pinned to the bottom, content in between. */
+.public-layout {
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100vh - 50px);
+}
+
+.public-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.public-main > .auth-page {
+  flex: 1;
+}
+
+.app-brand {
+  color: #172033;
+  font-size: 1.25rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.app-brand:hover {
+  color: #0a58ca;
+}
+
+.app-footer {
+  margin-top: 32px;
+  padding: 16px 0;
+  text-align: center;
+  color: #595f66;
 }

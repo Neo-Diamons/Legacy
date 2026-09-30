@@ -1,0 +1,234 @@
+{
+  "id": "00000000-0000-4000-8000-000000000000",
+  "version": "2.0",
+  "name": "Legacy signed-in audit",
+  "url": "http://host.docker.internal",
+  "urls": ["http://host.docker.internal"],
+  "plugins": [],
+  "tests": [
+    {
+      "id": "00000000-0000-4000-8000-000000000001",
+      "name": "Legacy",
+      "commands": [
+        {
+          "id": "00000000-0000-4000-8000-000000000010",
+          "comment": "",
+          "command": "open",
+          "target": "/?audit=login",
+          "targets": [],
+          "value": ""
+        },
+        {
+          "id": "00000000-0000-4000-8000-000000000011",
+          "comment": "",
+          "command": "waitForElementPresent",
+          "target": "css=h1",
+          "targets": [],
+          "value": "15000"
+        },
+        {
+          "id": "00000000-0000-4000-8000-000000000012",
+          "comment": "",
+          "command": "echo",
+          "target": "audit",
+          "targets": [],
+          "value": ""
+        },
+        {
+          "id": "00000000-0000-4000-8000-000000000038",
+          "comment": "",
+          "command": "open",
+          "target": "/?audit=register",
+          "targets": [],
+          "value": ""
+        },
+        {
+          "id": "00000000-0000-4000-8000-000000000013",
+          "comment": "",
+          "command": "click",
+          "target": "xpath=//button[contains(., 'Créer un compte')]",
+          "targets": [],
+          "value": ""
+        },
+        {
+          "id": "00000000-0000-4000-8000-000000000014",
+          "comment": "",
+          "command": "waitForElementPresent",
+          "target": "id=auth-name",
+          "targets": [],
+          "value": "5000"
+        },
+        {
+          "id": "00000000-0000-4000-8000-000000000015",
+          "comment": "",
+          "command": "echo",
+          "target": "audit",
+          "targets": [],
+          "value": ""
+        },
+        {
+          "id": "00000000-0000-4000-8000-000000000016",
+          "comment": "",
+          "command": "open",
+          "target": "/privacy",
+          "targets": [],
+          "value": ""
+        },
+        {
+          "id": "00000000-0000-4000-8000-000000000017",
+          "comment": "",
+          "command": "waitForElementPresent",
+          "target": "css=h1",
+          "targets": [],
+          "value": "15000"
+        },
+        {
+          "id": "00000000-0000-4000-8000-000000000018",
+          "comment": "",
+          "command": "echo",
+          "target": "audit",
+          "targets": [],
+          "value": ""
+        },
+        {
+          "id": "00000000-0000-4000-8000-000000000019",
+          "comment": "",
+          "command": "open",
+          "target": "/?audit=signin",
+          "targets": [],
+          "value": ""
+        },
+        {
+          "id": "00000000-0000-4000-8000-000000000020",
+          "comment": "",
+          "command": "waitForElementPresent",
+          "target": "id=auth-email",
+          "targets": [],
+          "value": "15000"
+        },
+        {
+          "id": "00000000-0000-4000-8000-000000000021",
+          "comment": "",
+          "command": "type",
+          "target": "id=auth-email",
+          "targets": [],
+          "value": "__AUDIT_EMAIL__"
+        },
+        {
+          "id": "00000000-0000-4000-8000-000000000022",
+          "comment": "",
+          "command": "type",
+          "target": "id=auth-password",
+          "targets": [],
+          "value": "__AUDIT_PASSWORD__"
+        },
+        {
+          "id": "00000000-0000-4000-8000-000000000023",
+          "comment": "",
+          "command": "click",
+          "target": "css=button[type=submit]",
+          "targets": [],
+          "value": ""
+        },
+        {
+          "id": "00000000-0000-4000-8000-000000000024",
+          "comment": "",
+          "command": "waitForElementPresent",
+          "target": "css=main#main h1",
+          "targets": [],
+          "value": "15000"
+        },
+        {
+          "id": "00000000-0000-4000-8000-000000000025",
+          "comment": "",
+          "command": "echo",
+          "target": "audit",
+          "targets": [],
+          "value": ""
+        },
+        {
+          "id": "00000000-0000-4000-8000-000000000026",
+          "comment": "",
+          "command": "open",
+          "target": "/projects",
+          "targets": [],
+          "value": ""
+        },
+        {
+          "id": "00000000-0000-4000-8000-000000000027",
+          "comment": "",
+          "command": "waitForElementPresent",
+          "target": "css=main#main h1",
+          "targets": [],
+          "value": "15000"
+        },
+        {
+          "id": "00000000-0000-4000-8000-000000000028",
+          "comment": "",
+          "command": "echo",
+          "target": "audit",
+          "targets": [],
+          "value": ""
+        },
+        {
+          "id": "00000000-0000-4000-8000-000000000029",
+          "comment": "",
+          "command": "open",
+          "target": "/projects/__PROJECT_ID__",
+          "targets": [],
+          "value": ""
+        },
+        {
+          "id": "00000000-0000-4000-8000-000000000030",
+          "comment": "",
+          "command": "waitForElementPresent",
+          "target": "css=main#main h1",
+          "targets": [],
+          "value": "15000"
+        },
+        {
+          "id": "00000000-0000-4000-8000-000000000031",
+          "comment": "",
+          "command": "echo",
+          "target": "audit",
+          "targets": [],
+          "value": ""
+        },
+        {
+          "id": "00000000-0000-4000-8000-000000000032",
+          "comment": "",
+          "command": "open",
+          "target": "/profile",
+          "targets": [],
+          "value": ""
+        },
+        {
+          "id": "00000000-0000-4000-8000-000000000033",
+          "comment": "",
+          "command": "waitForElementPresent",
+          "target": "css=main#main h1",
+          "targets": [],
+          "value": "15000"
+        },
+        {
+          "id": "00000000-0000-4000-8000-000000000034",
+          "comment": "",
+          "command": "echo",
+          "target": "audit",
+          "targets": [],
+          "value": ""
+        }
+      ]
+    }
+  ],
+  "suites": [
+    {
+      "id": "00000000-0000-4000-8000-000000000002",
+      "name": "Legacy",
+      "persistSession": false,
+      "parallel": false,
+      "timeout": 300,
+      "tests": ["00000000-0000-4000-8000-000000000001"]
+    }
+  ]
+}

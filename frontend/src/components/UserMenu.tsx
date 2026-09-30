@@ -2,6 +2,7 @@ import { forwardRef, type ComponentPropsWithoutRef } from 'react';
 import { Dropdown } from 'react-bootstrap';
 
 import { useAppData } from '../context/appDataContext';
+import { useAuth } from '../services/authContext';
 import { initialsOf } from '../utils/format';
 
 const AvatarToggle = forwardRef<HTMLButtonElement, ComponentPropsWithoutRef<'button'>>(
@@ -21,11 +22,7 @@ AvatarToggle.displayName = 'AvatarToggle';
 
 export function UserMenu({ onProfileClick }: { onProfileClick: () => void }) {
   const { user } = useAppData();
-
-  const handleLogout = () => {
-    // TODO(backend): wire this to the real sign-out endpoint once authentication exists.
-    window.alert('Déconnexion : fonctionnalité à venir, en attente de l’authentification côté backend.');
-  };
+  const { logout } = useAuth();
 
   return (
     <Dropdown align="end">
@@ -33,7 +30,7 @@ export function UserMenu({ onProfileClick }: { onProfileClick: () => void }) {
       <Dropdown.Menu>
         <Dropdown.Item onClick={onProfileClick}>Profil</Dropdown.Item>
         <Dropdown.Divider />
-        <Dropdown.Item onClick={handleLogout}>Déconnexion</Dropdown.Item>
+        <Dropdown.Item onClick={logout}>Déconnexion</Dropdown.Item>
       </Dropdown.Menu>
     </Dropdown>
   );

@@ -1,7 +1,8 @@
+import { act } from '@testing-library/react';
 import { describe, expect, test, vi } from 'vitest';
 
 import { createItem, deleteItem, fetchItems, openItemSocket, updateItem } from './items';
-import { errorResponse, item, jsonResponse, latestSocket, MockWebSocket, stubFetch } from '../test/helpers';
+import { errorResponse, item, findSocket, jsonResponse, MockWebSocket, stubFetch } from '../test/helpers';
 
 describe('items service', () => {
   describe('fetchItems', () => {
@@ -10,7 +11,7 @@ describe('items service', () => {
       const fetchMock = stubFetch(() => jsonResponse(items));
 
       await expect(fetchItems()).resolves.toEqual(items);
-      expect(fetchMock).toHaveBeenCalledWith('/items');
+      expect(fetchMock).toHaveBeenCalledWith('/items', { headers: {} });
     });
 
     test.each([
@@ -80,7 +81,7 @@ describe('items service', () => {
       const fetchMock = stubFetch(() => ({ ok: true, status: 204, statusText: 'No Content' }));
 
       await expect(deleteItem('7')).resolves.toBe(204);
-      expect(fetchMock).toHaveBeenCalledWith('/items/7', { method: 'DELETE' });
+      expect(fetchMock).toHaveBeenCalledWith('/items/7', { method: 'DELETE', headers: {} });
     });
 
     test('rejects on server errors', async () => {
@@ -90,45 +91,75 @@ describe('items service', () => {
   });
 
   describe('openItemSocket', () => {
-    test('connects to ws://<host>/ws on http pages', () => {
+    const ticketFetch = (response: unknown = jsonResponse({ ticket: 'abc 1' })) => {
+      const fn = vi.fn<typeof fetch>(() => Promise.resolve(response as Response));
+      vi.stubGlobal('fetch', fn);
+      return fn;
+    };
+
+    test('trades the JWT for a ticket and connects to ws://<host>/ws?ticket= on http pages', async () => {
       vi.stubGlobal('location', { protocol: 'http:', host: 'localhost:3000' });
+      const fetchMock = ticketFetch();
       openItemSocket(() => undefined);
-      expect(latestSocket().url).toBe('ws://localhost:3000/ws');
+      expect((await findSocket()).url).toBe('ws://localhost:3000/ws?ticket=abc%201');
+      expect(fetchMock.mock.calls[0][0]).toBe('/ws/ticket');
+      expect(fetchMock.mock.calls[0][1]).toMatchObject({ method: 'POST' });
     });
 
-    test('upgrades to wss:// on https pages', () => {
+    test('upgrades to wss:// on https pages', async () => {
       vi.stubGlobal('location', { protocol: 'https:', host: 'todo.example.com' });
+      ticketFetch();
       openItemSocket(() => undefined);
-      expect(latestSocket().url).toBe('wss://todo.example.com/ws');
+      expect((await findSocket()).url).toBe('wss://todo.example.com/ws?ticket=abc%201');
     });
 
-    test('parses each message and forwards it as an event, in order', () => {
+    test('opens no socket when the ticket request fails', async () => {
+      ticketFetch(errorResponse(500, 'Internal Server Error'));
+      openItemSocket(() => undefined);
+      await act(async () => undefined);
+      expect(MockWebSocket.instances).toHaveLength(0);
+    });
+
+    test('parses each message and forwards it as an event, in order', async () => {
+      ticketFetch();
       const onEvent = vi.fn();
       openItemSocket(onEvent);
+      const socket = await findSocket();
       const created = { type: 'item.created', item: item('1', 'One') };
       const deleted = { type: 'item.deleted', id: '1' };
 
-      latestSocket().emit('message', created);
-      latestSocket().emit('message', deleted);
+      socket.emit('message', created);
+      socket.emit('message', deleted);
 
       expect(onEvent.mock.calls).toEqual([[created], [deleted]]);
     });
 
-    test('the returned disposer closes the socket', () => {
+    test('the returned disposer closes the socket', async () => {
+      ticketFetch();
       const dispose = openItemSocket(() => undefined);
-      expect(latestSocket().closed).toBe(false);
+      const socket = await findSocket();
+      expect(socket.closed).toBe(false);
       dispose();
-      expect(latestSocket().closed).toBe(true);
+      expect(socket.closed).toBe(true);
     });
 
-    test('the disposer waits for the socket to open when it is still connecting', () => {
-      const dispose = openItemSocket(() => undefined);
-      latestSocket().readyState = MockWebSocket.CONNECTING;
-      dispose();
-      expect(latestSocket().closed).toBe(false);
+    test('disposing before the ticket arrives opens no socket', async () => {
+      ticketFetch();
+      openItemSocket(() => undefined)();
+      await act(async () => undefined);
+      expect(MockWebSocket.instances).toHaveLength(0);
+    });
 
-      latestSocket().emit('open', undefined);
-      expect(latestSocket().closed).toBe(true);
+    test('the disposer waits for the socket to open when it is still connecting', async () => {
+      ticketFetch();
+      const dispose = openItemSocket(() => undefined);
+      const socket = await findSocket();
+      socket.readyState = MockWebSocket.CONNECTING;
+      dispose();
+      expect(socket.closed).toBe(false);
+
+      socket.emit('open', undefined);
+      expect(socket.closed).toBe(true);
     });
   });
 });

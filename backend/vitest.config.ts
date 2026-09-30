@@ -26,17 +26,19 @@ export default defineConfig(({ mode }) => ({
     globals: true,
     environment: 'node',
     include: ['src/**/*.test.ts'],
+    fileParallelism: false,
     env: {
-      SQLITE_DB_LOCATION: './todo.test.db',
       ...loadEnv(mode, repoRoot, ''),
       ...loadEnv(mode, root, ''),
+      SQLITE_DB_LOCATION: process.env.TEST_SQLITE_DB_LOCATION ?? './todo.test.db',
+      JWT_SECRET: 'test-secret-that-is-at-least-32-characters-long',
     },
     coverage: {
       provider: 'v8',
       reporter: ['text', 'html', 'lcov', 'json', 'json-summary'],
       reportsDirectory: './coverage',
       include: ['src/**/*.ts'],
-      exclude: ['src/**/*.test.ts', 'src/index.ts', 'src/db/**'],
+      exclude: ['src/**/*.test.ts', 'src/test/**', 'src/index.ts', 'src/db/**'],
     },
   },
 }));

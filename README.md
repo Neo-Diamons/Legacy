@@ -30,7 +30,7 @@ This is an npm **workspaces** monorepo:
 | `frontend/` | Vite + React 19 + TypeScript single-page app (`@legacy/frontend`), styled with Bootstrap / react-bootstrap.                                                                                                                                       |
 
 All commands below are run from the repository root unless stated otherwise.
-Lint, formatting and CI are configured once at the root and cover both workspaces.
+Lint, formatting and CI are configured once at the root and cover both workspaces.password_hash
 
 ---
 
@@ -71,6 +71,8 @@ missing, it falls back to the real process environment.
 | `BACKEND_PORT`         | Hono API port. Default `3000`.                                                                                                                                 |
 | `BACKEND_URL`          | Backend the dev/preview proxy forwards `/items*` to. Default `http://localhost:<BACKEND_PORT>`. Not baked into the frontend bundle.                            |
 | `CORS_ALLOWED_ORIGINS` | Comma-separated API origin allowlist (scheme + host + optional port). Default: `localhost` and `127.0.0.1` on `<FRONTEND_PORT>`. Invalid entries fail startup. |
+| `JWT_SECRET`           | Signing secret for JWTs (32+ random characters, never commit it). Required unless `JWT_SECRET_FILE` is set.                                                    |
+| `JWT_SECRET_FILE`      | Path to a file holding the secret (docker secret, `/run/secrets/jwt_secret` in `compose.yml`). Takes precedence over `JWT_SECRET`.                             |
 | `SQLITE_DB_LOCATION`   | SQLite file path. Default `/etc/todos/todo.db`. Used unless MySQL is configured.                                                                               |
 | `MYSQL_HOST`           | MySQL host. Setting it (or `MYSQL_HOST_FILE`) switches persistence to MySQL; otherwise every `MYSQL_*` var is ignored.                                         |
 | `MYSQL_PORT`           | MySQL port. Default `3306`.                                                                                                                                    |
@@ -146,6 +148,45 @@ The backend serves its own reference docs, generated from the zod schemas:
 - **Scalar UI** — <http://localhost:3000/scalar>
 - **OpenAPI 3.0 spec** — <http://localhost:3000/doc>
 
+Authentication is provided by `POST /auth/register` and `POST /auth/login`, both of
+which return a JWT and a sanitized user object. Registration requires
+`acceptPrivacyPolicy: true` (see [Privacy](#privacy)). Send it as
+`Authorization: Bearer <token>` when calling `/users`, `/items` or `/projects`.
+The OpenAPI document (`/doc`) and Scalar UI (`/scalar`) are public so they can be
+opened in a browser; they expose no credentials or user data.
+Items, projects and realtime item events are scoped to the authenticated user.
+
+The user API supports `GET/PUT/DELETE /users/:id` for the authenticated owner and
+`GET /users/:id/export` for a JSON export of that user's account, projects and
+items. Deleting the account deletes its owned projects and items first. Passwords
+are stored only as scrypt hashes and are excluded from exports and API responses.
+
+Users are stored in the `users` table and projects in `projects`. Existing todo
+items are assigned to the seeded `legacy@local.invalid` account by migration, so
+adding ownership does not discard existing data. The legacy account is has a new
+default password as a result of the migration which is: `LegacyUser123!`.
+
+The application implements technical support for access, rectification, export
+and deletion requests. Retention periods, the legal basis, and the controller's
+operational GDPR procedures must still be defined for the deployment; code alone
+cannot establish legal compliance.
+
+### Privacy
+
+- **Consent at signup.** The registration form has a required, unticked checkbox
+  linking to the privacy policy. The API rejects registration with `422` unless
+  the body contains `acceptPrivacyPolicy: true`.
+- **What is stored.** The consent time (`users.privacy_consent_at`) and the policy
+  version accepted (`users.privacy_policy_version`). Both are returned on the user
+  object and in the export. Accounts created before consent capture have `null`.
+- **Privacy policy.** Public page at `/privacy` (`frontend/src/pages/PrivacyPage.tsx`),
+  linked from the signup form and the footer. After a material change, bump
+  `PRIVACY_POLICY_VERSION` in both `backend/src/utils/privacy.ts` and that page.
+- **Retention is not documented.** The policy page states that data is kept until
+  the account is deleted and that no other period is defined. The controller must
+  set real retention periods before production use. Existing accounts are not
+  re-prompted when the policy version changes.
+
 ---
 
 ## Tests
@@ -194,15 +235,25 @@ Requirements: Docker (with Compose), `curl`, `jq`. The script calls
 `sudo docker`, so it may ask for your password.
 
 ```bash
-scripts/rgaa-audit.sh                       # 3 default routes, RGAA_4_0, level AA
+scripts/rgaa-audit.sh                       # signed-out + signed-in scenario, RGAA_4_0, level AA
 scripts/rgaa-audit.sh URLS [REFERENTIAL] [LEVEL]
 ```
 
 | Argument      | Default                                       | Notes                                                             |
 | ------------- | --------------------------------------------- | ----------------------------------------------------------------- |
-| `URLS`        | `/`, `/projects`, `/profile` of the local app | Comma-separated. Local app is reached via `host.docker.internal`. |
+| `URLS`        | _empty_: scenario audit of the local app      | Comma-separated public URLs → plain page audit (no login).        |
 | `REFERENTIAL` | `RGAA_4_0`                                    | `RGAA_4_0`, `RGAA_3_0`, `ACCESSIWEB_2_2` or `SEO`                 |
 | `LEVEL`       | `AA`                                          | `A`, `AA` or `AAA`                                                |
+
+With no `URLS`, the script runs a Selenium IDE **scenario** audit of the local
+app, because every page except the login and privacy ones needs a session. It
+registers (or reuses) the `rgaa-audit@example.test` account through the API,
+seeds a project and a task, then audits signed out (login, register form,
+`/privacy`) and signed in (`/`, `/projects`, `/projects/<id>`, `/profile`).
+To cover a new page, add a step block to `scripts/rgaa-scenario.side.json`
+(`open`, wait for the heading, `echo audit`). Each `echo audit` must capture a
+**unique URL** (append `?audit=<name>` if needed): Asqatasun crashes with
+`Duplicate entry` when an audit captures the same URL twice.
 
 The script, in order: rebuilds/starts the app (`compose.yml`) when targeting
 the local app, starts the Asqatasun stack, provisions a `Legacy` contract if

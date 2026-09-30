@@ -51,7 +51,6 @@ export function ProjectsPage({
       {!loading && projects.length === 0 && (
         <div className="empty-state">
           <p>Vous ne participez à aucun projet pour le moment. Créez-en un pour commencer.</p>
-          <CreateProjectButton />
         </div>
       )}
 

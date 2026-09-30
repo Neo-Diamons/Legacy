@@ -1,7 +1,7 @@
 import { fireEvent, screen, waitFor } from '@testing-library/react';
-import { describe, expect, test, vi } from 'vitest';
+import { describe, expect, test } from 'vitest';
 
-import { item, renderApp, stubApi } from './test/helpers';
+import { item, renderApp, stubApi, TOKEN_KEY } from './test/helpers';
 
 const pathname = () => screen.getByTestId('location').textContent;
 
@@ -108,16 +108,14 @@ describe('routing', () => {
       expect(pathname()).toBe('/profile');
     });
 
-    test('"Déconnexion" only warns (no auth yet) and stays on the page', async () => {
+    test('"Déconnexion" ends the session and shows the login page', async () => {
       stubApi([]);
-      const alert = vi.spyOn(window, 'alert').mockImplementation(() => undefined);
       renderApp();
       fireEvent.click(screen.getByRole('button', { name: 'Menu utilisateur' }));
       fireEvent.click(await screen.findByRole('button', { name: 'Déconnexion' }));
 
-      expect(alert).toHaveBeenCalledOnce();
-      expect(alert.mock.calls[0]![0]).toMatch(/Déconnexion/);
-      expect(pathname()).toBe('/');
+      expect(await screen.findByRole('button', { name: /Se connecter/ })).toBeInTheDocument();
+      expect(localStorage.getItem(TOKEN_KEY)).toBeNull();
     });
 
     test('shows the user initials', () => {
@@ -136,6 +134,6 @@ describe('routing', () => {
     fireEvent.click(await screen.findByRole('button', { name: /Mon projet/ }));
 
     expect(await screen.findByText('Persistent task')).toBeInTheDocument();
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(fetchMock.mock.calls.filter(([url]) => url === '/items')).toHaveLength(1));
   });
 });

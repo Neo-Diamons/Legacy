@@ -2,18 +2,17 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import type { CurrentUser, Project, ProjectStats, Task, Notification, TaskPriority } from '../types';
 import { AppDataContext, type AppDataContextValue, type NewProjectInput, type NewTaskInput } from './appDataContext';
 import { createItem, deleteItem, fetchItems, openItemSocket, updateItem, type ItemResponse } from '../services/items';
+import { useAuth } from '../services/authContext';
+import {
+  createProject as createProjectRequest,
+  deleteProject as deleteProjectRequest,
+  fetchProjects,
+} from '../services/projects';
 
 /**
- * TODO(backend): `user` and `projects` are still a mock.
- *
- * The real backend exposes a single global, user-less `/items` list (and a
- * `/ws` socket broadcasting item.created/updated/deleted) — no
- * authentication and no notion of "project" yet. Tasks below are backed by
- * that real API; project assignment is tracked client-side only until a
- * real projects endpoint exists.
- *
- * - `GET /me`                    -> would seed `user`
- * - `GET/POST/DELETE /projects`  -> would seed/mutate `projects`
+ * `user` comes from the authenticated session (see services/auth.tsx); items and
+ * projects are backed by the real `/items` and `/projects` APIs, and `/ws`
+ * broadcasts item.created/updated/deleted events.
  */
 
 const SEED_USER: CurrentUser = {
@@ -23,8 +22,6 @@ const SEED_USER: CurrentUser = {
   joinedAt: '2026-01-14',
 };
 
-const SEED_PROJECTS: Project[] = [{ id: 'p-1', name: 'Mon projet', color: '#4f8ef7', createdAt: '2026-01-14' }];
-
 let idCounter = 0;
 function generateId(prefix: string): string {
   idCounter += 1;
@@ -32,7 +29,7 @@ function generateId(prefix: string): string {
 }
 
 function toTask(item: ItemResponse, projects: Project[], assignments: Record<string, string>): Task {
-  const projectId = assignments[item.id] ?? '';
+  const projectId = item.projectId ?? assignments[item.id] ?? '';
   const project = projects.find((p) => p.id === projectId);
   return {
     id: item.id,
@@ -48,12 +45,31 @@ function toTask(item: ItemResponse, projects: Project[], assignments: Record<str
 }
 
 export function AppDataProvider({ children }: { children: ReactNode }) {
+  const { user: authenticatedUser, updateName, sessionKey } = useAuth();
   const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState<CurrentUser>(SEED_USER);
-  const [projects, setProjects] = useState<Project[]>(SEED_PROJECTS);
+  const user: CurrentUser = authenticatedUser
+    ? {
+        id: authenticatedUser.id,
+        name: authenticatedUser.name,
+        email: authenticatedUser.email,
+        joinedAt: authenticatedUser.createdAt,
+      }
+    : SEED_USER;
+  const [projects, setProjects] = useState<Project[]>([]);
   const [items, setItems] = useState<ItemResponse[]>([]);
   const [assignments, setAssignments] = useState<Record<string, string>>({});
   const [notifications, setNotifications] = useState<Notification[]>([]);
+
+  const notificationTimers = useRef(new Set<ReturnType<typeof setTimeout>>());
+
+  // A toast timer firing after unmount would update state of a torn-down tree.
+  useEffect(() => {
+    const timers = notificationTimers.current;
+    return () => {
+      timers.forEach(clearTimeout);
+      timers.clear();
+    };
+  }, []);
 
   const removeNotification = useCallback((id: string) => {
     setNotifications((prev) => prev.filter((n) => n.id !== id));
@@ -70,9 +86,11 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
 
       setNotifications((prev) => [...prev, notification]);
 
-      setTimeout(() => {
+      const timer = setTimeout(() => {
+        notificationTimers.current.delete(timer);
         removeNotification(notification.id);
       }, 2000);
+      notificationTimers.current.add(timer);
     },
     [removeNotification]
   );
@@ -99,9 +117,10 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
   }, [items]);
 
   useEffect(() => {
-    fetchItems()
-      .then((fetched) => {
+    Promise.all([fetchItems(), fetchProjects()])
+      .then(([fetched, fetchedProjects]) => {
         setItems(fetched);
+        setProjects(fetchedProjects);
         // Every existing item defaults to the current first project until real project scoping exists.
         setAssignments((prev) => {
           const defaultProjectId = projectsRef.current[0]?.id;
@@ -118,6 +137,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       })
       .finally(() => setLoading(false));
 
+    // Reopened when the session token is replaced (password change): the old socket was revoked.
     return openItemSocket((event) => {
       switch (event.type) {
         case 'item.created':
@@ -144,17 +164,12 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
           break;
       }
     });
-  }, [formatPopUpAndAddNotification, addNotification]);
+  }, [formatPopUpAndAddNotification, addNotification, sessionKey]);
 
   const tasks = useMemo(() => items.map((item) => toTask(item, projects, assignments)), [items, projects, assignments]);
 
-  const createProject = (input: NewProjectInput): Project => {
-    const project: Project = {
-      id: generateId('p'),
-      name: input.name.trim(),
-      color: input.color,
-      createdAt: new Date().toISOString(),
-    };
+  const createProject = async (input: NewProjectInput): Promise<Project> => {
+    const project = await createProjectRequest({ name: input.name.trim(), color: input.color });
     setProjects((prev) => [...prev, project]);
     return project;
   };
@@ -193,38 +208,38 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
   };
 
   const deleteProject = (projectId: string) => {
-    setProjects((prev) => prev.filter((project) => project.id !== projectId));
-    setAssignments((prev) => Object.fromEntries(Object.entries(prev).filter(([, pid]) => pid !== projectId)));
-  };
-
-  const createTask = (input: NewTaskInput): Task => {
-    const project = projects.find((p) => p.id === input.projectId);
-
-    createItem({
-      name: input.name.trim(),
-      description: input.description,
-      priority: input.priority,
-      dueDate: input.dueDate,
-    })
-      .then(({ item }) => {
-        // ← directement ici
-        setItems((prev) => (prev.some((i) => i.id === item.id) ? prev : [...prev, item]));
-        setAssignments((prev) => ({ ...prev, [item.id]: input.projectId }));
+    deleteProjectRequest(projectId)
+      .then(() => {
+        setProjects((prev) => prev.filter((project) => project.id !== projectId));
+        setItems((prev) => prev.filter((item) => (item.projectId ?? assignments[item.id]) !== projectId));
+        setAssignments((prev) => Object.fromEntries(Object.entries(prev).filter(([, pid]) => pid !== projectId)));
       })
       .catch((error) => {
         formatPopUpAndAddNotification(error);
       });
+  };
 
-    // NewTaskInput/createTask's contract requires a synchronous return, but no current
-    // caller reads it — the real task is applied above once the API call resolves.
+  const createTask = async (input: NewTaskInput): Promise<Task> => {
+    const project = projects.find((p) => p.id === input.projectId);
+
+    const { item } = await createItem({
+      name: input.name.trim(),
+      description: input.description,
+      priority: input.priority,
+      dueDate: input.dueDate,
+      projectId: input.projectId,
+    });
+    setItems((prev) => (prev.some((i) => i.id === item.id) ? prev : [...prev, item]));
+    setAssignments((prev) => ({ ...prev, [item.id]: input.projectId }));
+
     return {
-      id: generateId('t'),
+      id: item.id,
       name: input.name.trim(),
       projectId: input.projectId,
       projectName: project?.name ?? '',
       description: input.description ?? null,
       priority: input.priority,
-      dueDate: input.dueDate,
+      dueDate: item.dueDate,
       completed: false,
       createdAt: new Date().toISOString(),
     };
@@ -278,10 +293,10 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       });
   };
 
-  const updateUserName = (name: string) => {
+  const updateUserName = async (name: string): Promise<void> => {
     const trimmed = name.trim();
     if (!trimmed) return;
-    setUser((prev) => ({ ...prev, name: trimmed }));
+    await updateName(trimmed);
   };
 
   const projectStats = (projectId: string): ProjectStats => {

@@ -11,6 +11,7 @@ export function CreateTaskButton({ projectId }: { projectId: string }) {
   const [priority, setPriority] = useState<TaskPriority>('medium');
   const [dueDate, setDueDate] = useState('');
   const [description, setDescription] = useState('');
+  const [error, setError] = useState<string | null>(null);
 
   const close = () => {
     setShow(false);
@@ -18,19 +19,24 @@ export function CreateTaskButton({ projectId }: { projectId: string }) {
     setPriority('medium');
     setDueDate('');
     setDescription('');
+    setError(null);
   };
 
-  const submit = (e: SubmitEvent) => {
+  const submit = async (e: SubmitEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
-    createTask({
-      name,
-      projectId,
-      description: description || null,
-      priority,
-      dueDate: dueDate || null,
-    });
-    close();
+    try {
+      await createTask({
+        name,
+        projectId,
+        description: description || null,
+        priority,
+        dueDate: dueDate || null,
+      });
+      close();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Impossible de créer la tâche');
+    }
   };
 
   return (
@@ -47,6 +53,7 @@ export function CreateTaskButton({ projectId }: { projectId: string }) {
             </Modal.Title>
           </Modal.Header>
           <Modal.Body>
+            {error && <div className="alert alert-danger">{error}</div>}
             <Form.Group className="mb-3" controlId="task-title">
               <Form.Label>Nom</Form.Label>
               <Form.Control
