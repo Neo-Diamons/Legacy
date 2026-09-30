@@ -13,7 +13,11 @@ describe('notifications driven by websocket events', () => {
       { type: 'item.updated', item: item('1', 'A', { completed: true }) },
       'Task completed!',
     ],
-    ['item.updated (reopened)', { type: 'item.updated', item: item('1', 'A') }, 'Task uncompleted!'],
+    [
+      'item.updated (other change)',
+      { type: 'item.updated', item: item('1', 'A', { priority: 'high' }) },
+      'Task updated!',
+    ],
     ['item.deleted', { type: 'item.deleted', id: '1' }, 'Task deleted!'],
   ] as const)('%s shows "%s"', async (_name, event, message) => {
     stubApi([item('1', 'A')]);
@@ -24,6 +28,16 @@ describe('notifications driven by websocket events', () => {
 
     expect(screen.getByText(message)).toBeInTheDocument();
     expect(iconOf(message)).toHaveClass('fa-check-circle');
+  });
+
+  test('reopening a completed task shows "Task uncompleted!"', async () => {
+    stubApi([item('1', 'A', { completed: true })]);
+    renderApp();
+    await screen.findByText('Bonjour Michel 👋');
+
+    emitEvent({ type: 'item.updated', item: item('1', 'A') });
+
+    expect(screen.getByText('Task uncompleted!')).toBeInTheDocument();
   });
 
   test('every open tab is notified, including for changes it did not make', async () => {

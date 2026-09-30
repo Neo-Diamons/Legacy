@@ -131,8 +131,12 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
           addNotification(201, 'Task created!');
           break;
         case 'item.updated':
-          setItems((prev) => prev.map((i) => (i.id === event.item.id ? event.item : i)));
-          event.item.completed ? addNotification(204, "Task completed") : addNotification(204, "Task updated");
+          {
+            const wasCompleted = itemsRef.current.find((i) => i.id === event.item.id)?.completed;
+            setItems((prev) => prev.map((i) => (i.id === event.item.id ? event.item : i)));
+            if (event.item.completed) addNotification(204, 'Task completed!');
+            else addNotification(204, wasCompleted ? 'Task uncompleted!' : 'Task updated!');
+          }
           break;
         case 'item.deleted':
           setItems((prev) => prev.filter((i) => i.id !== event.id));
