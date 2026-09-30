@@ -30,7 +30,7 @@ This is an npm **workspaces** monorepo:
 | `frontend/` | Vite + React 19 + TypeScript single-page app (`@legacy/frontend`), styled with Bootstrap / react-bootstrap.                                                                                                                                       |
 
 All commands below are run from the repository root unless stated otherwise.
-Lint, formatting and CI are configured once at the root and cover both workspaces.
+Lint, formatting and CI are configured once at the root and cover both workspaces.password_hash
 
 ---
 
@@ -160,8 +160,8 @@ are stored only as scrypt hashes and are excluded from exports and API responses
 
 Users are stored in the `users` table and projects in `projects`. Existing todo
 items are assigned to the seeded `legacy@local.invalid` account by migration, so
-adding ownership does not discard existing data. The legacy account is disabled
-because it has no usable password.
+adding ownership does not discard existing data. The legacy account is has a new
+default password as a result of the migration which is: `LegacyUser123!`.
 
 The application implements technical support for access, rectification, export
 and deletion requests. Retention periods, legal basis/consent, privacy notices,
