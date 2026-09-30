@@ -437,3 +437,14 @@ button:focus {
 .task-row-priority {
   cursor: pointer;
 }
+
+.project-detail-header {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.project-detail-header .back-link {
+  margin-bottom: 0;
+  padding-right: 0;
+}
