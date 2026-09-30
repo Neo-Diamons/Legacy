@@ -60,7 +60,9 @@ describe('project detail', () => {
     expect(screen.getByText('Open')).not.toHaveClass('completed');
     expect(within(rowOf('Open')).getByRole('checkbox')).not.toBeChecked();
     expect(within(rowOf('Finished')).getByRole('checkbox')).toBeChecked();
-    expect(within(rowOf('Finished')).getByRole('checkbox')).toHaveAccessibleName('Marquer comme non terminée : Finished');
+    expect(within(rowOf('Finished')).getByRole('checkbox')).toHaveAccessibleName(
+      'Marquer comme non terminée : Finished'
+    );
   });
 
   test('deleting the project is disabled until the backend supports it', async () => {
@@ -176,13 +178,68 @@ describe('deleting a task', () => {
 });
 
 describe('kanban view', () => {
+  test('the view toggle switches between list and kanban and reports the pressed state', async () => {
+    stubApi([item('1', 'Todo')]);
+    renderApp('/projects/p-1');
+    await screen.findByText('Todo');
+
+    const list = screen.getByRole('button', { name: 'Liste' });
+    const kanban = screen.getByRole('button', { name: 'Kanban' });
+    expect(list).toHaveAttribute('aria-pressed', 'true');
+    expect(kanban).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.queryByRole('heading', { name: /Haute/ })).not.toBeInTheDocument();
+
+    fireEvent.click(kanban);
+    expect(kanban).toHaveAttribute('aria-pressed', 'true');
+    expect(list).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.getByRole('heading', { name: /Haute/ })).toBeInTheDocument();
+
+    fireEvent.click(list);
+    expect(list).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.queryByRole('heading', { name: /Haute/ })).not.toBeInTheDocument();
+  });
+
+  test('the view toggle is hidden for a project without tasks', async () => {
+    stubApi([]);
+    renderApp('/projects/p-1');
+    await screen.findByText("Ce projet n'a pas encore de tâche.");
+    expect(screen.queryByRole('group', { name: "Mode d'affichage" })).not.toBeInTheDocument();
+  });
+
+  test('tasks are grouped in one labelled column per priority', async () => {
+    stubApi([item('1', 'Low one', { priority: 'low' }), item('2', 'Urgent one', { priority: 'urgent' })]);
+    renderApp('/projects/p-1');
+    await screen.findByText('Low one');
+    fireEvent.click(screen.getByRole('button', { name: 'Kanban' }));
+
+    expect(
+      screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent?.replace(/\s*\(.*\)/, '').trim())
+    ).toEqual(['Basse', 'Moyenne', 'Haute', 'Urgente']);
+    const urgent = screen.getByRole('region', { name: /Urgente/ });
+    expect(within(urgent).getByText('Urgent one')).toBeInTheDocument();
+    expect(within(urgent).queryByText('Low one')).not.toBeInTheDocument();
+  });
+
+  test('deleting a task from the kanban is announced', async () => {
+    stubApi([item('1', 'Goner'), item('2', 'Stays')], (_url, init) =>
+      init?.method === 'DELETE' ? { ok: true, status: 204, statusText: 'No Content' } : undefined
+    );
+    renderApp('/projects/p-1');
+    await screen.findByText('Goner');
+    fireEvent.click(screen.getByRole('button', { name: 'Kanban' }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Supprimer la tâche : Goner' }));
+
+    expect(await screen.findByText('Tâche « Goner » supprimée')).toBeInTheDocument();
+  });
+
   test('dragging a task to another column updates its priority', async () => {
-    const api = stubApi([item('1', 'Move me')], (url, init) =>
+    const api = stubApi([item('1', 'Move me')], (_url, init) =>
       init?.method === 'PUT' ? jsonResponse(item('1', 'Move me', { priority: 'high' })) : undefined
     );
     renderApp('/projects/p-1');
     await screen.findByText('Move me');
-    fireEvent.click(screen.getByRole('button', { name: /kanban/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'Kanban' }));
 
     const dataTransfer = {
       data: '',
@@ -210,7 +267,7 @@ describe('kanban view', () => {
     );
     renderApp('/projects/p-1');
     await screen.findByText('Move me');
-    fireEvent.click(screen.getByRole('button', { name: /kanban/i }));
+    fireEvent.click(screen.getByRole('button', { name: 'Kanban' }));
 
     fireEvent.click(screen.getByRole('button', { name: /^Priorité de Move me/ }));
     fireEvent.click(await screen.findByRole('button', { name: 'Haute' }));
