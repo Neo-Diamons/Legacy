@@ -37,7 +37,11 @@ describe('items service', () => {
       expect(fetchMock).toHaveBeenCalledWith('/items', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(input),
+        body: JSON.stringify({
+          name: 'New',
+          priority: 'high',
+          dueDate: '2026-05-01T00:00:00.000Z',
+        }),
       });
     });
 
