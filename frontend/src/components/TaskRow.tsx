@@ -1,7 +1,7 @@
-import { Badge, Button, Form } from 'react-bootstrap';
+import { Button, Dropdown, Form } from 'react-bootstrap';
 import type { DragEvent } from 'react';
 
-import type { Project, Task } from '../types';
+import type { Project, Task, TaskPriority } from '../types';
 import { formatShortDate, PRIORITY_LABELS } from '../utils/format';
 
 export function TaskRow({
@@ -10,28 +10,44 @@ export function TaskRow({
   onToggle,
   onDragStart,
   onDelete,
+  onMove,
 }: {
   task: Task;
   project?: Project;
   onToggle: (taskId: string) => void;
-  onDragStart?: (event: DragEvent<HTMLDivElement>) => void;
+  onDragStart?: (event: DragEvent<HTMLLIElement>) => void;
   onDelete?: (taskId: string) => void;
+  onMove: (taskId: string, priority: TaskPriority) => void;
 }) {
   return (
-    <div className="task-row" draggable={Boolean(onDragStart)} onDragStart={onDragStart}>
+    <li className="task-row" draggable={Boolean(onDragStart)} onDragStart={onDragStart}>
       <Form.Check
         type="checkbox"
         checked={task.completed}
         onChange={() => onToggle(task.id)}
-        aria-label={task.completed ? 'Marquer comme non terminée' : 'Marquer comme terminée'}
+        aria-label={`${task.completed ? 'Marquer comme non terminée' : 'Marquer comme terminée'} : ${task.name}`}
         className="task-row-check"
       />
       <div className="task-row-body">
         <span className={`task-row-title ${task.completed ? 'completed' : ''}`}>{task.name}</span>
         <span className="task-row-meta">
-          <Badge bg={PRIORITY_LABELS[task.priority].variant} className="me-2">
-            {PRIORITY_LABELS[task.priority].label}
-          </Badge>
+          <Dropdown className="d-inline-block me-2" onSelect={(key) => key && onMove(task.id, key as TaskPriority)}>
+            <Dropdown.Toggle
+              as="button"
+              type="button"
+              className={`badge border-0 bg-${PRIORITY_LABELS[task.priority].variant} task-row-priority`}
+              aria-label={`Priorité de ${task.name} : ${PRIORITY_LABELS[task.priority].label}. Changer la priorité`}
+            >
+              {PRIORITY_LABELS[task.priority].label}
+            </Dropdown.Toggle>
+            <Dropdown.Menu>
+              {(Object.keys(PRIORITY_LABELS) as TaskPriority[]).map((priority) => (
+                <Dropdown.Item key={priority} eventKey={priority} active={priority === task.priority}>
+                  {PRIORITY_LABELS[priority].label}
+                </Dropdown.Item>
+              ))}
+            </Dropdown.Menu>
+          </Dropdown>
           {project && (
             <span className="text-muted small me-2">
               <span className="project-dot project-dot-inline" style={{ backgroundColor: project.color }} />
@@ -49,11 +65,11 @@ export function TaskRow({
           variant="link"
           className="task-row-delete"
           onClick={() => onDelete(task.id)}
-          aria-label="Supprimer la tâche"
+          aria-label={`Supprimer la tâche : ${task.name}`}
         >
-          <i className="fa fa-trash text-danger" />
+          <i className="fa fa-trash text-danger" aria-hidden="true" />
         </Button>
       )}
-    </div>
+    </li>
   );
 }

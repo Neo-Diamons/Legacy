@@ -60,7 +60,7 @@ describe('project detail', () => {
     expect(screen.getByText('Open')).not.toHaveClass('completed');
     expect(within(rowOf('Open')).getByRole('checkbox')).not.toBeChecked();
     expect(within(rowOf('Finished')).getByRole('checkbox')).toBeChecked();
-    expect(within(rowOf('Finished')).getByRole('checkbox')).toHaveAccessibleName('Marquer comme non terminée');
+    expect(within(rowOf('Finished')).getByRole('checkbox')).toHaveAccessibleName('Marquer comme non terminée : Finished');
   });
 
   test('deleting the project is disabled until the backend supports it', async () => {
@@ -90,7 +90,7 @@ describe('toggling a task', () => {
       priority: 'high',
       dueDate: '2026-05-01',
     });
-    expect(await screen.findByRole('checkbox', { name: 'Marquer comme non terminée' })).toBeChecked();
+    expect(await screen.findByRole('checkbox', { name: /^Marquer comme non terminée/ })).toBeChecked();
     expect(screen.getByText('Flip me')).toHaveClass('completed');
   });
 
@@ -105,7 +105,7 @@ describe('toggling a task', () => {
     fireEvent.click(within(rowOf('Undo me')).getByRole('checkbox'));
 
     expect(bodyOf(callsWith(api, 'PUT')[0]!).completed).toBe(false);
-    expect(await screen.findByRole('checkbox', { name: 'Marquer comme terminée' })).not.toBeChecked();
+    expect(await screen.findByRole('checkbox', { name: /^Marquer comme terminée/ })).not.toBeChecked();
   });
 
   test.each([
@@ -147,7 +147,7 @@ describe('deleting a task', () => {
     renderApp('/projects/p-1');
     await screen.findByText('Goner');
 
-    fireEvent.click(within(rowOf('Goner')).getByRole('button', { name: 'Supprimer la tâche' }));
+    fireEvent.click(within(rowOf('Goner')).getByRole('button', { name: /^Supprimer la tâche/ }));
 
     await waitFor(() => expect(screen.queryByText('Goner')).not.toBeInTheDocument());
     expect(callsWith(api, 'DELETE').map(([url]) => url)).toEqual(['/items/1']);
@@ -161,7 +161,7 @@ describe('deleting a task', () => {
     renderApp('/projects/p-1');
     await screen.findByText('Sticky');
 
-    fireEvent.click(within(rowOf('Sticky')).getByRole('button', { name: 'Supprimer la tâche' }));
+    fireEvent.click(within(rowOf('Sticky')).getByRole('button', { name: /^Supprimer la tâche/ }));
 
     expect(await screen.findByText('Internal Server Error')).toBeInTheDocument();
     expect(screen.getByText('Sticky')).toBeInTheDocument();
@@ -171,7 +171,7 @@ describe('deleting a task', () => {
     stubApi([item('1', 'Home task')]);
     renderApp('/');
     await screen.findByText('Home task');
-    expect(screen.queryByRole('button', { name: 'Supprimer la tâche' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^Supprimer la tâche/ })).not.toBeInTheDocument();
   });
 });
 
@@ -193,7 +193,7 @@ describe('kanban view', () => {
         return this.data;
       },
     };
-    const highColumn = screen.getByText('Haute').closest('.kanban-column-body') as HTMLElement;
+    const highColumn = screen.getByRole('heading', { name: /Haute/ }).closest('.kanban-column-body') as HTMLElement;
 
     fireEvent.dragStart(rowOf('Move me'), { dataTransfer });
     fireEvent.drop(highColumn, { dataTransfer });
@@ -202,6 +202,22 @@ describe('kanban view', () => {
     const [call] = callsWith(api, 'PUT');
     expect(call![0]).toBe('/items/1');
     expect(bodyOf(call!)).toMatchObject({ name: 'Move me', priority: 'high' });
+  });
+
+  test('a task can be moved with the priority dropdown and is announced', async () => {
+    const api = stubApi([item('1', 'Move me')], (_url, init) =>
+      init?.method === 'PUT' ? jsonResponse(item('1', 'Move me', { priority: 'high' })) : undefined
+    );
+    renderApp('/projects/p-1');
+    await screen.findByText('Move me');
+    fireEvent.click(screen.getByRole('button', { name: /kanban/i }));
+
+    fireEvent.click(screen.getByRole('button', { name: /^Priorité de Move me/ }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Haute' }));
+
+    expect(await screen.findByText('Tâche « Move me » déplacée vers la colonne Haute')).toBeInTheDocument();
+    const [call] = callsWith(api, 'PUT');
+    expect(bodyOf(call!)).toMatchObject({ priority: 'high' });
   });
 });
 

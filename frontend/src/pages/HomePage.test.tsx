@@ -133,7 +133,7 @@ describe('home page', () => {
     renderApp();
     const row = (await findSettled('Tick me')).closest('.task-row') as HTMLElement;
 
-    fireEvent.click(within(row).getByRole('checkbox', { name: 'Marquer comme terminée' }));
+    fireEvent.click(within(row).getByRole('checkbox', { name: /^Marquer comme terminée/ }));
 
     await waitFor(() => expect(screen.queryByText('Tick me')).not.toBeInTheDocument());
     expect(fetchMock).toHaveBeenCalledWith('/items/1', expect.objectContaining({ method: 'PUT' }));

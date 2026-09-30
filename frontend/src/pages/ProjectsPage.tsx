@@ -71,7 +71,6 @@ function ProjectDetail({ projectId, onBack }: { projectId: string; onBack: () =>
   const project = projects.find((p) => p.id === projectId);
   const projectTasks = tasks.filter((t) => t.projectId === projectId);
   const [showKanban, setShowKanban] = useState(false);
-  const [kanbanNameButton, setKanbanNameButton] = useState("kanban vue");
 
   if (!project) return null;
 
@@ -101,12 +100,9 @@ function ProjectDetail({ projectId, onBack }: { projectId: string; onBack: () =>
           </Button>
           <Button
             variant="outline-primary" size="sm"
-            onClick={() => {
-              setShowKanban(!showKanban);
-              (showKanban) ? setKanbanNameButton("Vue Classique") : setKanbanNameButton("Vue Kanban");
-            }}
+            onClick={() => setShowKanban(!showKanban)}
           >
-            {kanbanNameButton}
+            {showKanban ? 'Vue classique' : 'Vue Kanban'}
           </Button>
         </div>
       </header>
@@ -116,14 +112,17 @@ function ProjectDetail({ projectId, onBack }: { projectId: string; onBack: () =>
         <p className="empty-state">Ce projet n'a pas encore de tâche.</p>
       ) : !showKanban ? (
         <div className="widget-card">
-          {projectTasks.map((task) => (
-            <TaskRow
-              key={task.id}
-              task={task}
-              onToggle={toggleTask}
-              onDelete={deleteTask}
-            />
-          ))}
+          <ul className="task-list">
+            {projectTasks.map((task) => (
+              <TaskRow
+                key={task.id}
+                task={task}
+                onToggle={toggleTask}
+                onMove={updateTaskPriority}
+                onDelete={deleteTask}
+              />
+            ))}
+          </ul>
         </div>
       ) : (
         <KanbanContainer
