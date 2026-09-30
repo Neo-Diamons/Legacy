@@ -83,6 +83,13 @@ function ProjectDetail({ projectId, onBack }: { projectId: string; onBack: () =>
   } = useAppData();  const project = projects.find((p) => p.id === projectId);
   const projectTasks = tasks.filter((t) => t.projectId === projectId);
 
+  const PRIORITY_ORDER: Record<TaskPriority, number> = {
+    urgent: 0,
+    high: 1,
+    medium: 2,
+    low: 3,
+  };
+
   const [showKanban, setShowKanban] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
   const [editName, setEditName] = useState('');
@@ -91,6 +98,20 @@ function ProjectDetail({ projectId, onBack }: { projectId: string; onBack: () =>
   const [editDueDate, setEditDueDate] = useState('');
   const [editDescription, setEditDescription] = useState('');
   const [TaskFilter, setTaskFilter] = useState<Task[] | null>(projectTasks);
+
+  const [sortBy, setSortBy] = useState<'priority' | 'dueDate'>('priority');
+
+  const sortedTasks = [...projectTasks].sort((a, b) => {
+    if (sortBy === 'priority') {
+      return PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority];
+    }
+
+    if (a.dueDate === null && b.dueDate === null) return 0;
+    if (a.dueDate === null) return 1;
+    if (b.dueDate === null) return -1;
+
+    return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
+  });
 
   if (!project) return null;
 
@@ -180,8 +201,21 @@ function ProjectDetail({ projectId, onBack }: { projectId: string; onBack: () =>
         <p className="empty-state">Ce projet n'a pas encore de tâche.</p>
       ) : !showKanban ? (
       <div className="widget-card">
+        <div className="d-flex justify-content-end mb-3">
+          <Form.Select
+            size="sm"
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as 'priority' | 'dueDate')}
+            style={{ width: '200px' }}
+            aria-label="Trier les tâches"
+          >
+            <option value="priority">Trier par priorité</option>
+            <option value="dueDate">Trier par échéance</option>
+          </Form.Select>
+        </div>
+
         <ul className="task-list">
-          {projectTasks.map((task) => (
+          {sortedTasks.map((task) => (
             <TaskRow
               key={task.id}
               task={task}

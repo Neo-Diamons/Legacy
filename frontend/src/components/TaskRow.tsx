@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Button, Dropdown, Form } from 'react-bootstrap';
 import type { DragEvent } from 'react';
 
@@ -21,10 +22,12 @@ export function TaskRow({
   onMove: (taskId: string, priority: TaskPriority) => void;
   onEdit?: (taskId: string) => void;
 }) {
+  const [now] = useState(() => Date.now());
+
   const isOverdue =
     !task.completed &&
     task.dueDate !== null &&
-    new Date(task.dueDate).getTime() < Date.now();
+    new Date(task.dueDate).getTime() < now;
 
   return (
     <li
