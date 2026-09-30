@@ -187,9 +187,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       dueDate: dueDate === undefined ? task.dueDate : dueDate,
     })
       .then(({ item: updatedItem }) => {
-        setItems((prev) =>
-          prev.map((item) => (item.id === updatedItem.id ? updatedItem : item)),
-        );
+        setItems((prev) => prev.map((item) => (item.id === updatedItem.id ? updatedItem : item)));
       })
       .catch(console.error);
   };
