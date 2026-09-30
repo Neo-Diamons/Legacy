@@ -33,7 +33,7 @@ describe('creating a task', () => {
       name: 'Write tests',
       description: null,
       priority: 'urgent',
-      dueDate: '2026-05-01T13:30:00.000Z',
+      dueDate: new Date('2026-05-01T15:30').toISOString(),
     });
 
     expect(await screen.findByText('Write tests')).toBeInTheDocument();

@@ -63,6 +63,7 @@ jobs:
         run: npm run test:coverage
         env:
           SQLITE_DB_LOCATION: ./test.db
+          TZ: UTC
 
       - name: Upload coverage
         if: '!cancelled()'
