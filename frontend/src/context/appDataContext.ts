@@ -9,10 +9,10 @@ export interface NewProjectInput {
 
 export interface NewTaskInput {
   name: string;
-  description: string;
   projectId: string;
   priority: TaskPriority;
   dueDate: string | null;
+  description?: string | null;
 }
 
 export interface AppDataContextValue {
