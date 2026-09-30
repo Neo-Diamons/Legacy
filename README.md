@@ -71,7 +71,8 @@ missing, it falls back to the real process environment.
 | `BACKEND_PORT`         | Hono API port. Default `3000`.                                                                                                                                 |
 | `BACKEND_URL`          | Backend the dev/preview proxy forwards `/items*` to. Default `http://localhost:<BACKEND_PORT>`. Not baked into the frontend bundle.                            |
 | `CORS_ALLOWED_ORIGINS` | Comma-separated API origin allowlist (scheme + host + optional port). Default: `localhost` and `127.0.0.1` on `<FRONTEND_PORT>`. Invalid entries fail startup. |
-| `JWT_SECRET`           | Required signing secret for JWTs. Use a random value of at least 32 characters; never commit it.                                                               |
+| `JWT_SECRET`           | Signing secret for JWTs (32+ random characters, never commit it). Required unless `JWT_SECRET_FILE` is set.                                                    |
+| `JWT_SECRET_FILE`      | Path to a file holding the secret (docker secret, `/run/secrets/jwt_secret` in `compose.yml`). Takes precedence over `JWT_SECRET`.                             |
 | `SQLITE_DB_LOCATION`   | SQLite file path. Default `/etc/todos/todo.db`. Used unless MySQL is configured.                                                                               |
 | `MYSQL_HOST`           | MySQL host. Setting it (or `MYSQL_HOST_FILE`) switches persistence to MySQL; otherwise every `MYSQL_*` var is ignored.                                         |
 | `MYSQL_PORT`           | MySQL port. Default `3306`.                                                                                                                                    |
@@ -234,15 +235,23 @@ Requirements: Docker (with Compose), `curl`, `jq`. The script calls
 `sudo docker`, so it may ask for your password.
 
 ```bash
-scripts/rgaa-audit.sh                       # 3 default routes, RGAA_4_0, level AA
+scripts/rgaa-audit.sh                       # signed-out + signed-in scenario, RGAA_4_0, level AA
 scripts/rgaa-audit.sh URLS [REFERENTIAL] [LEVEL]
 ```
 
 | Argument      | Default                                       | Notes                                                             |
 | ------------- | --------------------------------------------- | ----------------------------------------------------------------- |
-| `URLS`        | `/`, `/projects`, `/profile` of the local app | Comma-separated. Local app is reached via `host.docker.internal`. |
+| `URLS`        | _empty_: scenario audit of the local app      | Comma-separated public URLs → plain page audit (no login).        |
 | `REFERENTIAL` | `RGAA_4_0`                                    | `RGAA_4_0`, `RGAA_3_0`, `ACCESSIWEB_2_2` or `SEO`                 |
 | `LEVEL`       | `AA`                                          | `A`, `AA` or `AAA`                                                |
+
+With no `URLS`, the script runs a Selenium IDE **scenario** audit of the local
+app, because every page except the login and privacy ones needs a session. It
+registers (or reuses) the `rgaa-audit@example.test` account through the API,
+seeds a project and a task, then audits signed out (login, register form,
+`/privacy`) and signed in (`/`, `/projects`, `/projects/<id>`, `/profile`,
+`/privacy`). To cover a new page, add a step block to `scripts/rgaa-scenario.side.json`
+(`open`, wait for the heading, `echo audit`).
 
 The script, in order: rebuilds/starts the app (`compose.yml`) when targeting
 the local app, starts the Asqatasun stack, provisions a `Legacy` contract if

@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Usage: scripts/rgaa-audit.sh [URLS] [REFERENTIAL] [LEVEL]
-#   URLS         comma-separated list. default: the app's 3 routes (/, /projects, /profile)
+#   URLS         comma-separated list of public pages (page audit, no login).
+#                default (empty): scenario audit of the local app — login/register/privacy pages
+#                signed out, then /, /projects, /projects/<id>, /profile and /privacy signed in
 #   REFERENTIAL  default: RGAA_4_0  (this server's Referential enum: RGAA_4_0 | RGAA_3_0 | ACCESSIWEB_2_2 | SEO)
 #   LEVEL        default: AA        (this server's Level enum: A | AA | AAA)
 # Env:
@@ -13,6 +15,7 @@ SCRIPT_DIR="$(dirname "$0")"
 COMPOSE_FILE="${SCRIPT_DIR}/../compose.asqatasun.yaml"
 APP_COMPOSE_FILE="${SCRIPT_DIR}/../compose.yml"
 COMPOSE=(sudo docker compose -p asqatasun -f "$COMPOSE_FILE")
+APP_URL="http://localhost"
 APP_COMPOSE=(sudo docker compose -f "$APP_COMPOSE_FILE")
 ASQA_URL="http://localhost:8081"
 WEBAPP_URL="http://localhost:8080"
@@ -21,8 +24,17 @@ AUDIT_TIMEOUT=300
 ASQA_USER="admin@asqatasun.org"
 ASQA_PASS="myAsqaPassword"
 
-DEFAULT_URLS="http://host.docker.internal/,http://host.docker.internal/projects,http://host.docker.internal/profile"
-IFS=',' read -r -a TARGET_URLS <<< "${1:-$DEFAULT_URLS}"
+AUDIT_EMAIL="rgaa-audit@example.test"
+AUDIT_PASSWORD="rgaa-audit-password"
+SCENARIO_BASE="http://host.docker.internal" # must match "url" in rgaa-scenario.side.json
+
+if [ -n "${1:-}" ]; then
+  MODE=page
+  IFS=',' read -r -a TARGET_URLS <<< "$1"
+else
+  MODE=scenario
+  TARGET_URLS=("${SCENARIO_BASE}/")
+fi
 REFERENTIAL="${2:-RGAA_4_0}"
 LEVEL="${3:-AA}"
 
@@ -61,11 +73,55 @@ field() {
   jq -r "$query" <<<"$input"
 }
 
+# Local docker secret read by the backend (JWT_SECRET_FILE); generated once, never committed.
+JWT_SECRET_PATH="${SCRIPT_DIR}/../secrets/jwt_secret.txt"
+if [ ! -s "$JWT_SECRET_PATH" ]; then
+  mkdir -p "$(dirname "$JWT_SECRET_PATH")"
+  openssl rand -hex 32 > "$JWT_SECRET_PATH"
+fi
+
+# Signs the audit account up (or in) through the app API, then makes sure it owns a project with a task,
+# so the signed-in pages and /projects/<id> have real content. Sets PROJECT_ID.
+seed_app_data() {
+  local creds token body status
+  creds="$(jq -n --arg e "$AUDIT_EMAIL" --arg p "$AUDIT_PASSWORD" '{email: $e, password: $p}')"
+  body="$(jq -n --arg e "$AUDIT_EMAIL" --arg p "$AUDIT_PASSWORD" \
+    '{name: "RGAA audit", email: $e, password: $p, acceptPrivacyPolicy: true}')"
+  status="$(curl -s -o /dev/null -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d "$body" "${APP_URL}/auth/register")"
+  case "$status" in
+    201 | 409) ;;
+    *) die "registering ${AUDIT_EMAIL} returned HTTP ${status} — is the backend up and /auth proxied by the frontend?" ;;
+  esac
+  token="$(curl -sf -X POST -H 'Content-Type: application/json' -d "$creds" "${APP_URL}/auth/login" | jq -r '.token // empty')" \
+    || die "login as ${AUDIT_EMAIL} failed — the account exists with another password? delete it or reset the database"
+  [ -n "$token" ] || die "login as ${AUDIT_EMAIL} returned no token"
+
+  local auth=(-H "Authorization: Bearer ${token}" -H 'Content-Type: application/json')
+  PROJECT_ID="$(curl -sf "${auth[@]}" "${APP_URL}/projects" | jq -r '.[0].id // empty')" || die "listing projects failed"
+  if [ -z "$PROJECT_ID" ]; then
+    PROJECT_ID="$(curl -sf "${auth[@]}" -X POST -d '{"name":"Projet audit RGAA","color":"#198754"}' "${APP_URL}/projects" | jq -r '.id')" \
+      || die "creating the audit project failed"
+  fi
+  if [ "$(curl -sf "${auth[@]}" "${APP_URL}/items" | jq 'length')" = "0" ]; then
+    curl -sf "${auth[@]}" -X POST -o /dev/null \
+      -d "$(jq -n --arg p "$PROJECT_ID" '{name: "Tâche audit RGAA", description: "Tâche de démonstration", priority: "medium", projectId: $p}')" \
+      "${APP_URL}/items" || die "creating the audit task failed"
+  fi
+}
+
+# The scenario (Selenium IDE format) lives in rgaa-scenario.side.json; `echo audit` steps make Asqatasun capture the page.
+scenario_json() {
+  sed -e "s|__AUDIT_EMAIL__|${AUDIT_EMAIL}|g" \
+    -e "s|__AUDIT_PASSWORD__|${AUDIT_PASSWORD}|g" \
+    -e "s|__PROJECT_ID__|${PROJECT_ID}|g" \
+    "${SCRIPT_DIR}/rgaa-scenario.side.json"
+}
+
 command -v jq >/dev/null || die "jq is required (install it: pacman -S jq / apt install jq)"
 
 if [[ "${TARGET_URLS[0]}" == *host.docker.internal* ]]; then
   echo "==> Target is the local app — rebuilding and starting it"
-  "${APP_COMPOSE[@]}" up -d --build
+  "${APP_COMPOSE[@]}" up -d --build --wait
 fi
 
 echo "==> Starting Asqatasun stack"
@@ -132,15 +188,28 @@ and not just bound to a container-internal network."
   done
 done
 
-echo "==> Launching page audit on: ${TARGET_URLS[*]}"
-URLS_JSON="$(printf '%s\n' "${TARGET_URLS[@]}" | jq -R . | jq -s .)"
-AUDIT_PAYLOAD="$(jq -n \
-  --argjson urls "$URLS_JSON" \
-  --arg referential "$REFERENTIAL" \
-  --arg level "$LEVEL" \
-  --arg contractId "$CONTRACT_ID" \
-  '{urls: $urls, referential: $referential, level: $level, contractId: ($contractId | tonumber)}')"
-AUDIT_ID="$(api POST "/api/v0/audit/page/run" -H 'Content-Type: application/json' -d "$AUDIT_PAYLOAD")"
+if [ "$MODE" = scenario ]; then
+  echo "==> Seeding the app with the audit account (${AUDIT_EMAIL})"
+  seed_app_data
+  echo "==> Launching scenario audit (signed out, then signed in)"
+  AUDIT_PAYLOAD="$(jq -n \
+    --arg scenario "$(scenario_json)" \
+    --arg referential "$REFERENTIAL" \
+    --arg level "$LEVEL" \
+    --arg contractId "$CONTRACT_ID" \
+    '{name: "Legacy signed-in audit", scenario: $scenario, referential: $referential, level: $level, contractId: ($contractId | tonumber)}')"
+  AUDIT_ID="$(api POST "/api/v0/audit/scenario/run" -H 'Content-Type: application/json' -d "$AUDIT_PAYLOAD")"
+else
+  echo "==> Launching page audit on: ${TARGET_URLS[*]}"
+  URLS_JSON="$(printf '%s\n' "${TARGET_URLS[@]}" | jq -R . | jq -s .)"
+  AUDIT_PAYLOAD="$(jq -n \
+    --argjson urls "$URLS_JSON" \
+    --arg referential "$REFERENTIAL" \
+    --arg level "$LEVEL" \
+    --arg contractId "$CONTRACT_ID" \
+    '{urls: $urls, referential: $referential, level: $level, contractId: ($contractId | tonumber)}')"
+  AUDIT_ID="$(api POST "/api/v0/audit/page/run" -H 'Content-Type: application/json' -d "$AUDIT_PAYLOAD")"
+fi
 [[ "$AUDIT_ID" =~ ^[0-9]+$ ]] || die "expected a numeric audit id, got: ${AUDIT_ID}"
 
 audit_status() {
@@ -183,7 +252,10 @@ echo "    Grade: ${GRADE}  (${MARK}/100)"
 echo "    Failed: ${FAILED}   Needs manual review: ${NEED_INFO}"
 echo "    Detailed report: ${WEBAPP_URL} — log in and open audit #${AUDIT_ID} under 'My audits'"
 
-if [[ "${TARGET_URLS[0]}" == *host.docker.internal* ]]; then
+if [ "$MODE" = scenario ]; then
+  echo "    Signed-out pages: / (login), / (register form), /privacy"
+  echo "    Signed-in pages (${AUDIT_EMAIL} / ${AUDIT_PASSWORD}): /, /projects, /projects/${PROJECT_ID}, /profile, /privacy"
+elif [[ "${TARGET_URLS[0]}" == *host.docker.internal* ]]; then
   echo "    App pages you can open yourself:"
   for url in "${TARGET_URLS[@]}"; do
     echo "      ${url/host.docker.internal/localhost}"

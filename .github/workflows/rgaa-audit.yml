@@ -7,13 +7,15 @@ on:
   pull_request:
     paths:
       - 'frontend/**'
+      - 'backend/**'
+      - 'compose.yml'
       - 'scripts/rgaa-audit.sh'
       - 'compose.asqatasun.yaml'
       - '.github/workflows/rgaa-audit.yml'
   workflow_dispatch:
     inputs:
       urls:
-        description: 'Comma-separated URLs (default: local app routes)'
+        description: 'Comma-separated public URLs (default: signed-in scenario on the local app)'
         required: false
       level:
         description: 'A | AA | AAA'
@@ -47,6 +49,7 @@ jobs:
           mkdir -p secrets
           echo legacy > secrets/mysql_user.txt
           openssl rand -hex 16 > secrets/mysql_password.txt
+          openssl rand -hex 32 > secrets/jwt_secret.txt
 
       - name: Run RGAA audit
         env:

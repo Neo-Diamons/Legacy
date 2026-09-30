@@ -1,10 +1,12 @@
+import fs from 'fs';
 import { jwt, verify } from 'hono/jwt';
 import { HTTPException } from 'hono/http-exception';
 import type { MiddlewareHandler } from 'hono';
 import { userService } from '@service/user.service.js';
 
 export function getJwtSecret(): string {
-  const secret = process.env.JWT_SECRET;
+  const file = process.env.JWT_SECRET_FILE;
+  const secret = (file ? fs.readFileSync(file, 'utf8') : process.env.JWT_SECRET)?.trim();
   if (!secret || secret.length < 32) {
     throw new Error('JWT_SECRET must be set and contain at least 32 characters');
   }

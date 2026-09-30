@@ -32,9 +32,11 @@ services:
       MYSQL_PASSWORD_FILE: /run/secrets/mysql_password
       MYSQL_DB: "legacy"
       SQLITE_DB_LOCATION: "data/todo.db"
+      JWT_SECRET_FILE: /run/secrets/jwt_secret
     secrets:
       - mysql_user
       - mysql_password
+      - jwt_secret
     ports:
       - "3000:3000"
     restart: unless-stopped
@@ -74,3 +76,5 @@ secrets:
     file: ./secrets/mysql_user.txt
   mysql_password:
     file: ./secrets/mysql_password.txt
+  jwt_secret:
+    file: ./secrets/jwt_secret.txt

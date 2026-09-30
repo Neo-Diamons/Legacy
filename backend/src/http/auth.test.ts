@@ -1,3 +1,6 @@
+import fs from 'fs';
+import os from 'os';
+import path from 'path';
 import { Hono } from 'hono';
 import { sign } from 'hono/jwt';
 import { getJwtSecret, jwtAuth, verifyToken } from '@http/auth.js';
@@ -24,6 +27,19 @@ describe('getJwtSecret', () => {
     if (value === undefined) delete process.env.JWT_SECRET;
     else process.env.JWT_SECRET = value;
     expect(() => getJwtSecret()).toThrow('JWT_SECRET must be set and contain at least 32 characters');
+  });
+
+  it('reads the secret from JWT_SECRET_FILE, trimmed, in preference to JWT_SECRET', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'jwt-'));
+    const file = path.join(dir, 'jwt_secret.txt');
+    fs.writeFileSync(file, `${'f'.repeat(32)}\n`);
+    process.env.JWT_SECRET_FILE = file;
+    try {
+      expect(getJwtSecret()).toBe('f'.repeat(32));
+    } finally {
+      delete process.env.JWT_SECRET_FILE;
+      fs.rmSync(dir, { recursive: true });
+    }
   });
 
   it('accepts exactly 32 characters', () => {
