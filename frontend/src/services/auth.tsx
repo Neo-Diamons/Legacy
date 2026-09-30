@@ -5,19 +5,22 @@ import {
   clearAuthSession,
   getStoredAuthUser,
   onUnauthorized,
+  refreshSession,
   saveAuthSession,
   saveAuthUser,
 } from './authClient';
-import { updateUser } from './users';
+import { changePassword, updateUser } from './users';
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState(getStoredAuthUser);
+  const [sessionKey, setSessionKey] = useState(0);
 
   // Back to the login page as soon as the backend rejects the token (expired, invalid...).
   useEffect(() => onUnauthorized(() => setUser(null)), []);
 
   const value: AuthContextValue = {
     user,
+    sessionKey,
     loading: false,
     async login(email, password) {
       const session = await authenticate('/auth/login', { email, password });
@@ -34,6 +37,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const updated = await updateUser(user.id, { name });
       saveAuthUser(updated);
       setUser(updated);
+    },
+    async changePassword(currentPassword, newPassword) {
+      if (!user) return;
+      // The backend revokes the old token and answers with a new one, so the user stays signed in.
+      const session = await refreshSession(async () => {
+        const fresh = await changePassword(user.id, { currentPassword, newPassword });
+        saveAuthSession(fresh);
+        return fresh;
+      });
+      setUser(session.user);
+      setSessionKey((key) => key + 1);
     },
     logout() {
       clearAuthSession();

@@ -7,6 +7,9 @@ export interface AuthContextValue {
   login: (email: string, password: string) => Promise<void>;
   register: (name: string, email: string, password: string) => Promise<void>;
   updateName: (name: string) => Promise<void>;
+  changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
+  /** Changes each time the session token is replaced, so realtime connections can be reopened. */
+  sessionKey: number;
   logout: () => void;
 }
 

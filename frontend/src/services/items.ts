@@ -1,5 +1,5 @@
 import type { TaskPriority } from '../types';
-import { authFetch, expireAuthSession } from './authClient';
+import { authFetch, expireAuthSession, getAuthToken, isRefreshingSession } from './authClient';
 
 export interface ItemResponse {
   id: string;
@@ -99,13 +99,17 @@ export function openItemSocket(onEvent: (event: ItemEvent) => void): () => void 
     const response = await authFetch('/ws/ticket', { method: 'POST' });
     if (!response.ok || cancelled) return;
     const { ticket } = (await response.json()) as { ticket: string };
+    const tokenAtOpen = getAuthToken();
     if (cancelled) return;
 
     const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
     socket = new WebSocket(`${protocol}//${location.host}/ws?ticket=${encodeURIComponent(ticket)}`);
     socket.addEventListener('close', (event) => {
-      // The backend closes with 1008 when the session was revoked.
-      if ((event as CloseEvent).code === 1008) expireAuthSession();
+      // The backend closes with 1008 when the session was revoked, unless this very session was just replaced
+      // (password change): then the socket is reopened with the new token.
+      if ((event as CloseEvent).code !== 1008) return;
+      if (isRefreshingSession() || getAuthToken() !== tokenAtOpen) return;
+      expireAuthSession();
     });
     socket.addEventListener('message', (message) => {
       onEvent(JSON.parse(message.data) as ItemEvent);

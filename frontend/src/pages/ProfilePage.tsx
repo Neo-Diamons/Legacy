@@ -2,13 +2,21 @@ import { useState, type SubmitEvent } from 'react';
 import { Alert, Button, Col, Form, Placeholder, Row } from 'react-bootstrap';
 
 import { useAppData } from '../context/appDataContext';
+import { useAuth } from '../services/authContext';
 import { formatDate, initialsOf } from '../utils/format';
 
 export function ProfilePage() {
   const { loading, user, projects, tasks, updateUserName } = useAppData();
+  const { changePassword } = useAuth();
   const [name, setName] = useState(user.name);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [changingPassword, setChangingPassword] = useState(false);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [passwordChanged, setPasswordChanged] = useState(false);
 
   const completedTasks = tasks.filter((t) => t.completed).length;
   const completionRate = tasks.length === 0 ? 0 : Math.round((completedTasks / tasks.length) * 100);
@@ -24,6 +32,36 @@ export function ProfilePage() {
       setError(err instanceof Error ? err.message : 'Impossible d’enregistrer le nom.');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const submitPassword = async (e: SubmitEvent) => {
+    e.preventDefault();
+    setPasswordChanged(false);
+    if (newPassword.length < 12) {
+      setPasswordError('Le nouveau mot de passe doit contenir au moins 12 caractères.');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordError('La confirmation ne correspond pas au nouveau mot de passe.');
+      return;
+    }
+    if (newPassword === currentPassword) {
+      setPasswordError('Le nouveau mot de passe doit être différent de l’actuel.');
+      return;
+    }
+    setChangingPassword(true);
+    setPasswordError(null);
+    try {
+      await changePassword(currentPassword, newPassword);
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      setPasswordChanged(true);
+    } catch (err) {
+      setPasswordError(err instanceof Error ? err.message : 'Impossible de changer le mot de passe.');
+    } finally {
+      setChangingPassword(false);
     }
   };
 
@@ -70,6 +108,62 @@ export function ProfilePage() {
             disabled={saving || !name.trim() || name.trim() === user.name}
           >
             Enregistrer
+          </Button>
+        </Form>
+      </div>
+
+      <div className="widget-card profile-card mt-3">
+        <Form onSubmit={submitPassword} className="profile-password-form">
+          <h2 className="h6 mb-3">Changer mot de passe</h2>
+          <Form.Group controlId="profile-current-password" className="mb-2">
+            <Form.Label>Mot de passe actuel</Form.Label>
+            <Form.Control
+              type="password"
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+              autoComplete="current-password"
+              required
+            />
+          </Form.Group>
+          <Form.Group controlId="profile-new-password" className="mb-2">
+            <Form.Label>Nouveau mot de passe</Form.Label>
+            <Form.Control
+              type="password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              autoComplete="new-password"
+              minLength={12}
+              required
+            />
+            <Form.Text className="text-muted">12 caractères minimum.</Form.Text>
+          </Form.Group>
+          <Form.Group controlId="profile-confirm-password" className="mb-2">
+            <Form.Label>Confirmer le nouveau mot de passe</Form.Label>
+            <Form.Control
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              autoComplete="new-password"
+              required
+            />
+          </Form.Group>
+          {passwordError && (
+            <Alert variant="danger" role="alert" className="py-2 small">
+              {passwordError}
+            </Alert>
+          )}
+          {passwordChanged && (
+            <Alert variant="success" role="status" className="py-2 small">
+              Mot de passe modifié. Vos autres sessions ont été déconnectées.
+            </Alert>
+          )}
+          <Button
+            type="submit"
+            variant="success"
+            size="sm"
+            disabled={changingPassword || !currentPassword || !newPassword || !confirmPassword}
+          >
+            Changer le mot de passe
           </Button>
         </Form>
       </div>

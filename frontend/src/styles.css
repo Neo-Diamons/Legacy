@@ -276,6 +276,11 @@ button:focus {
   min-width: 240px;
 }
 
+.profile-password-form {
+  width: 100%;
+  max-width: 360px;
+}
+
 .stat-card {
   background-color: white;
   border-radius: 8px;

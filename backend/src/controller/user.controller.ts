@@ -6,6 +6,7 @@ import { jwtAuth, getJwtSecret } from '@http/auth.js';
 import { hashPassword, verifyPassword } from '@utils/password.js';
 import { userService, type PublicUser, type User } from '@service/user.service.js';
 import {
+  ChangePasswordBodySchema,
   LoginBodySchema,
   RegisterUserBodySchema,
   TokenResponseSchema,
@@ -177,6 +178,43 @@ userController.openapi(update, async (c) => {
   const user = await userService.getUser(id);
   if (!user) throw new HTTPException(404, { message: 'User not found' });
   return c.json(serializeUser(user), 200);
+});
+
+const changePassword = createRoute({
+  method: 'post',
+  path: '/{id}/password',
+  tags: ['Users'],
+  summary: 'Change the password of the authenticated user',
+  request: {
+    params: UserParamsSchema,
+    body: { content: { 'application/json': { schema: ChangePasswordBodySchema } } },
+  },
+  responses: {
+    200: { content: { 'application/json': { schema: TokenResponseSchema } }, description: 'Password changed' },
+    401: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Session expired' },
+    403: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Wrong current password' },
+    404: { content: { 'application/json': { schema: ErrorResponseSchema } }, description: 'Not found' },
+  },
+});
+userController.openapi(changePassword, async (c) => {
+  const id = requireOwnUser(c, c.req.valid('param').id);
+  const { currentPassword, newPassword } = c.req.valid('json');
+  const current = await userService.getUserById(id);
+  if (!current) throw new HTTPException(404, { message: 'User not found' });
+  // 403 rather than 401: the session is valid, and a 401 would make the client drop it.
+  if (!(await verifyPassword(currentPassword, current.passwordHash)))
+    throw new HTTPException(403, { message: 'Current password is incorrect' });
+
+  const changed = await userService.updateUser(id, {
+    passwordHash: await hashPassword(newPassword),
+    mustChangePassword: false,
+  });
+  if (!changed) throw new HTTPException(404, { message: 'User not found' });
+  // The update bumps the token version: every other session and socket is revoked, this one gets a fresh token.
+  disconnectUser(id);
+  const user = await userService.getUserById(id);
+  if (!user) throw new HTTPException(404, { message: 'User not found' });
+  return c.json({ token: await issueToken(user), user: serializeUser(user) }, 200);
 });
 
 const remove = createRoute({

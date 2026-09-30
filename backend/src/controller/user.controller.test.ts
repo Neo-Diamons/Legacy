@@ -22,10 +22,11 @@ describe('authentication', () => {
     ['GET', '/users'],
     ['GET', `/users/${crypto.randomUUID()}`],
     ['PUT', `/users/${crypto.randomUUID()}`],
+    ['POST', `/users/${crypto.randomUUID()}/password`],
     ['DELETE', `/users/${crypto.randomUUID()}`],
     ['GET', `/users/${crypto.randomUUID()}/export`],
   ])('%s %s answers 401 without a token', async (method, path) => {
-    expect((await call(null, method, path, method === 'PUT' ? { name: 'x' } : undefined)).status).toBe(401);
+    expect((await call(null, method, path, method === 'PUT' ? { name: 'x' } : method === 'POST' ? { currentPassword: 'x', newPassword: 'y' } : undefined)).status).toBe(401);
   });
 });
 
@@ -63,6 +64,66 @@ describe('GET /users/:id', () => {
 
   it('answers 422 for an id that is not a uuid', async () => {
     expect((await call(alice, 'GET', '/users/not-a-uuid')).status).toBe(422);
+  });
+});
+
+describe('POST /users/:id/password', () => {
+  const NEW_PASSWORD = 'a-brand-new-password';
+  const change = (session: Session, body: unknown, id = session.id) =>
+    call(session, 'POST', `/users/${id}/password`, body);
+
+  it('changes the password when the current one is right, and answers with a fresh session', async () => {
+    const res = await change(alice, { currentPassword: PASSWORD, newPassword: NEW_PASSWORD });
+
+    expect(res.status).toBe(200);
+    const body = await json(res);
+    expect(body.user).toMatchObject({ id: alice.id, email: 'alice@example.com', mustChangePassword: false });
+    expect(Object.keys(body.user).sort()).toEqual(['createdAt', 'email', 'id', 'mustChangePassword', 'name']);
+    expect(decode(body.token).payload.tv).toBe(1);
+    expect((await call({ ...alice, headers: { ...alice.headers, Authorization: `Bearer ${body.token}` } }, 'GET', '/users')).status).toBe(200);
+    expect((await login('alice@example.com', NEW_PASSWORD)).status).toBe(200);
+    expect((await login('alice@example.com', PASSWORD)).status).toBe(401);
+  });
+
+  it('revokes the token used for the request and every older one', async () => {
+    const other = await sessionFor(alice.id, alice.email, 0);
+    await change(alice, { currentPassword: PASSWORD, newPassword: NEW_PASSWORD });
+
+    for (const stale of [alice, other]) expect((await call(stale, 'GET', '/users')).status).toBe(401);
+    expect((await call(bob, 'GET', '/users')).status).toBe(200);
+  });
+
+  it('answers 403, without changing anything or revoking the session, when the current password is wrong', async () => {
+    const res = await change(alice, { currentPassword: 'not-the-password', newPassword: NEW_PASSWORD });
+
+    expect(res.status).toBe(403);
+    expect(await json(res)).toEqual({ message: 'Current password is incorrect' });
+    expect((await login('alice@example.com', PASSWORD)).status).toBe(200);
+    expect((await login('alice@example.com', NEW_PASSWORD)).status).toBe(401);
+    expect((await call(alice, 'GET', '/users')).status).toBe(200);
+    expect(await userService.getTokenVersion(alice.id)).toBe(0);
+  });
+
+  it('answers 422 for a new password shorter than 12 characters or a missing field', async () => {
+    expect((await change(alice, { currentPassword: PASSWORD, newPassword: 'too-short' })).status).toBe(422);
+    expect((await change(alice, { newPassword: NEW_PASSWORD })).status).toBe(422);
+    expect((await change(alice, { currentPassword: PASSWORD })).status).toBe(422);
+    expect((await change(alice, { currentPassword: PASSWORD, newPassword: NEW_PASSWORD, name: 'x' })).status).toBe(422);
+    expect((await login('alice@example.com', PASSWORD)).status).toBe(200);
+  });
+
+  it('answers 403 for another user, without touching their password', async () => {
+    const res = await change(alice, { currentPassword: PASSWORD, newPassword: NEW_PASSWORD }, bob.id);
+
+    expect(res.status).toBe(403);
+    expect((await login('bob@example.com', PASSWORD)).status).toBe(200);
+  });
+
+  it('clears the forced password change flag', async () => {
+    const legacy = await seedUser('legacy@example.com', { password: 'LegacyUser123!', mustChangePassword: true });
+    const res = await change(legacy, { currentPassword: 'LegacyUser123!', newPassword: NEW_PASSWORD });
+
+    expect((await json(res)).user.mustChangePassword).toBe(false);
   });
 });
 

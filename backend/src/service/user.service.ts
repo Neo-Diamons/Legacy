@@ -26,6 +26,7 @@ interface UserService {
   getTokenVersion(id: string): Promise<number | undefined>;
   emailExists(email: string): Promise<boolean>;
   getUserByEmail(email: string): Promise<User | undefined>;
+  getUserById(id: string): Promise<User | undefined>;
   createUser(user: UserInput): Promise<void>;
   updateUser(id: string, update: UserUpdate): Promise<number>;
   deleteUser(id: string): Promise<number>;
@@ -56,6 +57,9 @@ const sqliteService: UserService = {
   },
   async getUserByEmail(email) {
     return sqlite.db.select().from(sqliteUsers).where(eq(sqliteUsers.email, email)).get();
+  },
+  async getUserById(id) {
+    return sqlite.db.select().from(sqliteUsers).where(eq(sqliteUsers.id, id)).get();
   },
   async createUser(user) {
     sqlite.db.insert(sqliteUsers).values(user).run();
@@ -111,6 +115,9 @@ const mysqlService: UserService = {
   },
   async getUserByEmail(email) {
     return (await mysql.db.select().from(mysqlUsers).where(eq(mysqlUsers.email, email)).limit(1))[0];
+  },
+  async getUserById(id) {
+    return (await mysql.db.select().from(mysqlUsers).where(eq(mysqlUsers.id, id)).limit(1))[0];
   },
   async createUser(user) {
     await mysql.db.insert(mysqlUsers).values(user);

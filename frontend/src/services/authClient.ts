@@ -6,13 +6,32 @@ export interface AuthUser {
   mustChangePassword?: boolean;
 }
 
-interface AuthResponse {
+export interface AuthResponse {
   token: string;
   user: AuthUser;
 }
 
 const TOKEN_KEY = 'legacy.auth.token';
 const USER_KEY = 'legacy.auth.user';
+
+let sessionRefreshes = 0;
+
+/**
+ * While the session is being replaced on purpose (password change), the backend revokes the old token and closes
+ * its sockets: that revocation must not be mistaken for a forced logout.
+ */
+export function isRefreshingSession(): boolean {
+  return sessionRefreshes > 0;
+}
+
+export async function refreshSession<T>(run: () => Promise<T>): Promise<T> {
+  sessionRefreshes++;
+  try {
+    return await run();
+  } finally {
+    sessionRefreshes--;
+  }
+}
 
 type UnauthorizedListener = () => void;
 const unauthorizedListeners = new Set<UnauthorizedListener>();

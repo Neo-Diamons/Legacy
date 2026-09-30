@@ -45,7 +45,7 @@ function toTask(item: ItemResponse, projects: Project[], assignments: Record<str
 }
 
 export function AppDataProvider({ children }: { children: ReactNode }) {
-  const { user: authenticatedUser, updateName } = useAuth();
+  const { user: authenticatedUser, updateName, sessionKey } = useAuth();
   const [loading, setLoading] = useState(true);
   const user: CurrentUser = authenticatedUser
     ? {
@@ -124,6 +124,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       })
       .finally(() => setLoading(false));
 
+    // Reopened when the session token is replaced (password change): the old socket was revoked.
     return openItemSocket((event) => {
       switch (event.type) {
         case 'item.created':
@@ -150,7 +151,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
           break;
       }
     });
-  }, [formatPopUpAndAddNotification, addNotification]);
+  }, [formatPopUpAndAddNotification, addNotification, sessionKey]);
 
   const tasks = useMemo(() => items.map((item) => toTask(item, projects, assignments)), [items, projects, assignments]);
 

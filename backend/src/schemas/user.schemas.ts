@@ -32,6 +32,12 @@ export const UpdateUserBodySchema = z
   .openapi('UpdateUser');
 export type UpdateUserBody = z.infer<typeof UpdateUserBodySchema>;
 
+export const ChangePasswordBodySchema = z
+  .object({ currentPassword: z.string().min(1), newPassword: z.string().min(12) })
+  .strict()
+  .openapi('ChangePassword');
+export type ChangePasswordBody = z.infer<typeof ChangePasswordBodySchema>;
+
 export const UserParamsSchema = z.object({ id: z.uuid() });
 export const TokenResponseSchema = z.object({ token: z.string(), user: UserResponseSchema }).openapi('TokenResponse');
 export const UserExportResponseSchema = z
