@@ -2,7 +2,20 @@ import type { DragEvent } from 'react';
 import type { Task, TaskPriority } from "../types";
 import { TaskRow } from "./TaskRow";
 
-
+const translateCategory = (category: TaskPriority) => {
+    switch (category) {
+        case 'low':
+            return 'Faible';
+        case 'medium':
+            return 'Moyenne';
+        case 'high':
+            return 'Haute';
+        case 'urgent':
+            return 'Urgente';
+        default:
+            return category;
+    }
+};
 
 export function KanbanColumn ({tasks, category, toggleTask, updateTaskPriority, deleteTask}:
     {tasks: Task[], category: TaskPriority, toggleTask: (task: string) => void, updateTaskPriority: (task: string, priority: TaskPriority) => void, deleteTask: (task: string) => void}) {
@@ -18,7 +31,7 @@ export function KanbanColumn ({tasks, category, toggleTask, updateTaskPriority, 
             onDragOver={(event) => event.preventDefault()}
             onDrop={handleDrop}
         >
-            <h3>{category.charAt(0).toUpperCase() + category.slice(1)}</h3>
+            <h3>{translateCategory(category)}</h3>
             {tasks.map((task) => (
                 <TaskRow
                     key={task.id}
