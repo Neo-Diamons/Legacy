@@ -9,6 +9,7 @@ import { ProjectCard } from '../components/ProjectCard';
 import { TaskRow } from '../components/TaskRow';
 import { useAppData } from '../context/appDataContext';
 import type { TaskPriority } from '../types';
+import { toDateInputValue } from '../services/items';
 
 export function ProjectsPage({
   selectedProjectId,
@@ -88,6 +89,7 @@ function ProjectDetail({ projectId, onBack }: { projectId: string; onBack: () =>
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
   const [editPriority, setEditPriority] = useState<TaskPriority>('medium');
   const [editDueDate, setEditDueDate] = useState('');
+  const [editDescription, setEditDescription] = useState('');
 
   if (!project) return null;
 
@@ -104,8 +106,9 @@ function ProjectDetail({ projectId, onBack }: { projectId: string; onBack: () =>
 
     setEditingTaskId(taskId);
     setEditName(task.name);
+    setEditDescription(task.description ?? '');
     setEditPriority(task.priority);
-    setEditDueDate(task.dueDate ?? '');
+    setEditDueDate(toDateInputValue(task.dueDate));
   };
 
   return (
@@ -249,7 +252,13 @@ function ProjectDetail({ projectId, onBack }: { projectId: string; onBack: () =>
 
             if (!editingTaskId || !editName.trim()) return;
 
-            updateTaskName(editingTaskId, editName, editPriority, editDueDate || null);
+            updateTaskName(
+              editingTaskId,
+              editName,
+              editPriority,
+              editDueDate || null,
+              editDescription || null,
+            );
             setEditingTaskId(null);
           }}
         >
@@ -267,6 +276,15 @@ function ProjectDetail({ projectId, onBack }: { projectId: string; onBack: () =>
                 type="text"
                 value={editName}
                 onChange={(e) => setEditName(e.target.value)}
+              />
+            </Form.Group>
+            <Form.Group controlId="edit-task-description" className="mt-3">
+              <Form.Label>Note</Form.Label>
+              <Form.Control
+                as="textarea"
+                value={editDescription}
+                onChange={(e) => setEditDescription(e.target.value)}
+                placeholder="Ajouter une note (optionnelle)"
               />
             </Form.Group>
             <Form.Group controlId="edit-task-priority" className="mt-3">

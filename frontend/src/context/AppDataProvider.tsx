@@ -178,6 +178,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     name: string,
     priority?: TaskPriority,
     dueDate?: string | null,
+    description?: string | null,
   ) => {
     const task = itemsRef.current.find((item) => item.id === taskId);
     const trimmed = name.trim();
@@ -187,7 +188,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
     updateItem(taskId, {
       name: trimmed,
       completed: task.completed,
-      description: task.description,
+      description: description === undefined ? task.description : description,
       priority: priority ?? task.priority,
       dueDate: dueDate === undefined ? task.dueDate : dueDate,
     })
@@ -209,6 +210,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
 
     createItem({
       name: input.name.trim(),
+      description: input.description,
       priority: input.priority,
       dueDate: input.dueDate,
     })
@@ -228,7 +230,7 @@ export function AppDataProvider({ children }: { children: ReactNode }) {
       name: input.name.trim(),
       projectId: input.projectId,
       projectName: project?.name ?? '',
-      description: null,
+      description: input.description ?? null,
       priority: input.priority,
       dueDate: input.dueDate,
       completed: false,

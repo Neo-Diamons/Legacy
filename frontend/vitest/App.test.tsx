@@ -94,11 +94,129 @@ describe('App', () => {
       '/items',
       expect.objectContaining({
         method: 'POST',
-        body: JSON.stringify({ name: createdItem.name, priority: 'medium', dueDate: null }),
+        body: JSON.stringify({
+          name: createdItem.name,
+          description: null,
+          priority: 'medium',
+          dueDate: null,
+        }),
       })
     );
 
     expect(await screen.findByText(createdItem.name)).toBeInTheDocument();
+  });
+
+  test('sends task due date as an ISO datetime when creating a task', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve([]),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            ...item('1', 'Ma tâche'),
+            dueDate: '2026-10-15T00:00:00.000Z',
+          }),
+      });
+
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<App />);
+    await screen.findByText('Bonjour Michel 👋');
+
+    openProject();
+
+    fireEvent.click(
+      screen.getByRole('button', { name: '+ Ajouter une tâche' }),
+    );
+
+    fireEvent.change(screen.getByLabelText('Nom'), {
+      target: { value: 'Ma tâche' },
+    });
+
+    fireEvent.change(screen.getByLabelText('Échéance (optionnelle)'), {
+      target: { value: '2026-10-15' },
+    });
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Créer la tâche' }),
+    );
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      '/items',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({
+          name: 'Ma tâche',
+          description: null,
+          priority: 'medium',
+          dueDate: '2026-10-15T00:00:00.000Z',
+        }),
+      }),
+    );
+  });
+
+  test('sends task due date as an ISO datetime when updating a task', async () => {
+    const task = {
+      ...item('1', 'Ma tâche'),
+      dueDate: '2026-10-15T00:00:00.000Z',
+    };
+
+    const updatedTask = {
+      ...task,
+      dueDate: '2026-10-20T00:00:00.000Z',
+    };
+
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve([task]),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve(updatedTask),
+      });
+
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<App />);
+    await screen.findByText('Bonjour Michel 👋');
+    openProject();
+
+    fireEvent.click(
+      within(
+        screen.getByText(task.name).closest('.task-row') as HTMLElement,
+      ).getByRole('button', { name: 'Modifier la tâche' }),
+    );
+
+    fireEvent.change(
+      screen.getByLabelText('Échéance'),
+      { target: { value: '2026-10-20' } },
+    );
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Enregistrer' }),
+    );
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      `/items/${task.id}`,
+      expect.objectContaining({
+        method: 'PUT',
+        body: JSON.stringify({
+          name: task.name,
+          completed: task.completed,
+          description: task.description,
+          priority: task.priority,
+          dueDate: '2026-10-20T00:00:00.000Z',
+        }),
+      }),
+    );
   });
 
   test('toggles completion and removes a task from the project view', async () => {
@@ -533,6 +651,61 @@ describe('App', () => {
     expect(
       await screen.findByText('Tâche du projet'),
     ).toBeInTheDocument();
+  });
+
+  it('adds an optional note when creating a task', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve([]),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            ...item('task-with-note', 'Ma tâche'),
+            description: 'Ma note',
+          }),
+      });
+
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<App />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Projets')).toBeInTheDocument();
+    });
+
+    openProject();
+
+    fireEvent.click(
+      screen.getByRole('button', { name: '+ Ajouter une tâche' }),
+    );
+
+    fireEvent.change(
+      screen.getByLabelText('Nom'),
+      { target: { value: 'Ma tâche' } },
+    );
+
+    fireEvent.change(
+      screen.getByLabelText('Note'),
+      { target: { value: 'Ma note' } },
+    );
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Créer la tâche' }),
+    );
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        '/items',
+        expect.objectContaining({
+          method: 'POST',
+          body: expect.stringContaining('"description":"Ma note"'),
+        }),
+      );
+    });
   });
 
   test('allows editing a project name', async () => {
@@ -976,6 +1149,153 @@ describe('App', () => {
     ).toHaveValue('Ancien nom');
   });
 
+  test('shows the current task note when editing a task', async () => {
+    const task = {
+      ...item('1', 'Ma tâche'),
+      description: 'Ma note actuelle',
+    };
+
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValueOnce({
+          ok: true,
+          json: () => Promise.resolve([task]),
+        }),
+    );
+
+    render(<App />);
+    await screen.findByText('Bonjour Michel 👋');
+    openProject();
+
+    fireEvent.click(
+      within(
+        screen.getByText(task.name).closest('.task-row') as HTMLElement,
+      ).getByRole('button', { name: 'Modifier la tâche' }),
+    );
+
+    expect(screen.getByLabelText('Note')).toHaveValue('Ma note actuelle');
+  });
+
+  test('updates a task note when the edit form is submitted', async () => {
+    const task = {
+      ...item('1', 'Ma tâche'),
+      description: 'Ancienne note',
+    };
+
+    const updatedTask = {
+      ...task,
+      description: 'Nouvelle note',
+    };
+
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve([task]),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve(updatedTask),
+      });
+
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<App />);
+    await screen.findByText('Bonjour Michel 👋');
+    openProject();
+
+    fireEvent.click(
+      within(
+        screen.getByText(task.name).closest('.task-row') as HTMLElement,
+      ).getByRole('button', { name: 'Modifier la tâche' }),
+    );
+
+    fireEvent.change(
+      screen.getByLabelText('Note'),
+      { target: { value: 'Nouvelle note' } },
+    );
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Enregistrer' }),
+    );
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      `/items/${task.id}`,
+      expect.objectContaining({
+        method: 'PUT',
+        body: JSON.stringify({
+          name: task.name,
+          completed: task.completed,
+          description: 'Nouvelle note',
+          priority: task.priority,
+          dueDate: task.dueDate,
+        }),
+      }),
+    );
+  });
+
+  test('clears a task note when edit form is submitted without a note', async () => {
+    const task = {
+      ...item('1', 'Ma tâche'),
+      description: 'Ancienne note',
+    };
+
+    const updatedTask = {
+      ...task,
+      description: null,
+    };
+
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve([task]),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve(updatedTask),
+      });
+
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(<App />);
+    await screen.findByText('Bonjour Michel 👋');
+    openProject();
+
+    fireEvent.click(
+      within(
+        screen.getByText(task.name).closest('.task-row') as HTMLElement,
+      ).getByRole('button', { name: 'Modifier la tâche' }),
+    );
+
+    fireEvent.change(
+      screen.getByLabelText('Note'),
+      { target: { value: '' } },
+    );
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Enregistrer' }),
+    );
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      `/items/${task.id}`,
+      expect.objectContaining({
+        method: 'PUT',
+        body: JSON.stringify({
+          name: task.name,
+          completed: task.completed,
+          description: null,
+          priority: task.priority,
+          dueDate: task.dueDate,
+        }),
+      }),
+    );
+  });
+
   it('updates a task name when the edit form is submitted', async () => {
     const fetchMock = vi
       .fn()
@@ -1358,10 +1678,38 @@ describe('App', () => {
         '/items/task-update-due-date',
         expect.objectContaining({
           method: 'PUT',
-          body: expect.stringContaining('"dueDate":"2026-11-01"'),
+          body: expect.stringContaining('"dueDate":"2026-11-01T00:00:00.000Z"'),
         }),
       );
     });
+  });
+
+  test('shows the backend due date correctly in the edit form', async () => {
+    const task = {
+      ...item('1', 'Ma tâche'),
+      dueDate: '2026-10-15T00:00:00.000Z',
+    };
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValueOnce({
+        ok: true,
+        json: () => Promise.resolve([task]),
+      }),
+    );
+
+    render(<App />);
+    await screen.findByText('Bonjour Michel 👋');
+
+    openProject();
+
+    fireEvent.click(
+      within(
+        screen.getByText(task.name).closest('.task-row') as HTMLElement,
+      ).getByRole('button', { name: 'Modifier la tâche' }),
+    );
+
+    expect(screen.getByLabelText('Échéance')).toHaveValue('2026-10-15');
   });
 
   test('keeps the project when deletion is cancelled', async () => {
